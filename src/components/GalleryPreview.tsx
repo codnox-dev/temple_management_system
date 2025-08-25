@@ -3,37 +3,37 @@ import { ExternalLink, Camera } from 'lucide-react';
 const galleryImages = [
   {
     id: 1,
-    src: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=400&h=300&fit=crop',
+    src: '',
     title: 'Evening Aarti Ceremony',
     category: 'Rituals',
   },
   {
     id: 2,
-    src: 'https://images.unsplash.com/photo-1605538883669-242d80da4c85?w=400&h=300&fit=crop',
+    src: '',
     title: 'Diwali Celebration',
     category: 'Festivals',
   },
   {
     id: 3,
-    src: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400&h=300&fit=crop',
+    src: '',
     title: 'Temple Architecture',
     category: 'Temple',
   },
   {
     id: 4,
-    src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+    src: '',
     title: 'Community Gathering',
     category: 'Events',
   },
   {
     id: 5,
-    src: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
+    src: '',
     title: 'Sacred Decorations',
     category: 'Temple',
   },
   {
     id: 6,
-    src: 'https://images.unsplash.com/photo-1571974599782-87624638275a?w=400&h=300&fit=crop',
+    src: '',
     title: 'Wedding Ceremony',
     category: 'Rituals',
   },

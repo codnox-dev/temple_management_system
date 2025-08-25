@@ -72,7 +72,7 @@ const TempleOverview = () => {
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden card-divine">
               <img
-                src="https://images.unsplash.com/photo-1564507592333-c60657eea523?w=600&h=400&fit=crop"
+                src=""
                 alt="Temple Interior"
                 className="w-full h-[500px] object-cover"
               />

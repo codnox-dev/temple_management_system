@@ -9,8 +9,7 @@ const events = [
     attendees: 500,
     location: 'Main Temple Hall',
     description: 'Grand celebration of the festival of lights with traditional ceremonies',
-    image: 'https://images.unsplash.com/photo-1605538883669-242d80da4c85?w=400&h=200&fit=crop',
-    featured: true,
+    image: '',
   },
   {
     id: 2,
@@ -20,7 +19,7 @@ const events = [
     attendees: 100,
     location: 'Prayer Hall',
     description: 'Spiritual discourse and community gathering for devotional songs',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop',
+    image: '',
   },
   {
     id: 3,
@@ -30,7 +29,7 @@ const events = [
     attendees: 200,
     location: 'Sanctum Sanctorum',
     description: 'Sacred fire ceremony performed twice daily with devotional hymns',
-    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=400&h=200&fit=crop',
+    image: '',
   },
 ];
 
@@ -54,15 +53,9 @@ const EventSection = () => {
           {events.map((event, index) => (
             <div 
               key={event.id} 
-              className={`card-divine group overflow-hidden ${
-                event.featured ? 'lg:col-span-2 lg:row-span-1' : ''
-              }`}
+              className={`card-divine group overflow-hidden`}
             >
-              {event.featured && (
-                <div className="absolute top-4 left-4 z-10 bg-gradient-golden text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                  Featured Event
-                </div>
-              )}
+              {/* The "Featured Event" div has been removed */}
               
               <div className="relative h-48 overflow-hidden rounded-lg mb-4">
                 <img
