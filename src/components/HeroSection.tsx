@@ -1,5 +1,6 @@
 import { Sparkles, Calendar, Bell } from 'lucide-react';
 import templeHero from '@/assets/temple-hero.jpg';
+import { Link } from 'react-router-dom';
 
 const HeroSection = () => {
   return (
@@ -35,14 +36,14 @@ const HeroSection = () => {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-          <button className="btn-divine group">
+          <Link to="/ritual-booking" className="btn-divine group">
             <Calendar className="h-5 w-5 mr-2 group-hover:animate-pulse" />
             Book Sacred Ritual
-          </button>
-          <button className="btn-golden group">
+          </Link>
+          <Link to="/events" className="btn-golden group">
             <Bell className="h-5 w-5 mr-2 group-hover:rotate-12 transition-transform" />
             View Events
-          </button>
+          </Link>
         </div>
 
         {/* Sacred Stats */}
