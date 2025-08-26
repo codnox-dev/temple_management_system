@@ -18,16 +18,7 @@ const HeroSection = () => {
       {/* Main Content */}
       <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
         {/* Sacred Symbol */}
-        <div className="mb-8 flex justify-center">
-          <div className="relative">
-            <div className="w-24 h-24 bg-gradient-divine rounded-full flex items-center justify-center pulse-divine">
-              <div className="w-16 h-16 bg-card rounded-full flex items-center justify-center">
-                <Sparkles className="h-10 w-10 text-primary" />
-              </div>
-            </div>
-            <div className="absolute -inset-4 bg-primary/20 rounded-full blur-xl glow-sacred" />
-          </div>
-        </div>
+        
 
         {/* Welcome Message */}
         <h1 className="text-5xl md:text-7xl font-playfair font-bold mb-6 text-foreground">
