@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RitualBooking from "./pages/RitualBooking";
 import EventDetails from "./pages/EventDetails";
-import FullEvents from "./pages/FullEvents"; // Import the new page
+import FullEvents from "./pages/FullEvents";
 
 const queryClient = new QueryClient();
 
@@ -18,10 +18,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* This route renders your main page (`Index`). 
+              All sections from the navbar (#home, #about, #contact, etc.) 
+              should be placed inside the Index component to enable smooth scrolling. */}
           <Route path="/" element={<Index />} />
+
+          {/* These are separate, distinct pages */}
           <Route path="/ritual-booking" element={<RitualBooking />} />
-          <Route path="/events" element={<FullEvents />} /> {/* Add route for all events */}
+          <Route path="/events" element={<FullEvents />} />
           <Route path="/events/:id" element={<EventDetails />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
