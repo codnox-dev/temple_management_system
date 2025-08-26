@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RitualBooking from "./pages/RitualBooking";
 import EventDetails from "./pages/EventDetails";
+import FullEvents from "./pages/FullEvents"; // Import the new page
 
 const queryClient = new QueryClient();
 
@@ -19,6 +20,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/ritual-booking" element={<RitualBooking />} />
+          <Route path="/events" element={<FullEvents />} /> {/* Add route for all events */}
           <Route path="/events/:id" element={<EventDetails />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
