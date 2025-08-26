@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Flame, Flower2, Heart, Star } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ArrowLeft, Flame, Flower2, Heart, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,37 @@ const rituals = [
 	},
 ];
 
+// NEW: Naal options (Malayalam with English in brackets)
+const NAALS = [
+	'അശ്വതി (Ashwathi)',
+	'ഭരണി (Bharani)',
+	'കാർത്തിക (Karthika)',
+	'രോഹിണി (Rohini)',
+	'മകയിരം (Makayiram)',
+	'തിരുവാതിര (Thiruvathira)',
+	'പുണർതം (Punartham)',
+	'പൂയം (Pooyam)',
+	'ആയില്യം (Aayilyam)',
+	'മകം (Makam)',
+	'പൂരം (Pooram)',
+	'ഉത്രം (Uthram)',
+	'അത്തം (Atham)',
+	'ചിത്തിര (Chithira)',
+	'ചോതി (Chothi)',
+	'വിശാഖം (Vishakham)',
+	'അനിഴം (Anizham)',
+	'തൃക്കേട്ട (Thrikketta)',
+	'മൂലം (Moolam)',
+	'പൂരാടം (Pooradam)',
+	'ഉത്രാടം (Uthradam)',
+	'തിരുവോണം (Thiruvonam)',
+	'അവിറ്റം (Avittam)',
+	'ചതയം (Chathayam)',
+	'പൂരുരുട്ടാതി (Pooruruttathi)',
+	'ഉത്തൃട്ടാതി (Uthruttathi)',
+	'രേവതി (Revathi)',
+];
+
 type Subscription = 'one-time' | 'daily' | 'weekly' | 'monthly';
 
 type RitualInstance = {
@@ -72,6 +103,19 @@ const RitualBooking = () => {
 	const [search, setSearch] = useState('');
 	const [instances, setInstances] = useState<RitualInstance[]>([]);
 
+	// NEW: show only two rows initially, compute columns by breakpoint
+	const [showAllRituals, setShowAllRituals] = useState(false);
+	const [gridCols, setGridCols] = useState(1);
+	useEffect(() => {
+		const updateCols = () => {
+			const w = window.innerWidth;
+			setGridCols(w >= 1024 ? 3 : w >= 640 ? 2 : 1);
+		};
+		updateCols();
+		window.addEventListener('resize', updateCols);
+		return () => window.removeEventListener('resize', updateCols);
+	}, []);
+
 	const filteredRituals = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return rituals;
@@ -79,6 +123,12 @@ const RitualBooking = () => {
 			(r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
 		);
 	}, [search]);
+
+	// NEW: limit to two rows unless expanded
+	const visibleRituals = useMemo(() => {
+		const max = showAllRituals ? filteredRituals.length : gridCols * 2;
+		return filteredRituals.slice(0, max);
+	}, [filteredRituals, showAllRituals, gridCols]);
 
 	const addInstance = (ritualId: number) => {
 		setInstances((prev) => [
@@ -230,14 +280,18 @@ const RitualBooking = () => {
 
 					{/* Rituals grid (matrix) */}
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-						{filteredRituals.map((ritual) => {
+						{visibleRituals.map((ritual) => {
 							const IconComponent = ritual.icon;
-							const ritualInstances = instances.filter((i) => i.ritualId === ritual.id);
-
 							return (
 								<div
 									key={ritual.id}
-									className="rounded-lg border border-primary/20 p-4 hover:bg-card/50 transition-colors"
+									role="button"
+									tabIndex={0}
+									onClick={() => addInstance(ritual.id)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') addInstance(ritual.id);
+									}}
+									className="rounded-lg border border-primary/20 p-4 hover:bg-card/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
 								>
 									<div className="flex items-center gap-2 mb-2">
 										<IconComponent className="h-5 w-5 text-primary" />
@@ -246,117 +300,146 @@ const RitualBooking = () => {
 									<p className="text-sm text-muted-foreground mb-3">
 										{ritual.description}
 									</p>
-									<div className="flex items-center justify-between text-sm mb-3">
+									<div className="flex items-center justify-between text-sm">
 										<span className="text-muted-foreground">
 											Duration: {ritual.duration}
 										</span>
 										<span className="font-semibold text-primary">₹{ritual.price}</span>
 									</div>
-
-									<Button
-										variant="secondary"
-										className="w-full mb-3"
-										onClick={() => addInstance(ritual.id)}
-									>
-										Add Ritual
-									</Button>
-
-									{ritualInstances.length > 0 && (
-										<div className="space-y-3">
-											{ritualInstances.map((inst, idx) => (
-												<div
-													key={inst.id}
-													className="rounded-md border border-primary/10 bg-background/50 p-3"
-												>
-													<div className="text-sm font-medium text-foreground mb-2">
-														{ritual.name} #{idx + 1}
-													</div>
-
-													<div className="space-y-2">
-														<div>
-															<Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label>
-															<Input
-																id={`devotee-${inst.id}`}
-																value={inst.devoteeName}
-																onChange={(e) =>
-																	updateInstance(inst.id, 'devoteeName', e.target.value)
-																}
-																className="mt-1"
-																placeholder="Enter devotee name"
-																required
-															/>
-														</div>
-
-														<div>
-															<Label htmlFor={`naal-${inst.id}`}>Naal *</Label>
-															<Input
-																id={`naal-${inst.id}`}
-																value={inst.naal}
-																onChange={(e) => updateInstance(inst.id, 'naal', e.target.value)}
-																className="mt-1"
-																placeholder="Enter naal"
-																required
-															/>
-														</div>
-
-														<div className="grid grid-cols-3 gap-3">
-															<div className="col-span-2">
-																<Label htmlFor={`sub-${inst.id}`}>Subscription</Label>
-																{/* native select for simplicity */}
-																<select
-																	id={`sub-${inst.id}`}
-																	value={inst.subscription}
-																	onChange={(e) =>
-																		updateInstance(inst.id, 'subscription', e.target.value as Subscription)
-																	}
-																	className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-																>
-																	<option value="one-time">One-time</option>
-																	<option value="daily">Daily</option>
-																	<option value="weekly">Weekly</option>
-																	<option value="monthly">Monthly</option>
-																</select>
-															</div>
-
-															<div>
-																<Label htmlFor={`qty-${inst.id}`}>Qty</Label>
-																<Input
-																	id={`qty-${inst.id}`}
-																	type="number"
-																	min={1}
-																	value={inst.quantity}
-																	onChange={(e) =>
-																		updateInstance(inst.id, 'quantity', Math.max(1, Number(e.target.value || 1)))
-																	}
-																	className="mt-1"
-																/>
-															</div>
-														</div>
-
-														<div className="flex items-center justify-between pt-2">
-															<div className="text-sm text-muted-foreground">
-																Total:{' '}
-																<span className="font-semibold text-primary">
-																	₹{calcInstanceTotal(inst)}
-																</span>
-															</div>
-															<Button
-																variant="ghost"
-																className="text-destructive hover:text-destructive"
-																onClick={() => removeInstance(inst.id)}
-															>
-																Remove
-															</Button>
-														</div>
-													</div>
-												</div>
-											))}
-										</div>
-									)}
 								</div>
 							);
 						})}
 					</div>
+
+					{/* Show more/less arrow */}
+					{filteredRituals.length > visibleRituals.length ? (
+						<div className="flex justify-center mt-4">
+							<Button variant="ghost" size="icon" onClick={() => setShowAllRituals(true)} aria-label="Show more rituals">
+								<ChevronDown className="h-5 w-5" />
+							</Button>
+						</div>
+					) : filteredRituals.length > gridCols * 2 && showAllRituals ? (
+						<div className="flex justify-center mt-4">
+							<Button variant="ghost" size="icon" onClick={() => setShowAllRituals(false)} aria-label="Show fewer rituals">
+								<ChevronUp className="h-5 w-5" />
+							</Button>
+						</div>
+					) : null}
+				</Card>
+
+				{/* 2.5) Selected Entries (appears under rituals section) */}
+				<Card className="card-divine p-6 mb-8">
+					<h2 className="text-2xl font-playfair font-semibold mb-6 text-foreground">
+						Selected Entries
+					</h2>
+					{instances.length === 0 ? (
+						<p className="text-muted-foreground">Click a ritual above to add an entry.</p>
+					) : (
+						<div className="space-y-4">
+							{instances.map((inst, idx) => {
+								const r = ritualById(inst.ritualId);
+								return (
+									<div
+										key={inst.id}
+										className="rounded-md border border-primary/10 bg-background/50 p-4"
+									>
+										<div className="text-sm font-medium text-foreground mb-3">
+											{r.name} #{idx + 1}
+										</div>
+
+										<div className="space-y-3">
+											<div>
+												<Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label>
+												<Input
+													id={`devotee-${inst.id}`}
+													value={inst.devoteeName}
+													onChange={(e) =>
+														updateInstance(inst.id, 'devoteeName', e.target.value)
+													}
+													className="mt-1"
+													placeholder="Enter devotee name"
+													required
+												/>
+											</div>
+
+											<div>
+												<Label htmlFor={`naal-${inst.id}`}>Naal *</Label>
+												<select
+													id={`naal-${inst.id}`}
+													value={inst.naal}
+													onChange={(e) => updateInstance(inst.id, 'naal', e.target.value)}
+													className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+													required
+												>
+													<option value="" disabled>
+														Select Naal
+													</option>
+													{NAALS.map((n) => (
+														<option key={n} value={n}>
+															{n}
+														</option>
+													))}
+												</select>
+											</div>
+
+											<div className="grid grid-cols-3 gap-3">
+												<div className="col-span-2">
+													<Label htmlFor={`sub-${inst.id}`}>Subscription</Label>
+													<select
+														id={`sub-${inst.id}`}
+														value={inst.subscription}
+														onChange={(e) =>
+															updateInstance(inst.id, 'subscription', e.target.value as Subscription)
+														}
+														className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+													>
+														<option value="one-time">One-time</option>
+														<option value="daily">Daily</option>
+														<option value="weekly">Weekly</option>
+														<option value="monthly">Monthly</option>
+													</select>
+												</div>
+
+												<div>
+													<Label htmlFor={`qty-${inst.id}`}>Qty</Label>
+													<Input
+														id={`qty-${inst.id}`}
+														type="number"
+														min={1}
+														value={inst.quantity}
+														onChange={(e) =>
+															updateInstance(
+																inst.id,
+																'quantity',
+																Math.max(1, Number(e.target.value || 1))
+															)
+														}
+														className="mt-1"
+													/>
+												</div>
+											</div>
+
+											<div className="flex items-center justify-between pt-2">
+												<div className="text-sm text-muted-foreground">
+													Total:{' '}
+													<span className="font-semibold text-primary">
+														₹{calcInstanceTotal(inst)}
+													</span>
+												</div>
+												<Button
+													variant="ghost"
+													className="text-destructive hover:text-destructive"
+													onClick={() => removeInstance(inst.id)}
+												>
+													Remove
+												</Button>
+											</div>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					)}
 				</Card>
 
 				{/* 3) Checkout Summary */}
