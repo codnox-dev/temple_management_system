@@ -82,9 +82,7 @@ const RitualSection = () => {
                   </span>
                 </div>
 
-                <button className="w-full btn-golden text-sm py-2">
-                  Book Ritual
-                </button>
+                
               </div>
             );
           })}
