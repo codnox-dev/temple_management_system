@@ -33,7 +33,7 @@ const HeroSection = () => {
         <h1 className="text-5xl md:text-7xl font-playfair font-bold mb-6 text-foreground">
           Welcome to
           <span className="block text-primary drop-shadow-[0_0_15px_rgba(255,153,51,0.5)]">
-            Divine Temple
+            Vamanan Temple
           </span>
         </h1>
         
