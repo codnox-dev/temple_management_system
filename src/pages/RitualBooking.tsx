@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 
+// Defines the list of available rituals with their properties.
 const rituals = [
 	{
 		id: 1,
@@ -41,7 +42,7 @@ const rituals = [
 	},
 ];
 
-// NEW: Naal options (Malayalam with English in brackets)
+// Constant array for astrological signs (Naal) in Malayalam and English.
 const NAALS = [
 	'അശ്വതി (Ashwathi)',
 	'ഭരണി (Bharani)',
@@ -72,17 +73,21 @@ const NAALS = [
 	'രേവതി (Revathi)',
 ];
 
+// Type definition for subscription frequencies.
 type Subscription = 'one-time' | 'daily' | 'weekly' | 'monthly';
 
+// Type definition for a single instance of a selected ritual.
 type RitualInstance = {
 	id: string;
 	ritualId: number;
 	devoteeName: string;
 	naal: string;
+	dob: string; // NEW: Date of Birth field
 	subscription: Subscription;
 	quantity: number;
 };
 
+// Maps subscription frequencies to their respective cost multipliers.
 const frequencyMultipliers: Record<Subscription, number> = {
 	'one-time': 1,
 	daily: 30,
@@ -91,7 +96,9 @@ const frequencyMultipliers: Record<Subscription, number> = {
 };
 
 const RitualBooking = () => {
+	// State for tracking selected ritual IDs (deprecated, consider removal if not used elsewhere).
 	const [selectedRituals, setSelectedRituals] = useState<number[]>([]);
+	// State for storing the main contact's personal information.
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
@@ -99,13 +106,17 @@ const RitualBooking = () => {
 		address: '',
 	});
 
-	// NEW: searchable ritual matrix + instances of rituals
+	// State for the ritual search query.
 	const [search, setSearch] = useState('');
+	// State to hold all individual ritual booking entries.
 	const [instances, setInstances] = useState<RitualInstance[]>([]);
 
-	// NEW: show only two rows initially, compute columns by breakpoint
+	// State for controlling the visibility of the full ritual list.
 	const [showAllRituals, setShowAllRituals] = useState(false);
+	// State for dynamically setting the number of grid columns based on screen width.
 	const [gridCols, setGridCols] = useState(1);
+
+	// Effect to adjust the grid layout based on window size.
 	useEffect(() => {
 		const updateCols = () => {
 			const w = window.innerWidth;
@@ -116,6 +127,7 @@ const RitualBooking = () => {
 		return () => window.removeEventListener('resize', updateCols);
 	}, []);
 
+	// Memoized function to filter rituals based on the search query.
 	const filteredRituals = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return rituals;
@@ -124,12 +136,16 @@ const RitualBooking = () => {
 		);
 	}, [search]);
 
-	// NEW: limit to two rows unless expanded
+	// Memoized function to determine which rituals are visible (limited by default).
 	const visibleRituals = useMemo(() => {
 		const max = showAllRituals ? filteredRituals.length : gridCols * 2;
 		return filteredRituals.slice(0, max);
 	}, [filteredRituals, showAllRituals, gridCols]);
 
+	/**
+	 * Adds a new ritual instance to the state with default values.
+	 * @param {number} ritualId - The ID of the ritual to add.
+	 */
 	const addInstance = (ritualId: number) => {
 		setInstances((prev) => [
 			...prev,
@@ -138,12 +154,19 @@ const RitualBooking = () => {
 				ritualId,
 				devoteeName: '',
 				naal: '',
+				dob: '', // NEW: Initialize date of birth as empty
 				subscription: 'one-time',
 				quantity: 1,
 			},
 		]);
 	};
 
+	/**
+	 * Updates a specific property of a ritual instance.
+	 * @param {string} id - The unique ID of the instance to update.
+	 * @param {K} key - The property of the instance to update.
+	 * @param {RitualInstance[K]} value - The new value for the property.
+	 */
 	const updateInstance = <K extends keyof RitualInstance>(
 		id: RitualInstance['id'],
 		key: K,
@@ -152,21 +175,43 @@ const RitualBooking = () => {
 		setInstances((prev) => prev.map((i) => (i.id === id ? { ...i, [key]: value } : i)));
 	};
 
+	/**
+	 * Removes a ritual instance from the state by its ID.
+	 * @param {string} id - The unique ID of the instance to remove.
+	 */
 	const removeInstance = (id: RitualInstance['id']) => {
 		setInstances((prev) => prev.filter((i) => i.id !== id));
 	};
 
+	/**
+	 * Retrieves a ritual's details by its ID.
+	 * @param {number} id - The ID of the ritual.
+	 * @returns {object} The ritual object.
+	 */
 	const ritualById = (id: number) => rituals.find((r) => r.id === id)!;
 
+	/**
+	 * Calculates the total cost for a single ritual instance, including frequency multipliers.
+	 * @param {RitualInstance} i - The ritual instance object.
+	 * @returns {number} The calculated total for the instance.
+	 */
 	const calcInstanceTotal = (i: RitualInstance) => {
 		const r = ritualById(i.ritualId);
 		return r.price * i.quantity * frequencyMultipliers[i.subscription];
 	};
 
+	/**
+	 * Calculates the grand total cost for all selected ritual instances.
+	 * @returns {number} The total cost.
+	 */
 	const calculateTotal = () => {
 		return instances.reduce((sum, i) => sum + calcInstanceTotal(i), 0);
 	};
 
+	/**
+	 * Handles input changes for the main contact form.
+	 * @param {React.ChangeEvent<HTMLInputElement>} e - The input change event.
+	 */
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData({
 			...formData,
@@ -174,7 +219,11 @@ const RitualBooking = () => {
 		});
 	};
 
-	const allInstancesValid = instances.every((i) => i.devoteeName.trim() && i.naal.trim());
+	// Validation check to ensure all required fields in all instances are filled.
+	const allInstancesValid = instances.every(
+		(i) => i.devoteeName.trim() && i.naal.trim() && i.dob.trim()
+	);
+	// Determines if the checkout button should be enabled.
 	const canCheckout =
 		instances.length > 0 &&
 		allInstancesValid &&
@@ -314,13 +363,23 @@ const RitualBooking = () => {
 					{/* Show more/less arrow */}
 					{filteredRituals.length > visibleRituals.length ? (
 						<div className="flex justify-center mt-4">
-							<Button variant="ghost" size="icon" onClick={() => setShowAllRituals(true)} aria-label="Show more rituals">
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={() => setShowAllRituals(true)}
+								aria-label="Show more rituals"
+							>
 								<ChevronDown className="h-5 w-5" />
 							</Button>
 						</div>
 					) : filteredRituals.length > gridCols * 2 && showAllRituals ? (
 						<div className="flex justify-center mt-4">
-							<Button variant="ghost" size="icon" onClick={() => setShowAllRituals(false)} aria-label="Show fewer rituals">
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={() => setShowAllRituals(false)}
+								aria-label="Show fewer rituals"
+							>
 								<ChevronUp className="h-5 w-5" />
 							</Button>
 						</div>
@@ -382,6 +441,21 @@ const RitualBooking = () => {
 												</select>
 											</div>
 
+											{/* NEW: Date of Birth field */}
+											<div>
+												<Label htmlFor={`dob-${inst.id}`}>Date of Birth *</Label>
+												<Input
+													id={`dob-${inst.id}`}
+													type="date"
+													value={inst.dob}
+													onChange={(e) =>
+														updateInstance(inst.id, 'dob', e.target.value)
+													}
+													className="mt-1"
+													required
+												/>
+											</div>
+
 											<div className="grid grid-cols-3 gap-3">
 												<div className="col-span-2">
 													<Label htmlFor={`sub-${inst.id}`}>Subscription</Label>
@@ -389,7 +463,11 @@ const RitualBooking = () => {
 														id={`sub-${inst.id}`}
 														value={inst.subscription}
 														onChange={(e) =>
-															updateInstance(inst.id, 'subscription', e.target.value as Subscription)
+															updateInstance(
+																inst.id,
+																'subscription',
+																e.target.value as Subscription
+															)
 														}
 														className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 													>
@@ -466,7 +544,7 @@ const RitualBooking = () => {
 									>
 										<div className="text-foreground text-sm">
 											{r.name} • {inst.devoteeName || 'Name'} • {inst.naal || 'Naal'} •{' '}
-											{inst.subscription} • Qty {inst.quantity}
+											{inst.dob || 'DOB'} • {inst.subscription} • Qty {inst.quantity}
 										</div>
 										<div className="font-semibold text-primary">
 											₹{calcInstanceTotal(inst)}
