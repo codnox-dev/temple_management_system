@@ -5,7 +5,6 @@
 @tailwind utilities;
 
 /* Divine Temple Design System - All colors MUST be HSL */
-
 @layer base {
   :root {
     /* Spiritual Color Palette */
@@ -130,94 +129,140 @@
   }
 }
 
+/* Custom navbar animations */
 @layer components {
-  /* Divine Button Variants */
-  .btn-divine {
-    @apply bg-gradient-to-r from-primary to-secondary text-primary-foreground px-8 py-3 rounded-lg font-medium;
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-[var(--shadow-divine)];
-    @apply hover:drop-shadow-[var(--glow-saffron)] active:scale-95;
-  }
-  
-  .btn-golden {
-    @apply bg-gradient-to-r from-secondary to-yellow-400 text-secondary-foreground px-6 py-2 rounded-md;
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-[var(--shadow-golden)];
-    @apply hover:drop-shadow-[var(--glow-golden)];
-  }
-
-  /* Sacred Card Effects */
-  .card-divine {
-    @apply bg-card border border-border rounded-xl p-6 shadow-sm;
-    @apply transition-all duration-500 hover:scale-[1.02] hover:shadow-[var(--shadow-divine)];
-    @apply hover:border-primary/30 hover:bg-gradient-to-br hover:from-card hover:to-muted/20;
-  }
-
-  .card-ritual {
-    @apply bg-gradient-to-br from-card to-muted/30 border border-primary/20 rounded-lg p-4;
-    @apply transition-all duration-300 hover:shadow-[var(--shadow-golden)];
-    @apply hover:border-primary hover:drop-shadow-[var(--glow-saffron)];
+  /* Repeating arrow animation */
+  @keyframes arrow-loop {
+    0%, 100% {
+      content: '';
+    }
+    25% {
+      content: '>';
+      opacity: 1;
+      transform: translateX(0);
+    }
+    50% {
+      content: '>>';
+      opacity: 1;
+      transform: translateX(5px);
+    }
+    75% {
+      content: '';
+      opacity: 0;
+    }
   }
 
-  /* Spiritual Navigation */
-  .nav-link {
-    @apply relative font-medium text-foreground/80 transition-all duration-300;
-    @apply hover:text-primary hover:drop-shadow-[var(--glow-saffron)];
-  }
-  
-  .nav-link::after {
-    @apply absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary;
-    @apply transition-all duration-300;
+  .arrow-indicator::after {
     content: '';
-  }
-  
-  .nav-link:hover::after {
-    @apply w-full;
+    position: absolute;
+    font-size: 1.5rem;
+    color: hsl(var(--primary));
+    animation: arrow-loop 2s linear infinite;
   }
 
-  /* Divine Animations */
-  .pulse-divine {
-    animation: pulse-divine 3s ease-in-out infinite;
+  /* Staggered fade-in animation for nav links */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  
-  .float-gentle {
-    animation: float-gentle 6s ease-in-out infinite;
-  }
-  
-  .glow-sacred {
-    animation: glow-sacred 4s ease-in-out infinite;
+
+  .animate-fade-in {
+    animation: fade-in 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   }
 }
 
+/* Divine Button Variants */
+.btn-divine {
+  @apply bg-gradient-to-r from-primary to-secondary text-primary-foreground px-8 py-3 rounded-lg font-medium;
+  @apply transition-all duration-300 hover:scale-105 hover:shadow-[var(--shadow-divine)];
+  @apply hover:drop-shadow-[var(--glow-saffron)] active:scale-95;
+}
+
+.btn-golden {
+  @apply bg-gradient-to-r from-secondary to-yellow-400 text-secondary-foreground px-6 py-2 rounded-md;
+  @apply transition-all duration-300 hover:scale-105 hover:shadow-[var(--shadow-golden)];
+  @apply hover:drop-shadow-[var(--glow-golden)];
+}
+
+/* Sacred Card Effects */
+.card-divine {
+  @apply bg-card border border-border rounded-xl p-6 shadow-sm;
+  @apply transition-all duration-500 hover:scale-[1.02] hover:shadow-[var(--shadow-divine)];
+  @apply hover:border-primary/30 hover:bg-gradient-to-br hover:from-card hover:to-muted/20;
+}
+
+.card-ritual {
+  @apply bg-gradient-to-br from-card to-muted/30 border border-primary/20 rounded-lg p-4;
+  @apply transition-all duration-300 hover:shadow-[var(--shadow-golden)];
+  @apply hover:border-primary hover:drop-shadow-[var(--glow-saffron)];
+}
+
+/* Spiritual Navigation */
+.nav-link {
+  @apply relative font-medium text-foreground/80 transition-all duration-300;
+  @apply hover:text-primary hover:drop-shadow-[var(--glow-saffron)];
+}
+
+.nav-link::after {
+  @apply absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary;
+  @apply transition-all duration-300;
+  content: '';
+}
+
+.nav-link:hover::after {
+  @apply w-full;
+}
+
+/* Divine Animations */
+.pulse-divine {
+  animation: pulse-divine 3s ease-in-out infinite;
+}
+
+.float-gentle {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+.glow-sacred {
+  animation: glow-sacred 4s ease-in-out infinite;
+}
+
 @keyframes pulse-divine {
-  0%, 100% { 
+  0%, 100% {
     transform: scale(1);
     filter: drop-shadow(0 0 10px hsl(30, 100%, 60%, 0.3));
   }
-  50% { 
+  50% {
     transform: scale(1.05);
     filter: drop-shadow(0 0 20px hsl(30, 100%, 60%, 0.6));
   }
 }
 
 @keyframes float-gentle {
-  0%, 100% { 
+  0%, 100% {
     transform: translateY(0px) rotate(0deg);
   }
-  25% { 
+  25% {
     transform: translateY(-10px) rotate(1deg);
   }
-  50% { 
+  50% {
     transform: translateY(-15px) rotate(0deg);
   }
-  75% { 
+  75% {
     transform: translateY(-5px) rotate(-1deg);
   }
 }
 
 @keyframes glow-sacred {
-  0%, 100% { 
+  0%, 100% {
     box-shadow: 0 0 15px hsl(30, 100%, 60%, 0.3);
   }
-  50% { 
+  50% {
     box-shadow: 0 0 30px hsl(30, 100%, 60%, 0.6), 0 0 40px hsl(51, 100%, 50%, 0.4);
   }
 }
