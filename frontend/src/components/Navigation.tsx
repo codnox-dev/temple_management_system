@@ -74,7 +74,7 @@ const Navigation = () => {
               key={item.path}
               href={item.path}
               onClick={(e) => handleNavClick(e, item.path)}
-              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-300
+              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-3000
               group-hover:animate-fade-in
               ${activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''}`}
               style={{ animationDelay: `0.${index}s` }}
