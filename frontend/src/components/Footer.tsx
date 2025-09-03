@@ -36,7 +36,10 @@ const Footer = () => {
             <ul className="space-y-3">
               {['About Temple', 'Ritual Booking', 'Events', 'Gallery', 'Donations', 'Contact'].map((link) => (
                 <li key={link}>
-                  <a href="#" className="text-white/80 hover:text-white hover:underline transition-colors">
+                  <a
+                    href={link === 'Gallery' ? '/gallery' : '#'}
+                    className="text-white/80 hover:text-white hover:underline transition-colors"
+                  >
                     {link}
                   </a>
                 </li>

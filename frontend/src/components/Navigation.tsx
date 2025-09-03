@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, Flame } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const navigate = useNavigate();
 
   const navItems = [
     { label: 'Home', path: '#home' },
     { label: 'About', path: '#about' },
     { label: 'Rituals', path: '#rituals' },
     { label: 'Events', path: '#events' },
-    { label: 'Gallery', path: '#gallery' },
+    { label: 'Gallery', path: '/gallery' }, // route to full gallery page
     { label: 'Contact', path: '#contact' },
   ];
 
@@ -37,14 +39,18 @@ const Navigation = () => {
 
   const handleNavClick = (e, path) => {
     e.preventDefault();
-    document.querySelector(path).scrollIntoView({ behavior: 'smooth' });
+    if (path.startsWith('#')) {
+      document.querySelector(path)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate(path);
+    }
     if (isMobileMenuOpen) setIsMobileMenuOpen(false);
   };
 
   return (
     <nav
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 cursor-pointer group
-      transition-all duration-[2500ms] ease-in-out overflow-hidden
+      transition-all duration-2500 ease-in-out overflow-hidden
       md:w-[15%] md:hover:w-[80%] hover:bg-white/10 backdrop-blur-xl hover:shadow-2xl md:rounded-full
       bg-white/30 backdrop-blur-xl`}
       onMouseEnter={() => setIsHovered(true)}
@@ -54,7 +60,7 @@ const Navigation = () => {
       <div className="flex items-center justify-between h-16 px-4 md:px-8 w-full relative">
         {/* Logo and Brand Name */}
         <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-2 shrink-0">
-          <div className="p-2 bg-[hsl(var(--primary))] rounded-full transition-transform duration-[2000ms] group-hover:scale-110">
+          <div className="p-2 bg-[hsl(var(--primary))] rounded-full transition-transform duration-2000 group-hover:scale-110">
             <Flame className="h-6 w-6 text-white" />
           </div>
           <div className="flex items-center space-x-2 transition-all duration-2000 shrink-0">
@@ -62,14 +68,14 @@ const Navigation = () => {
               Vamanan Temple
             </span>
             {/* Animated Arrow (Desktop Only) */}
-            <div className={`arrow-indicator relative w-10 h-6 hidden md:flex items-center justify-start transition-transform duration-[2000ms] group-hover:rotate-180 group-hover:translate-x-1 ${isScrolled ? 'text-orange-500' : 'text-white'}`}>
+            <div className={`arrow-indicator relative w-10 h-6 hidden md:flex items-center justify-start transition-transform duration-2000 group-hover:rotate-180 group-hover:translate-x-1 ${isScrolled ? 'text-orange-500' : 'text-white'}`}>
             </div>
           </div>
         </a>
 
         {/* Navigation Links - Hidden initially, shown on hover (Desktop Only) */}
-        <div className="hidden md:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-[3000ms] absolute left-1/2 transform -translate-x-1/2">
-          <div className="flex items-center space-x-8 transition-opacity duration-[3000ms] whitespace-nowrap">
+        <div className="hidden md:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-3000 absolute left-1/2 transform -translate-x-1/2">
+          <div className="flex items-center space-x-8 transition-opacity duration-3000 whitespace-nowrap">
             {navItems.map((item, index) => (
               <a
                 key={item.path}
@@ -87,7 +93,7 @@ const Navigation = () => {
         </div>
 
         {/* Book Now Button */}
-        <div className="hidden md:block opacity-0 group-hover:opacity-100 transition-opacity duration-[3000ms] shrink-0 ml-auto">
+        <div className="hidden md:block opacity-0 group-hover:opacity-100 transition-opacity duration-3000 shrink-0 ml-auto">
           <button className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2 px-4 rounded-full font-semibold shadow-md hover:bg-[hsl(var(--secondary))] transition-colors duration-700 whitespace-nowrap">
             Book Now
           </button>
