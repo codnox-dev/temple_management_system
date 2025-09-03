@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, Flame } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const navigate = useNavigate();
 
   const navItems = [
     { label: 'Home', path: '#home' },
     { label: 'About', path: '#about' },
     { label: 'Rituals', path: '#rituals' },
     { label: 'Events', path: '#events' },
-    { label: 'Gallery', path: '#gallery' },
+    { label: 'Gallery', path: '/gallery' }, // route to full gallery page
     { label: 'Contact', path: '#contact' },
   ];
 
@@ -37,32 +39,36 @@ const Navigation = () => {
 
   const handleNavClick = (e, path) => {
     e.preventDefault();
-    document.querySelector(path).scrollIntoView({ behavior: 'smooth' });
+    if (path.startsWith('#')) {
+      document.querySelector(path)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate(path);
+    }
     if (isMobileMenuOpen) setIsMobileMenuOpen(false);
   };
 
   return (
     <nav
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 cursor-pointer group
-      transition-all duration-[1000ms] ease-in-out
-      hover:w-[80%] hover:bg-white/10 backdrop-blur-xl hover:shadow-2xl md:w-[15%] md:rounded-full
+      transition-all duration-2500 ease-in-out overflow-hidden
+      md:w-[15%] md:hover:w-[80%] hover:bg-white/10 backdrop-blur-xl hover:shadow-2xl md:rounded-full
       bg-white/30 backdrop-blur-xl`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Desktop and Tablet Navbar */}
-      <div className="flex items-center justify-between h-16 px-4 md:px-8">
+      <div className="flex items-center justify-between h-16 px-4 md:px-8 w-full relative">
         {/* Logo and Brand Name */}
-        <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-2">
-          <div className="p-2 bg-[hsl(var(--primary))] rounded-full group-hover:scale-110 transition-transform duration-[1000ms]">
+        <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-2 shrink-0">
+          <div className="p-2 bg-[hsl(var(--primary))] rounded-full transition-transform duration-2000 group-hover:scale-110">
             <Flame className="h-6 w-6 text-white" />
           </div>
-          <div className="flex items-center space-x-2 transition-all duration-1000">
-            <span className="text-xl font-playfair font-bold text-[hsl(var(--primary))] whitespace-nowrap transition-colors duration-1000">
+          <div className="flex items-center space-x-2 transition-all duration-2000 shrink-0">
+            <span className="text-xl font-playfair font-bold text-[hsl(var(--primary))] whitespace-nowrap transition-colors duration-2000">
               Vamanan Temple
             </span>
             {/* Animated Arrow (Desktop Only) */}
-            <div className={`arrow-indicator relative w-10 h-6 hidden md:flex items-center justify-start transition-transform duration-[1000ms] group-hover:rotate-180 group-hover:translate-x-1 ${isScrolled ? 'text-orange-500' : 'text-white'}`}>
+            <div className={`arrow-indicator relative w-10 h-6 hidden md:flex items-center justify-start transition-transform duration-2000 group-hover:rotate-180 group-hover:translate-x-1 ${isScrolled ? 'text-orange-500' : 'text-white'}`}>
             </div>
           </div>
         </a>
@@ -74,7 +80,7 @@ const Navigation = () => {
               key={item.path}
               href={item.path}
               onClick={(e) => handleNavClick(e, item.path)}
-              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-3000
+              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-300
               group-hover:animate-fade-in
               ${activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''}`}
               style={{ animationDelay: `0.${index}s` }}
@@ -90,7 +96,7 @@ const Navigation = () => {
 
         {/* Mobile Hamburger Menu (Mobile Only) */}
         <button
-          className="md:hidden p-2 rounded-full hover:bg-[hsl(var(--muted))] transition-colors"
+          className="md:hidden p-2 rounded-full hover:bg-[hsl(var(--muted))] transition-colors shrink-0"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X className="h-6 w-6 text-black" /> : <Menu className="h-6 w-6 text-black" />}

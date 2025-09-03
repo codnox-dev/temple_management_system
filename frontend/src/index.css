@@ -157,23 +157,28 @@
     position: absolute;
     font-size: 1.5rem;
     color: hsl(var(--primary));
-    animation: arrow-loop 2s linear infinite;
+    animation: arrow-loop 3s linear infinite;
   }
 
   /* Staggered fade-in animation for nav links */
   @keyframes fade-in {
-    from {
+    0% {
       opacity: 0;
       transform: translateY(-10px);
     }
-    to {
+    50% {
+      opacity: 0.3;
+      transform: translateY(-5px);
+    }
+    100% {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
   .animate-fade-in {
-    animation: fade-in 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation: fade-in 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0;
   }
 }
 
@@ -205,13 +210,13 @@
 
 /* Spiritual Navigation */
 .nav-link {
-  @apply relative font-medium text-foreground/80 transition-all duration-300;
+  @apply relative font-medium text-foreground/80 transition-all duration-700;
   @apply hover:text-primary hover:drop-shadow-[var(--glow-saffron)];
 }
 
 .nav-link::after {
   @apply absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary;
-  @apply transition-all duration-300;
+  @apply transition-all duration-700;
   content: '';
 }
 
