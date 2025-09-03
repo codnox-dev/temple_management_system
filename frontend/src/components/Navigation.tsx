@@ -51,7 +51,7 @@ const Navigation = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Desktop and Tablet Navbar */}
-      <div className="flex items-center justify-between h-16 px-4 md:px-8">
+      <div className="flex items-center justify-between h-16  px-4 md:px-8">
         {/* Logo and Brand Name */}
         <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-2">
           <div className="p-2 bg-[hsl(var(--primary))] rounded-full group-hover:scale-110 transition-transform duration-[1000ms]">
