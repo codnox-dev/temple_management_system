@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Calendar, Clock, Users, MapPin } from 'lucide-react';
 
 const events = [
@@ -115,9 +116,9 @@ const EventSection = () => {
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <button className="btn-divine">
+          <Link to="/events" className="btn-divine">
             View All Events
-          </button>
+          </Link>
         </div>
       </div>
     </section>

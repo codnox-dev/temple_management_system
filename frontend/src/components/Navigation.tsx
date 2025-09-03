@@ -74,27 +74,22 @@ const Navigation = () => {
         </a>
 
         {/* Navigation Links - Hidden initially, shown on hover (Desktop Only) */}
-        <div className="hidden md:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-3000 absolute left-1/2 transform -translate-x-1/2">
-          <div className="flex items-center space-x-8 transition-opacity duration-3000 whitespace-nowrap">
-            {navItems.map((item, index) => (
-              <a
-                key={item.path}
-                href={item.path}
-                onClick={(e) => handleNavClick(e, item.path)}
-                className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-700
-                group-hover:animate-fade-in
-                ${activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''}`}
-                style={{ animationDelay: `${index * 0.3}s` }}
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Book Now Button */}
-        <div className="hidden md:block opacity-0 group-hover:opacity-100 transition-opacity duration-3000 shrink-0 ml-auto">
-          <button className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2 px-4 rounded-full font-semibold shadow-md hover:bg-[hsl(var(--secondary))] transition-colors duration-700 whitespace-nowrap">
+        <div className={`hidden md:flex items-center space-x-8 opacity-0 group-hover:opacity-100`}>
+          {navItems.map((item, index) => (
+            <a
+              key={item.path}
+              href={item.path}
+              onClick={(e) => handleNavClick(e, item.path)}
+              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-300
+              group-hover:animate-fade-in
+              ${activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''}`}
+              style={{ animationDelay: `0.${index}s` }}
+            >
+              {item.label}
+            </a>
+          ))}
+          {/* Book Now Button */}
+          <button className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2 px-4 rounded-full font-semibold shadow-md hover:bg-[hsl(var(--secondary))] transition-colors whitespace-nowrap">
             Book Now
           </button>
         </div>
