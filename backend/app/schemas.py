@@ -7,6 +7,8 @@ from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from datetime import date
 
 # --- Custom ObjectId Validator for Pydantic V2 ---
+# This class ensures that MongoDB's ObjectId is correctly validated
+# and serialized as a string in API responses.
 class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(
@@ -107,3 +109,4 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
