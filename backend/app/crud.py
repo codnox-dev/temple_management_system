@@ -12,7 +12,7 @@ from .schemas import (
     AdminCreate
 )
 from bson import ObjectId
-from typing import List
+from typing import List, Dict, Any
 
 # --- CRUD for Available Rituals ---
 
@@ -25,6 +25,25 @@ async def create_ritual(ritual_data: AvailableRitualCreate):
     result = await available_rituals_collection.insert_one(ritual)
     new_ritual = await available_rituals_collection.find_one({"_id": result.inserted_id})
     return new_ritual
+
+async def update_ritual_by_id(id: str, ritual_data: Dict[str, Any]):
+    """Updates a ritual in the database."""
+    if not ObjectId.is_valid(id):
+        return None
+    result = await available_rituals_collection.update_one(
+        {"_id": ObjectId(id)}, {"$set": ritual_data}
+    )
+    if result.modified_count == 1:
+        updated_ritual = await available_rituals_collection.find_one({"_id": ObjectId(id)})
+        return updated_ritual
+    return None
+
+async def delete_ritual_by_id(id: str) -> bool:
+    """Deletes a ritual from the database."""
+    if not ObjectId.is_valid(id):
+        return False
+    result = await available_rituals_collection.delete_one({"_id": ObjectId(id)})
+    return result.deleted_count == 1
 
 async def create_initial_rituals(rituals_data: List[AvailableRitualBase]):
     rituals_to_insert = [ritual.model_dump() for ritual in rituals_data]
@@ -62,3 +81,4 @@ async def create_admin(admin_data: AdminCreate):
 
 async def get_admin_by_username(username: str):
     return await admins_collection.find_one({"username": username})
+
