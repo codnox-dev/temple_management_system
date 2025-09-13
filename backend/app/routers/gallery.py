@@ -43,4 +43,3 @@ async def delete_gallery_image(
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Image with ID {id} not found")
     return
-

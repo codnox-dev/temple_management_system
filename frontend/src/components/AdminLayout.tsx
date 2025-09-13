@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, LogOut, Image, Calendar, Sparkles } from 'lucide-react';
+import { LayoutDashboard, LogOut, Image, Calendar, Sparkles, BookUser } from 'lucide-react';
 
 const AdminLayout = () => {
   const { logout } = useAuth();
@@ -24,9 +24,11 @@ const AdminLayout = () => {
       <aside className="w-64 flex-shrink-0 border-r bg-background p-4 flex flex-col">
         <h1 className="text-2xl font-bold mb-8 font-playfair">Admin Panel</h1>
         <nav className="flex flex-col space-y-2 flex-grow">
+          <NavLink to="/admin" end className={navLinkClass}><LayoutDashboard className="mr-3 h-5 w-5" />Dashboard</NavLink>
           <NavLink to="/admin/rituals" className={navLinkClass}><Sparkles className="mr-3 h-5 w-5" />Manage Rituals</NavLink>
           <NavLink to="/admin/events" className={navLinkClass}><Calendar className="mr-3 h-5 w-5" />Manage Events</NavLink>
           <NavLink to="/admin/gallery" className={navLinkClass}><Image className="mr-3 h-5 w-5" />Manage Gallery</NavLink>
+          <NavLink to="/admin/bookings" className={navLinkClass}><BookUser className="mr-3 h-5 w-5" />Manage Bookings</NavLink>
         </nav>
         <div className="mt-auto">
             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">

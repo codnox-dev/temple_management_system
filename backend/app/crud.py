@@ -2,17 +2,18 @@ from .database import (
     available_rituals_collection,
     bookings_collection,
     events_collection,
-    admins_collection
+    admins_collection,
+    gallery_collection
 )
 from .schemas import (
     BookingCreate,
     AvailableRitualCreate,
-    AvailableRitualBase,
     EventCreate,
-    AdminCreate
+    AdminCreate,
+    GalleryImageCreate
 )
 from bson import ObjectId
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 # --- CRUD for Available Rituals ---
 
@@ -81,6 +82,38 @@ async def delete_event_by_id(id: str) -> bool:
     if not ObjectId.is_valid(id):
         return False
     result = await events_collection.delete_one({"_id": ObjectId(id)})
+    return result.deleted_count == 1
+
+# --- CRUD for Gallery Images ---
+
+async def get_all_gallery_images():
+    """Retrieves all images from the gallery_collection."""
+    cursor = gallery_collection.find({})
+    return [image async for image in cursor]
+
+async def create_gallery_image(image_data: GalleryImageCreate):
+    """Inserts a new image document into the gallery_collection."""
+    image = image_data.model_dump()
+    result = await gallery_collection.insert_one(image)
+    new_image = await gallery_collection.find_one({"_id": result.inserted_id})
+    return new_image
+
+async def update_gallery_image_by_id(id: str, image_data: Dict[str, Any]):
+    """Updates an existing image in the gallery_collection by its ID."""
+    if not ObjectId.is_valid(id):
+        return None
+    result = await gallery_collection.update_one(
+        {"_id": ObjectId(id)}, {"$set": image_data}
+    )
+    if result.matched_count == 0:
+        return None
+    return await gallery_collection.find_one({"_id": ObjectId(id)})
+
+async def delete_gallery_image_by_id(id: str) -> bool:
+    """Deletes an image from the gallery_collection by its ID."""
+    if not ObjectId.is_valid(id):
+        return False
+    result = await gallery_collection.delete_one({"_id": ObjectId(id)})
     return result.deleted_count == 1
 
 # --- CRUD for Bookings & Admins ---
