@@ -5,6 +5,8 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 
+const API_URL = 'http://localhost:8000/api/gallery';
+
 interface GalleryImage {
     _id: string;
     src: string;
@@ -13,7 +15,7 @@ interface GalleryImage {
 }
 
 const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/gallery/');
+  const { data } = await axios.get(API_URL);
   return data;
 };
 
@@ -47,6 +49,7 @@ const FullGallery = () => {
                   src={image.src}
                   alt={image.title}
                   className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
                   <div className="p-4 text-white w-full">

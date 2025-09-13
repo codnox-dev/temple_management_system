@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { ArrowLeft, Flame, Flower2, Heart, Star, ChevronDown, ChevronUp, LucideProps } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +11,6 @@ import { Card } from '@/components/ui/card';
 
 
 // --- Type Definitions ---
-// Describes the shape of the ritual data coming from your API
 interface ApiRitual {
   _id: string;
   name: string;
@@ -19,41 +19,32 @@ interface ApiRitual {
   duration: string;
   icon: string;
 }
-// Extends the API type to include a frontend-friendly 'id' field
 interface Ritual extends ApiRitual {
   id: string; 
 }
 
-// --- Icon Mapping Utility ---
-// This object maps the icon name (a string from the database) to the actual icon component
 const iconMap: { [key: string]: React.FC<LucideProps> } = {
   Flame,
   Flower2,
   Heart,
   Star,
 };
-// This component dynamically renders the correct icon based on the name
 const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
-    const IconComponent = iconMap[name] || Star; // Default to Star if icon name is not found
+    const IconComponent = iconMap[name] || Star;
     return <IconComponent {...props} />;
 };
 
-// --- API Fetching ---
-// This function fetches the list of rituals from your backend API
 const fetchRituals = async (): Promise<Ritual[]> => {
-    const { data } = await axios.get<ApiRitual[]>('http://localhost:8000/api/rituals/');
-    // We map `_id` from MongoDB to `id` for easier use in the React component's key prop
+    const { data } = await axios.get<ApiRitual[]>('http://localhost:8000/api/rituals');
     return data.map(r => ({ ...r, id: r._id })); 
 };
 
-// Constant array for astrological signs (Naal)
 const NAALS = ['അശ്വതി (Ashwathi)','ഭരണി (Bharani)','കാർത്തിക (Karthika)','രോഹിണി (Rohini)','മകയിരം (Makayiram)','തിരുവാതിര (Thiruvathira)','പുണർതം (Punartham)','പൂയം (Pooyam)','ആയില്യം (Aayilyam)','മകം (Makam)','പൂരം (Pooram)','ഉത്രം (Uthram)','അത്തം (Atham)','ചിത്തിര (Chithira)','ചോതി (Chothi)','വിശാഖം (Vishakham)','അനിഴം (Anizham)','തൃക്കേട്ട (Thrikketta)','മൂലം (Moolam)','പൂരാടം (Pooradam)','ഉത്രാടം (Uthradam)','തിരുവോണം (Thiruvonam)','അവിട്ടം (Avittam)','ചതയം (Chathayam)','പൂരുരുട്ടാതി (Pooruruttathi)','ഉത്തൃട്ടാതി (Uthruttathi)','രേവതി (Revathi)'];
 type Subscription = 'one-time' | 'daily' | 'weekly' | 'monthly';
 
-// Type for a single selected ritual instance
 type RitualInstance = {
 	id: string;
-	ritualId: string; // Changed to string to match MongoDB _id
+	ritualId: string;
 	devoteeName: string;
 	naal: string;
 	dob: string;
@@ -61,28 +52,21 @@ type RitualInstance = {
 	quantity: number;
 };
 
-// Maps subscription frequencies to their cost multipliers
 const frequencyMultipliers: Record<Subscription, number> = { 'one-time': 1, daily: 30, weekly: 4, monthly: 1 };
 
 const RitualBooking = () => {
-    // Fetch rituals from the API using React Query
+    const navigate = useNavigate();
     const { data: rituals = [], isLoading } = useQuery({ 
         queryKey: ['rituals'], 
         queryFn: fetchRituals,
     });
 	
-	// State for the main contact's personal information
 	const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
-	// State for the ritual search query
 	const [search, setSearch] = useState('');
-	// State to hold all individual ritual booking entries
 	const [instances, setInstances] = useState<RitualInstance[]>([]);
-	// State for controlling the visibility of the full ritual list
 	const [showAllRituals, setShowAllRituals] = useState(false);
-	// State for dynamically setting the number of grid columns
 	const [gridCols, setGridCols] = useState(1);
 
-	// Effect to adjust the grid layout based on window size
 	useEffect(() => {
 		const updateCols = () => setGridCols(window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1);
 		updateCols();
@@ -90,53 +74,72 @@ const RitualBooking = () => {
 		return () => window.removeEventListener('resize', updateCols);
 	}, []);
 
-	// Memoized function to filter rituals based on the search query
 	const filteredRituals = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return rituals;
 		return rituals.filter(r => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
 	}, [search, rituals]);
 
-	// Memoized function to determine which rituals are visible
 	const visibleRituals = useMemo(() => {
 		const max = showAllRituals ? filteredRituals.length : gridCols * 2;
 		return filteredRituals.slice(0, max);
 	}, [filteredRituals, showAllRituals, gridCols]);
 
-	// Adds a new ritual instance to the state
 	const addInstance = (ritualId: string) => {
 		setInstances(prev => [...prev, { id: `${ritualId}-${Date.now()}`, ritualId, devoteeName: '', naal: '', dob: '', subscription: 'one-time', quantity: 1 }]);
 	};
 
-	// Updates a specific property of a ritual instance
 	const updateInstance = <K extends keyof RitualInstance>(id: RitualInstance['id'], key: K, value: RitualInstance[K]) => {
 		setInstances(prev => prev.map(i => (i.id === id ? { ...i, [key]: value } : i)));
 	};
 
-	// Removes a ritual instance from the state by its ID
 	const removeInstance = (id: RitualInstance['id']) => {
 		setInstances(prev => prev.filter(i => i.id !== id));
 	};
 
-	// Retrieves a ritual's details by its ID
 	const ritualById = (id: string) => rituals.find(r => r.id === id)!;
     
-    // Calculates the total cost for a single ritual instance
 	const calcInstanceTotal = (i: RitualInstance) => {
         const ritual = ritualById(i.ritualId);
         if (!ritual) return 0;
         return ritual.price * i.quantity * frequencyMultipliers[i.subscription];
     }
 
-	// Calculates the grand total cost for all selected instances
 	const calculateTotal = () => instances.reduce((sum, i) => sum + calcInstanceTotal(i), 0);
 
-	// Handles input changes for the main contact form
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData({ ...formData, [e.target.name]: e.target.value });
 	};
 
-	// Validation check to ensure all required fields are filled
+    const bookingMutation = useMutation({
+        mutationFn: (newBooking: any) => {
+            return axios.post('http://localhost:8000/api/bookings', newBooking);
+        },
+        onSuccess: () => {
+            toast.success("Booking successful! Thank you for your devotion.");
+            setFormData({ name: '', email: '', phone: '', address: '' });
+            setInstances([]);
+            // Optional: Redirect to a success page after a delay
+            setTimeout(() => navigate('/'), 2000);
+        },
+        onError: () => {
+            toast.error("Booking failed. Please check your details and try again.");
+        }
+    });
+
+    const handleCheckout = () => {
+        const total_cost = calculateTotal();
+        const bookingPayload = {
+            ...formData,
+            total_cost,
+            instances: instances.map(({id, ...rest}) => ({ // remove client-side id before sending
+                ...rest,
+                ritualName: ritualById(rest.ritualId)?.name || 'Unknown Ritual'
+            }))
+        };
+        bookingMutation.mutate(bookingPayload);
+    };
+
 	const allInstancesValid = instances.every(i => i.devoteeName.trim() && i.naal.trim() && i.dob.trim());
 	const canCheckout = instances.length > 0 && allInstancesValid && formData.name && formData.email && formData.phone && formData.address;
 
@@ -198,7 +201,25 @@ const RitualBooking = () => {
 											<div><Label htmlFor={`dob-${inst.id}`}>Date of Birth *</Label><Input id={`dob-${inst.id}`} type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="mt-1" required/></div>
 											<div className="grid grid-cols-3 gap-3">
 												<div className="col-span-2"><Label htmlFor={`sub-${inst.id}`}>Subscription</Label><select id={`sub-${inst.id}`} value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-												<div><Label htmlFor={`qty-${inst.id}`}>Qty</Label><Input id={`qty-${inst.id}`} type="number" min={1} value={inst.quantity} onChange={e => updateInstance(inst.id, 'quantity', Math.max(1, Number(e.target.value || 1)))} className="mt-1"/></div>
+												<div>
+                                                    <Label htmlFor={`qty-${inst.id}`}>Qty</Label>
+                                                    <Input
+                                                        id={`qty-${inst.id}`}
+                                                        type="number"
+                                                        min={1}
+                                                        value={inst.quantity === 0 ? '' : inst.quantity}
+                                                        onChange={e => {
+                                                            const qty = parseInt(e.target.value, 10);
+                                                            updateInstance(inst.id, 'quantity', isNaN(qty) ? 0 : qty);
+                                                        }}
+                                                        onBlur={() => {
+                                                            if (inst.quantity < 1) {
+                                                                updateInstance(inst.id, 'quantity', 1);
+                                                            }
+                                                        }}
+                                                        className="mt-1"
+                                                    />
+                                                </div>
 											</div>
 											<div className="flex items-center justify-between pt-2"><div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
 										</div>
@@ -227,7 +248,13 @@ const RitualBooking = () => {
 							<div className="flex justify-between items-center py-3 text-xl font-playfair font-bold border-t-2 border-primary/20"><span className="text-foreground">Total Amount:</span><span className="text-primary">₹{calculateTotal()}</span></div>
 						</div>
 					)}
-					<Button className="w-full btn-divine text-lg py-3" disabled={!canCheckout}>Proceed to Payment - ₹{calculateTotal()}</Button>
+					<Button 
+                        onClick={handleCheckout}
+                        className="w-full btn-divine text-lg py-3" 
+                        disabled={!canCheckout || bookingMutation.isPending}
+                    >
+                        {bookingMutation.isPending ? 'Processing...' : `Proceed to Payment - ₹${calculateTotal()}`}
+                    </Button>
 					<p className="text-sm text-muted-foreground mt-4 text-center">You will be redirected to our secure payment gateway to complete your booking.</p>
 				</Card>
 			</div>

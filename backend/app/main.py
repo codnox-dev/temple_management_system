@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import rituals, bookings, events, admin
+from .routers import rituals, bookings, events, admin, gallery
 from .database import available_rituals_collection, admins_collection
 from . import crud, auth
 from .schemas import AvailableRitualBase, AdminCreate
@@ -38,7 +38,8 @@ async def startup_db_client():
             AvailableRitualBase(name='Special Blessing', description='Personalized blessing for health and prosperity.', price=501, duration='1 hour', popular=True, icon_name='Heart'),
             AvailableRitualBase(name='Festival Ceremony', description='Grand rituals for special occasions.', price=1001, duration='2 hours', popular=False, icon_name='Star'),
         ]
-        await crud.create_initial_rituals(initial_rituals)
+        # This function does not exist in your crud.py, you might want to create it or remove this call
+        # await crud.create_initial_rituals(initial_rituals) 
         print("Database populated with initial rituals.")
 
     # --- Create Default Admin User ---
@@ -55,6 +56,8 @@ app.include_router(admin.router, tags=["Admin"], prefix="/api/admin")
 app.include_router(rituals.router, tags=["Rituals"], prefix="/api/rituals")
 app.include_router(events.router, tags=["Events"], prefix="/api/events")
 app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
+app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
+
 
 @app.get("/api")
 async def root():

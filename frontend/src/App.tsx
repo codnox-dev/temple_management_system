@@ -16,7 +16,7 @@ import AdminLayout from "@/components/AdminLayout";
 import ManageRituals from "@/pages/admin/ManageRituals";
 import ManageEvents from "@/pages/admin/ManageEvents";
 import ManageGallery from "@/pages/admin/ManageGallery";
-// Corrected the import path to point to the new Admin dashboard component
+import ManageBookings from "@/pages/admin/ManageBookings";
 import Admin from "@/pages/admin/Admin";
 
 
@@ -51,6 +51,7 @@ const App = () => (
               <Route path="rituals" element={<ManageRituals />} />
               <Route path="events" element={<ManageEvents />} />
               <Route path="gallery" element={<ManageGallery />} />
+              <Route path="bookings" element={<ManageBookings />} />
             </Route>
 
             {/* Catch-all Not Found Route */}
@@ -63,3 +64,4 @@ const App = () => (
 );
 
 export default App;
+

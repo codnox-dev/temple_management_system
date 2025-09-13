@@ -17,7 +17,7 @@ interface GalleryImage {
 }
 
 const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-    const { data } = await axios.get(`${API_URL}/`);
+    const { data } = await axios.get(API_URL);
     return data;
 };
 
@@ -43,7 +43,7 @@ const ManageGallery = () => {
             if (isEditing) {
                 return axios.put(`${API_URL}/${isEditing._id}`, imagePayload, config);
             }
-            return axios.post(`${API_URL}/`, imagePayload, config);
+            return axios.post(API_URL, imagePayload, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -52,7 +52,10 @@ const ManageGallery = () => {
             toast.success(`Image ${isEditing ? 'updated' : 'added'} successfully!`);
             setIsEditing(null);
         },
-        onError: () => toast.error('Failed to save image.'),
+        onError: (error) => {
+            console.error("Error saving image:", error);
+            toast.error('Failed to save image. See console for details.');
+        }
     });
 
     const deleteMutation = useMutation({
@@ -67,7 +70,10 @@ const ManageGallery = () => {
             queryClient.invalidateQueries({ queryKey: ['galleryPreview'] });
             toast.success('Image deleted successfully!');
         },
-        onError: () => toast.error('Failed to delete image.'),
+        onError: (error) => {
+            console.error("Error deleting image:", error);
+            toast.error('Failed to delete image. See console for details.');
+        }
     });
 
     const handleSubmit = (e: React.FormEvent) => {
