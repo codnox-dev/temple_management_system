@@ -92,6 +92,19 @@ class EventInDB(EventBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
 
+# --- Schema for Gallery Images ---
+class GalleryImageBase(BaseModel):
+    src: str = Field(..., example="https://placehold.co/600x400")
+    title: str = Field(..., example="Evening Aarti")
+    category: str = Field(..., example="Rituals")
+
+class GalleryImageCreate(GalleryImageBase):
+    pass
+
+class GalleryImageInDB(GalleryImageBase):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
+
 # --- Schemas for Admin Authentication ---
 class AdminBase(BaseModel):
     username: str
