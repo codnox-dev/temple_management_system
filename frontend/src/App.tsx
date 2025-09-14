@@ -1,5 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -17,8 +16,7 @@ import ManageRituals from "@/pages/admin/ManageRituals";
 import ManageEvents from "@/pages/admin/ManageEvents";
 import ManageGallery from "@/pages/admin/ManageGallery";
 import ManageBookings from "@/pages/admin/ManageBookings";
-import Admin from "@/pages/admin/Admin";
-
+import AdminDashboard from "@/pages/admin/Admin";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +24,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -47,7 +44,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Admin />} />
+              <Route index element={<AdminDashboard />} />
               <Route path="rituals" element={<ManageRituals />} />
               <Route path="events" element={<ManageEvents />} />
               <Route path="gallery" element={<ManageGallery />} />

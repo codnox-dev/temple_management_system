@@ -1,47 +1,44 @@
-import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, LogOut, Image, Calendar, Sparkles, BookUser } from 'lucide-react';
+import { Outlet } from "react-router-dom";
+import TempleSidebar from "./TempleSidebar";
+import { Bell, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const AdminLayout = () => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-  
-  const navLinkClass = ({ isActive }) =>
-    `flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-      isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
-    }`;
-
-
   return (
-    <div className="flex h-screen bg-muted/40">
-      <aside className="w-64 flex-shrink-0 border-r bg-background p-4 flex flex-col">
-        <h1 className="text-2xl font-bold mb-8 font-playfair">Admin Panel</h1>
-        <nav className="flex flex-col space-y-2 flex-grow">
-          <NavLink to="/admin" end className={navLinkClass}><LayoutDashboard className="mr-3 h-5 w-5" />Dashboard</NavLink>
-          <NavLink to="/admin/rituals" className={navLinkClass}><Sparkles className="mr-3 h-5 w-5" />Manage Rituals</NavLink>
-          <NavLink to="/admin/events" className={navLinkClass}><Calendar className="mr-3 h-5 w-5" />Manage Events</NavLink>
-          <NavLink to="/admin/gallery" className={navLinkClass}><Image className="mr-3 h-5 w-5" />Manage Gallery</NavLink>
-          <NavLink to="/admin/bookings" className={navLinkClass}><BookUser className="mr-3 h-5 w-5" />Manage Bookings</NavLink>
-        </nav>
-        <div className="mt-auto">
-            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">
-               <LogOut className="mr-3 h-5 w-5" /> Logout
+    <div className="min-h-screen flex w-full bg-muted/10">
+      <TempleSidebar />
+      
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="h-16 border-b border-border bg-background/50 backdrop-blur-sm flex items-center justify-between px-6 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            {/* You can add a mobile sidebar trigger here if needed in the future */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-md flex items-center justify-center">
+                <span className="text-white text-sm font-bold">🕉</span>
+              </div>
+              <h1 className="text-xl font-bold text-foreground">Temple Dashboard</h1>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Bell className="h-4 w-4" />
             </Button>
-        </div>
-      </aside>
-      <main className="flex-1 p-8 overflow-y-auto">
-        <Outlet />
-      </main>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <User className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
-  );
-};
+  )
+}
 
 export default AdminLayout;
 
