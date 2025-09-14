@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from .routers import rituals, bookings, events, admin, gallery
 from .database import available_rituals_collection, admins_collection
@@ -6,6 +7,10 @@ from .schemas import AvailableRitualBase, AdminCreate
 from typing import List
 import asyncio
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load environment variables from .env file at the very beginning
+load_dotenv()
 
 # --- App Initialization ---
 app = FastAPI(
@@ -42,13 +47,20 @@ async def startup_db_client():
         # await crud.create_initial_rituals(initial_rituals) 
         print("Database populated with initial rituals.")
 
-    # --- Create Default Admin User ---
+    # --- Create Default Admin User from .env ---
     if await admins_collection.count_documents({}) == 0:
-        print("Creating default admin user...")
-        hashed_password = auth.get_password_hash("adminpassword")
-        admin_user = AdminCreate(username="admin", hashed_password=hashed_password)
+        print("Creating default admin user from .env file...")
+        admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+
+        if not admin_password:
+             raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
+
+        hashed_password = auth.get_password_hash(admin_password)
+        admin_user = AdminCreate(username=admin_username, hashed_password=hashed_password)
         await crud.create_admin(admin_user)
-        print("Default admin created with username 'admin' and password 'adminpassword'.")
+        print(f"Default admin created with username '{admin_username}'.")
+        print("Password is set from the DEFAULT_ADMIN_PASSWORD in your .env file.")
 
 
 # --- API Routers ---

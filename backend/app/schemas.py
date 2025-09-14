@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import Any, Optional, List
 from bson import ObjectId
 from pydantic_core import core_schema
@@ -107,13 +107,16 @@ class GalleryImageInDB(GalleryImageBase):
 
 # --- Schemas for Admin Authentication ---
 class AdminBase(BaseModel):
-    username: str
+    name: str = Field(..., example="Administrator")
+    email: EmailStr = Field(..., example="admin@example.com")
+    username: str = Field(..., example="adminuser")
 
 class AdminCreate(AdminBase):
     hashed_password: str
 
 class AdminInDB(AdminBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    hashed_password: str
     model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
 
 class Token(BaseModel):
