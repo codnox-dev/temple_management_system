@@ -17,14 +17,7 @@ interface Event {
 }
 
 // Fetch all events
-<<<<<<< HEAD
-const fetchEvents = async (): Promise<Event[]> => {
-  const { data } = await axios.get('http://localhost:8080/api/events/');
-  return data;
-};
-=======
 const fetchEvents = () => get<Event[]>('/events/');
->>>>>>> niranj
 
 const FullEvents = () => {
   const { data: events, isLoading, isError } = useQuery<Event[]>({

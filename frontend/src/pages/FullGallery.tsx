@@ -5,10 +5,6 @@ import { get } from '../api/api';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 
-<<<<<<< HEAD
-const API_URL = 'http://localhost:8080/api/gallery';
-=======
->>>>>>> niranj
 
 interface GalleryImage {
     _id: string;

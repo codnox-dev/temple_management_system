@@ -23,22 +23,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-<<<<<<< HEAD
-      const response = await axios.post('http://localhost:8080/api/admin/token', new URLSearchParams({
-        username,
-        password
-      }));
-      
-      if (response.data.access_token) {
-        const token = response.data.access_token;
-        localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-=======
-      const response = await api.post('/admin/token', new URLSearchParams({ username, password }));
+      const params = new URLSearchParams();
+      params.append('username', username);
+      params.append('password', password);
+      const response = await api.post(
+        '/admin/token',
+        params,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
       const token = (response as any)?.access_token ?? (response as any)?.data?.access_token; // support wrapper vs raw
       if (token) {
         setAuthToken(token);
->>>>>>> niranj
         setIsAuthenticated(true);
         setUser({ username });
         navigate('/admin');
