@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api, { get } from '../api/api';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 
 // Define the shape of an event object
@@ -16,10 +16,7 @@ interface Event {
 }
 
 // Fetch events from the API
-const fetchEvents = async (): Promise<Event[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/events/');
-  return data;
-};
+const fetchEvents = () => get<Event[]>('/events/');
 
 const EventSection = () => {
   const { data: events, isLoading, isError } = useQuery<Event[]>({

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import api, { get } from '../api/api';
 import { toast } from 'sonner';
 import { ArrowLeft, Flame, Flower2, Heart, Star, ChevronDown, ChevronUp, LucideProps } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -35,8 +35,8 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 const fetchRituals = async (): Promise<Ritual[]> => {
-    const { data } = await axios.get<ApiRitual[]>('http://localhost:8000/api/rituals');
-    return data.map(r => ({ ...r, id: r._id })); 
+	const data = await get<ApiRitual[]>('/rituals');
+	return data.map(r => ({ ...r, id: r._id }));
 };
 
 const NAALS = ['അശ്വതി (Ashwathi)','ഭരണി (Bharani)','കാർത്തിക (Karthika)','രോഹിണി (Rohini)','മകയിരം (Makayiram)','തിരുവാതിര (Thiruvathira)','പുണർതം (Punartham)','പൂയം (Pooyam)','ആയില്യം (Aayilyam)','മകം (Makam)','പൂരം (Pooram)','ഉത്രം (Uthram)','അത്തം (Atham)','ചിത്തിര (Chithira)','ചോതി (Chothi)','വിശാഖം (Vishakham)','അനിഴം (Anizham)','തൃക്കേട്ട (Thrikketta)','മൂലം (Moolam)','പൂരാടം (Pooradam)','ഉത്രാടം (Uthradam)','തിരുവോണം (Thiruvonam)','അവിട്ടം (Avittam)','ചതയം (Chathayam)','പൂരുരുട്ടാതി (Pooruruttathi)','ഉത്തൃട്ടാതി (Uthruttathi)','രേവതി (Revathi)'];
@@ -111,10 +111,8 @@ const RitualBooking = () => {
 		setFormData({ ...formData, [e.target.name]: e.target.value });
 	};
 
-    const bookingMutation = useMutation({
-        mutationFn: (newBooking: any) => {
-            return axios.post('http://localhost:8000/api/bookings', newBooking);
-        },
+	const bookingMutation = useMutation({
+		mutationFn: (newBooking: any) => api.post('/bookings', newBooking),
         onSuccess: () => {
             toast.success("Booking successful! Thank you for your devotion.");
             setFormData({ name: '', email: '', phone: '', address: '' });

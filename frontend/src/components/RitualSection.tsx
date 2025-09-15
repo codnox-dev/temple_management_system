@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { get } from '../api/api';
 import { Flame, Flower2, Heart, Star, LucideProps } from 'lucide-react';
 
 // --- Type Definitions ---
@@ -28,10 +28,7 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 // --- API Fetching ---
-const fetchRituals = async (): Promise<Ritual[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/rituals/');
-  return data;
-};
+const fetchRituals = () => get<Ritual[]>('/rituals/');
 
 
 const RitualSection = () => {

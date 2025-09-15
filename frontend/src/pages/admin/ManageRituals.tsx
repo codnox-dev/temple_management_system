@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios, { AxiosError } from 'axios';
+import api, { get } from '../../api/api';
+import { AxiosError } from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,13 +22,8 @@ interface Ritual {
 }
 
 // Base URL for the rituals API endpoint
-const API_URL = 'http://localhost:8000/api/rituals'; 
-
 // Fetches all rituals
-const fetchRituals = async () => {
-  const { data } = await axios.get<Ritual[]>(`${API_URL}/`);
-  return data;
-};
+const fetchRituals = () => get<Ritual[]>('/rituals/');
 
 const ManageRituals = () => {
     const queryClient = useQueryClient();
@@ -77,9 +73,9 @@ const ManageRituals = () => {
             
             if (isEditing) {
                 // Correctly use isEditing._id for the update URL
-                return axios.put(`${API_URL}/${isEditing._id}`, ritualPayload, config);
+                return api.put(`/rituals/${isEditing._id}`, ritualPayload, config);
             }
-            return axios.post(`${API_URL}/`, ritualPayload, config);
+            return api.post('/rituals/', ritualPayload, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
@@ -95,7 +91,7 @@ const ManageRituals = () => {
         mutationFn: (id: string) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            return axios.delete(`${API_URL}/${id}`, config);
+            return api.delete(`/rituals/${id}`, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
