@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { get } from '../api/api';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 
@@ -17,10 +17,14 @@ interface Event {
 }
 
 // Fetch all events
+<<<<<<< HEAD
 const fetchEvents = async (): Promise<Event[]> => {
   const { data } = await axios.get('http://localhost:8080/api/events/');
   return data;
 };
+=======
+const fetchEvents = () => get<Event[]>('/events/');
+>>>>>>> niranj
 
 const FullEvents = () => {
   const { data: events, isLoading, isError } = useQuery<Event[]>({

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import api, { setAuthToken } from '../api/api';
 
 const AuthContext = createContext(null);
 
@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+<<<<<<< HEAD
       const response = await axios.post('http://localhost:8080/api/admin/token', new URLSearchParams({
         username,
         password
@@ -32,10 +33,18 @@ export const AuthProvider = ({ children }) => {
         const token = response.data.access_token;
         localStorage.setItem('token', token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+=======
+      const response = await api.post('/admin/token', new URLSearchParams({ username, password }));
+      const token = (response as any)?.access_token ?? (response as any)?.data?.access_token; // support wrapper vs raw
+      if (token) {
+        setAuthToken(token);
+>>>>>>> niranj
         setIsAuthenticated(true);
         setUser({ username });
+        navigate('/admin');
         return true;
       }
+      return false;
     } catch (error) {
       console.error('Login failed:', error);
       return false;
@@ -43,8 +52,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    setAuthToken(null);
     setIsAuthenticated(false);
     setUser(null);
     navigate('/login');

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import api, { get } from '../../api/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, ImageIcon, Folder, Hash } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_URL = 'http://localhost:8080/api/gallery';
+=======
+>>>>>>> niranj
 
 interface GalleryImage {
     _id: string;
@@ -16,10 +19,7 @@ interface GalleryImage {
     category: string;
 }
 
-const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-    const { data } = await axios.get(API_URL);
-    return data;
-};
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
 
 const ManageGallery = () => {
     const queryClient = useQueryClient();
@@ -41,9 +41,9 @@ const ManageGallery = () => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
             if (isEditing) {
-                return axios.put(`${API_URL}/${isEditing._id}`, imagePayload, config);
+                return api.put(`/gallery/${isEditing._id}`, imagePayload, config);
             }
-            return axios.post(API_URL, imagePayload, config);
+            return api.post('/gallery', imagePayload, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -62,7 +62,7 @@ const ManageGallery = () => {
         mutationFn: (id: string) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            return axios.delete(`${API_URL}/${id}`, config);
+            return api.delete(`/gallery/${id}`, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });

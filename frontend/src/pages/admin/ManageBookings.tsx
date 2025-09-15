@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api, { get } from '../../api/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -43,17 +43,7 @@ interface Booking {
 }
 
 // --- API Fetching ---
-const fetchBookings = async (): Promise<Booking[]> => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        throw new Error("No admin token found.");
-    }
-    const config = {
-        headers: { Authorization: `Bearer ${token}` }
-    };
-    const { data } = await axios.get('http://localhost:8000/api/bookings', config);
-    return data;
-};
+const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
 
 
 const ManageBookings = () => {

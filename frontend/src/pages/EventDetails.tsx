@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { get } from '../api/api';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -17,10 +17,14 @@ interface Event {
 }
 
 // Fetch a single event by its ID
+<<<<<<< HEAD
 const fetchEventById = async (id: string): Promise<Event> => {
   const { data } = await axios.get(`http://localhost:8080/api/events/${id}`);
   return data;
 };
+=======
+const fetchEventById = (id: string) => get<Event>(`/events/${id}`);
+>>>>>>> niranj
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();

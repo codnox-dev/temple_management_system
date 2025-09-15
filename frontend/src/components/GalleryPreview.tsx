@@ -1,9 +1,13 @@
 import { ExternalLink, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+<<<<<<< HEAD
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8080/api/gallery';
+=======
+import { get } from '../api/api';
+>>>>>>> niranj
 
 interface GalleryImage {
 	_id: string;
@@ -12,10 +16,7 @@ interface GalleryImage {
 	category: string;
 }
 
-const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-	const { data } = await axios.get(API_URL);
-	return data;
-};
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
 
 
 const GalleryPreview = () => {

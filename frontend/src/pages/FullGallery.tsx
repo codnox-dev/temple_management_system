@@ -1,11 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { get } from '../api/api';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_URL = 'http://localhost:8080/api/gallery';
+=======
+>>>>>>> niranj
 
 interface GalleryImage {
     _id: string;
@@ -14,10 +17,7 @@ interface GalleryImage {
     category: string;
 }
 
-const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-  const { data } = await axios.get(API_URL);
-  return data;
-};
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
 
 const FullGallery = () => {
   const { data: galleryImages, isLoading, isError } = useQuery<GalleryImage[]>({

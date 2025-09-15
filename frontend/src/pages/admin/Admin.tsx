@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Package, Image, TrendingUp, Flame, Star, DollarSign, Clock } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import axios from "axios"
+import api, { get } from "../../api/api"
 import { toast } from "sonner"
 
 // Define interfaces for the data we'll fetch
@@ -45,6 +45,7 @@ interface UpcomingRitual {
 }
 
 // Fetch bookings data
+<<<<<<< HEAD
 const fetchBookings = async (): Promise<Booking[]> => {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -62,6 +63,12 @@ const fetchRituals = async (): Promise<Ritual[]> => {
   const { data } = await axios.get('http://localhost:8080/api/rituals/');
   return data;
 };
+=======
+const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
+
+// Fetch rituals data
+const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
+>>>>>>> niranj
 
 const AdminDashboard = () => {
   // Fetch bookings data
