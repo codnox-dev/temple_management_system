@@ -29,7 +29,7 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 
 // --- API Fetching ---
 const fetchRituals = async (): Promise<Ritual[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/rituals/');
+  const { data } = await axios.get('http://localhost:8080/api/rituals/');
   return data;
 };
 

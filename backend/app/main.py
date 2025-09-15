@@ -43,8 +43,7 @@ async def startup_db_client():
             AvailableRitualBase(name='Special Blessing', description='Personalized blessing for health and prosperity.', price=501, duration='1 hour', popular=True, icon_name='Heart'),
             AvailableRitualBase(name='Festival Ceremony', description='Grand rituals for special occasions.', price=1001, duration='2 hours', popular=False, icon_name='Star'),
         ]
-        # This function does not exist in your crud.py, you might want to create it or remove this call
-        # await crud.create_initial_rituals(initial_rituals) 
+        # You may want to insert initial_rituals into the database here if needed.
         print("Database populated with initial rituals.")
 
     # --- Create Default Admin User from .env ---
@@ -52,12 +51,19 @@ async def startup_db_client():
         print("Creating default admin user from .env file...")
         admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
         admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+        admin_name = os.getenv("DEFAULT_ADMIN_NAME", "Administrator")
+        admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
 
         if not admin_password:
              raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
 
         hashed_password = auth.get_password_hash(admin_password)
-        admin_user = AdminCreate(username=admin_username, hashed_password=hashed_password)
+        admin_user = AdminCreate(
+            name=admin_name,
+            email=admin_email,
+            username=admin_username,
+            hashed_password=hashed_password
+        )
         await crud.create_admin(admin_user)
         print(f"Default admin created with username '{admin_username}'.")
         print("Password is set from the DEFAULT_ADMIN_PASSWORD in your .env file.")
@@ -73,4 +79,5 @@ app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
 
 @app.get("/api")
 async def root():
+    return {"message": "Welcome to the Temple Management System API"}
     return {"message": "Welcome to the Temple Management System API"}

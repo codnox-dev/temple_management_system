@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api/events';
+const API_URL = 'http://localhost:8080/api/events';
 
 // Define the shape of an event object
 interface Event {
