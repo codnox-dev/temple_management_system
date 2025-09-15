@@ -18,7 +18,7 @@ interface Event {
 
 // Fetch all events
 const fetchEvents = async (): Promise<Event[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/events/');
+  const { data } = await axios.get('http://localhost:8080/api/events/');
   return data;
 };
 

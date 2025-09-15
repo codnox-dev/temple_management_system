@@ -35,7 +35,7 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 const fetchRituals = async (): Promise<Ritual[]> => {
-    const { data } = await axios.get<ApiRitual[]>('http://localhost:8000/api/rituals');
+    const { data } = await axios.get<ApiRitual[]>('http://localhost:8080/api/rituals');
     return data.map(r => ({ ...r, id: r._id })); 
 };
 
@@ -113,7 +113,7 @@ const RitualBooking = () => {
 
     const bookingMutation = useMutation({
         mutationFn: (newBooking: any) => {
-            return axios.post('http://localhost:8000/api/bookings', newBooking);
+            return axios.post('http://localhost:8080/api/bookings', newBooking);
         },
         onSuccess: () => {
             toast.success("Booking successful! Thank you for your devotion.");

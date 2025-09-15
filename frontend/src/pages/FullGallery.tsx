@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api/gallery';
+const API_URL = 'http://localhost:8080/api/gallery';
 
 interface GalleryImage {
     _id: string;

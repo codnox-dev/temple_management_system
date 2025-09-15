@@ -21,7 +21,7 @@ interface Ritual {
 }
 
 // Base URL for the rituals API endpoint
-const API_URL = 'http://localhost:8000/api/rituals'; 
+const API_URL = 'http://localhost:8080/api/rituals'; 
 
 // Fetches all rituals
 const fetchRituals = async () => {

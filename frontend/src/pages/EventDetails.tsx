@@ -18,7 +18,7 @@ interface Event {
 
 // Fetch a single event by its ID
 const fetchEventById = async (id: string): Promise<Event> => {
-  const { data } = await axios.get(`http://localhost:8000/api/events/${id}`);
+  const { data } = await axios.get(`http://localhost:8080/api/events/${id}`);
   return data;
 };
 

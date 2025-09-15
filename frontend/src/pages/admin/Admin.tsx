@@ -53,13 +53,13 @@ const fetchBookings = async (): Promise<Booking[]> => {
   const config = {
     headers: { Authorization: `Bearer ${token}` }
   };
-  const { data } = await axios.get('http://localhost:8000/api/bookings', config);
+  const { data } = await axios.get('http://localhost:8080/api/bookings', config);
   return data;
 };
 
 // Fetch rituals data
 const fetchRituals = async (): Promise<Ritual[]> => {
-  const { data } = await axios.get('http://localhost:8000/api/rituals/');
+  const { data } = await axios.get('http://localhost:8080/api/rituals/');
   return data;
 };
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, ImageIcon, Folder, Hash } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api/gallery';
+const API_URL = 'http://localhost:8080/api/gallery';
 
 interface GalleryImage {
     _id: string;
