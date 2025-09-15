@@ -45,30 +45,10 @@ interface UpcomingRitual {
 }
 
 // Fetch bookings data
-<<<<<<< HEAD
-const fetchBookings = async (): Promise<Booking[]> => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error("No admin token found.");
-  }
-  const config = {
-    headers: { Authorization: `Bearer ${token}` }
-  };
-  const { data } = await axios.get('http://localhost:8080/api/bookings', config);
-  return data;
-};
-
-// Fetch rituals data
-const fetchRituals = async (): Promise<Ritual[]> => {
-  const { data } = await axios.get('http://localhost:8080/api/rituals/');
-  return data;
-};
-=======
 const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
 
 // Fetch rituals data
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
->>>>>>> niranj
 
 const AdminDashboard = () => {
   // Fetch bookings data

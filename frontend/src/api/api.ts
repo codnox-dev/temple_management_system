@@ -16,9 +16,9 @@ function deriveBaseURL(): string {
 	// Heuristic: if frontend served from same host (e.g., via docker compose), use same origin port 8000 by default
 	if (typeof window !== 'undefined') {
 		const { protocol, hostname } = window.location;
-		return `${protocol}//${hostname}:8000`;
+		return `${protocol}//${hostname}:8080`;
 	}
-	return 'http://localhost:8000';
+	return 'http://localhost:8080';
 }
 
 export const API_BASE_URL = deriveBaseURL();

@@ -22,11 +22,6 @@ interface Ritual {
 }
 
 // Base URL for the rituals API endpoint
-<<<<<<< HEAD
-const API_URL = 'http://localhost:8080/api/rituals'; 
-
-=======
->>>>>>> niranj
 // Fetches all rituals
 const fetchRituals = () => get<Ritual[]>('/rituals/');
 
