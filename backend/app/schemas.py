@@ -4,7 +4,7 @@ from bson import ObjectId
 from pydantic_core import core_schema
 from pydantic.json_schema import JsonSchemaValue
 from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
-from datetime import date
+from datetime import date, datetime
 
 # --- Custom ObjectId Validator for Pydantic V2 ---
 # This class ensures that MongoDB's ObjectId is correctly validated
@@ -33,6 +33,40 @@ class PyObjectId(ObjectId):
         cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
         return handler(core_schema.str_schema())
+
+# --- Schema for Stock Items ---
+class StockItemBase(BaseModel):
+    name: str
+    category: str
+    quantity: int
+    unit: str
+    price: float
+    supplier: Optional[str] = None
+    expiryDate: Optional[date] = None
+    minimumStock: int
+    description: Optional[str] = None
+    addedOn: date = Field(default_factory=date.today)
+
+class StockItemCreate(StockItemBase):
+    pass
+
+class StockItemUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    quantity: Optional[int] = None
+    unit: Optional[str] = None
+    price: Optional[float] = None
+    supplier: Optional[str] = None
+    expiryDate: Optional[date] = None
+    minimumStock: Optional[int] = None
+    description: Optional[str] = None
+
+class StockItemInDB(StockItemBase):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    addedOn: datetime
+    expiryDate: Optional[datetime] = None
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
+
 
 # --- Schema for Available Rituals ---
 class AvailableRitualBase(BaseModel):
@@ -125,3 +159,4 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+

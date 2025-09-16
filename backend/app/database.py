@@ -23,3 +23,5 @@ bookings_collection = database.get_collection("bookings")
 events_collection = database.get_collection("events")
 admins_collection = database.get_collection("admins")
 gallery_collection = database.get_collection("gallery_images")
+stock_items_collection = database.get_collection("stock_items")
+
