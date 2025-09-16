@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI
-from .routers import rituals, bookings, events, admin, gallery
+from .routers import rituals, bookings, events, admin, gallery, stock
 from .database import available_rituals_collection, admins_collection
 from . import crud, auth
 from .schemas import AvailableRitualBase, AdminCreate
@@ -21,7 +21,7 @@ app = FastAPI(
 
 # --- CORS Middleware ---
 # Allows the frontend to communicate with the backend
-origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"] # Added new origin for vite dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -75,9 +75,10 @@ app.include_router(rituals.router, tags=["Rituals"], prefix="/api/rituals")
 app.include_router(events.router, tags=["Events"], prefix="/api/events")
 app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
 app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
+app.include_router(stock.router, tags=["Stock"], prefix="/api")
 
 
 @app.get("/api")
 async def root():
     return {"message": "Welcome to the Temple Management System API"}
-    return {"message": "Welcome to the Temple Management System API"}
+

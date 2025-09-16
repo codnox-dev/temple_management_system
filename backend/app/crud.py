@@ -3,17 +3,148 @@ from .database import (
     bookings_collection,
     events_collection,
     admins_collection,
-    gallery_collection
+    gallery_collection,
+    stock_items_collection,
 )
 from .schemas import (
     BookingCreate,
     AvailableRitualCreate,
     EventCreate,
     AdminCreate,
-    GalleryImageCreate
+    GalleryImageCreate,
+    StockItemCreate,
+    StockItemUpdate,
 )
 from bson import ObjectId
-from typing import Dict, Any
+from typing import Dict, Any, List
+from datetime import datetime, date
+
+# --- Helper function for date conversion ---
+def convert_dates_for_mongo(data_dict: dict):
+    """Converts date objects to datetime objects for MongoDB storage."""
+    for key, value in data_dict.items():
+        if isinstance(value, date) and not isinstance(value, datetime):
+            data_dict[key] = datetime.combine(value, datetime.min.time())
+    return data_dict
+
+# --- CRUD for Stock Items ---
+
+async def create_stock_item(stock_data: StockItemCreate):
+    stock_item = stock_data.model_dump()
+    stock_item = convert_dates_for_mongo(stock_item)
+    result = await stock_items_collection.insert_one(stock_item)
+    new_stock_item = await stock_items_collection.find_one({"_id": result.inserted_id})
+    return new_stock_item
+
+async def get_all_stock_items():
+    cursor = stock_items_collection.find({})
+    return [item async for item in cursor]
+
+async def update_stock_item_by_id(id: str, stock_data: StockItemUpdate):
+    update_data = stock_data.model_dump(exclude_unset=True)
+    if not update_data:
+        return await stock_items_collection.find_one({"_id": ObjectId(id)})
+
+    update_data = convert_dates_for_mongo(update_data)
+
+    result = await stock_items_collection.update_one(
+        {"_id": ObjectId(id)}, {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        return None
+    return await stock_items_collection.find_one({"_id": ObjectId(id)})
+
+async def delete_stock_item_by_id(id: str) -> bool:
+    result = await stock_items_collection.delete_one({"_id": ObjectId(id)})
+    return result.deleted_count == 1
+
+
+async def get_stock_analytics_data(period: str, year: int) -> List[Dict[str, Any]]:
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year + 1, 1, 1)
+    
+    match_stage = {"$match": {"addedOn": {"$gte": start_date, "$lt": end_date}}}
+    
+    pipeline = [match_stage]
+    
+    if period == "monthly":
+        pipeline.extend([
+            {"$group": {
+                "_id": {"$month": "$addedOn"},
+                "totalItems": {"$sum": "$quantity"},
+                "totalValue": {"$sum": {"$multiply": ["$quantity", "$price"]}},
+                "lowStockItems": {"$sum": {"$cond": [{"$lte": ["$quantity", "$minimumStock"]}, 1, 0]}},
+                "newItemsAdded": {"$sum": 1}
+            }},
+            {"$sort": {"_id": 1}}
+        ])
+    elif period == "yearly":
+        pipeline.extend([
+            {"$group": {
+                "_id": {"$year": "$addedOn"},
+                "totalItems": {"$sum": "$quantity"},
+                "totalValue": {"$sum": {"$multiply": ["$quantity", "$price"]}},
+                "lowStockItems": {"$sum": {"$cond": [{"$lte": ["$quantity", "$minimumStock"]}, 1, 0]}},
+                "newItemsAdded": {"$sum": 1}
+            }},
+            {"$sort": {"_id": -1}}
+        ])
+
+    cursor = stock_items_collection.aggregate(pipeline)
+    results = []
+    async for doc in cursor:
+        if period == "monthly":
+            month_name = datetime(year, doc["_id"], 1).strftime("%B")
+            results.append({
+                "month": month_name,
+                "year": year,
+                "totalItems": doc["totalItems"],
+                "totalValue": doc["totalValue"],
+                "lowStockItems": doc["lowStockItems"],
+                "newItemsAdded": doc["newItemsAdded"],
+            })
+        else:
+             results.append({
+                "year": doc["_id"],
+                "totalItems": doc["totalItems"],
+                "totalValue": doc["totalValue"],
+                "lowStockItems": doc["lowStockItems"],
+                "newItemsAdded": doc["newItemsAdded"],
+            })
+    return results
+
+async def get_stock_analytics_by_category(year: int) -> List[Dict[str, Any]]:
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year + 1, 1, 1)
+    
+    pipeline = [
+        {"$match": {"addedOn": {"$gte": start_date, "$lt": end_date}}},
+        {"$group": {
+            "_id": "$category",
+            "totalItems": {"$sum": "$quantity"},
+            "totalValue": {"$sum": {"$multiply": ["$quantity", "$price"]}}
+        }},
+        {"$project": {
+            "category": "$_id",
+            "totalItems": 1,
+            "totalValue": 1,
+            "_id": 0
+        }},
+        {"$sort": {"totalValue": -1}}
+    ]
+    
+    cursor = stock_items_collection.aggregate(pipeline)
+    results = [doc async for doc in cursor]
+    
+    total_value_all_categories = sum(item['totalValue'] for item in results)
+    if total_value_all_categories > 0:
+        for item in results:
+            item['percentage'] = round((item['totalValue'] / total_value_all_categories) * 100, 2)
+    else:
+         for item in results:
+            item['percentage'] = 0
+
+    return results
 
 # --- CRUD for Available Rituals ---
 
@@ -60,22 +191,13 @@ async def create_event(event_data: EventCreate):
     return await events_collection.find_one({"_id": result.inserted_id})
 
 async def update_event_by_id(id: str, event_data: Dict[str, Any]):
-    """
-    Updates an event in the database.
-    """
     if not ObjectId.is_valid(id):
-        return None  # Invalid ObjectId format
-
-    # Perform the update operation.
+        return None
     result = await events_collection.update_one(
         {"_id": ObjectId(id)}, {"$set": event_data}
     )
-
-    # If no document was matched, the event ID does not exist.
     if result.matched_count == 0:
         return None
-
-    # If matched, the update was successful. Fetch and return the updated document.
     return await events_collection.find_one({"_id": ObjectId(id)})
 
 async def delete_event_by_id(id: str) -> bool:
@@ -87,19 +209,16 @@ async def delete_event_by_id(id: str) -> bool:
 # --- CRUD for Gallery Images ---
 
 async def get_all_gallery_images():
-    """Retrieves all images from the gallery_collection."""
     cursor = gallery_collection.find({})
     return [image async for image in cursor]
 
 async def create_gallery_image(image_data: GalleryImageCreate):
-    """Inserts a new image document into the gallery_collection."""
     image = image_data.model_dump()
     result = await gallery_collection.insert_one(image)
     new_image = await gallery_collection.find_one({"_id": result.inserted_id})
     return new_image
 
 async def update_gallery_image_by_id(id: str, image_data: Dict[str, Any]):
-    """Updates an existing image in the gallery_collection by its ID."""
     if not ObjectId.is_valid(id):
         return None
     result = await gallery_collection.update_one(
@@ -110,7 +229,6 @@ async def update_gallery_image_by_id(id: str, image_data: Dict[str, Any]):
     return await gallery_collection.find_one({"_id": ObjectId(id)})
 
 async def delete_gallery_image_by_id(id: str) -> bool:
-    """Deletes an image from the gallery_collection by its ID."""
     if not ObjectId.is_valid(id):
         return False
     result = await gallery_collection.delete_one({"_id": ObjectId(id)})
