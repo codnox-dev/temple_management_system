@@ -25,6 +25,15 @@ def convert_dates_for_mongo(data_dict: dict):
     for key, value in data_dict.items():
         if isinstance(value, date) and not isinstance(value, datetime):
             data_dict[key] = datetime.combine(value, datetime.min.time())
+        # Handle date strings from frontend
+        elif isinstance(value, str):
+            try:
+                # Attempt to parse date string (e.g., "YYYY-MM-DD")
+                parsed_date = datetime.fromisoformat(value.split('T')[0])
+                data_dict[key] = parsed_date
+            except ValueError:
+                # Ignore if it's not a valid date string
+                pass
     return data_dict
 
 # --- CRUD for Stock Items ---
@@ -37,14 +46,16 @@ async def create_stock_item(stock_data: StockItemCreate):
     return new_stock_item
 
 async def get_all_stock_items():
-    cursor = stock_items_collection.find({})
+    cursor = stock_items_collection.find({}).sort("addedOn", -1)
     return [item async for item in cursor]
 
 async def update_stock_item_by_id(id: str, stock_data: StockItemUpdate):
     update_data = stock_data.model_dump(exclude_unset=True)
     if not update_data:
+        # If no data is sent, just return the existing item.
         return await stock_items_collection.find_one({"_id": ObjectId(id)})
 
+    # Convert dates before updating
     update_data = convert_dates_for_mongo(update_data)
 
     result = await stock_items_collection.update_one(
@@ -94,22 +105,23 @@ async def get_stock_analytics_data(period: str, year: int) -> List[Dict[str, Any
     results = []
     async for doc in cursor:
         if period == "monthly":
+            # Create a full date for strftime, otherwise it might fail on some systems
             month_name = datetime(year, doc["_id"], 1).strftime("%B")
             results.append({
                 "month": month_name,
                 "year": year,
-                "totalItems": doc["totalItems"],
-                "totalValue": doc["totalValue"],
-                "lowStockItems": doc["lowStockItems"],
-                "newItemsAdded": doc["newItemsAdded"],
+                "totalItems": doc.get("totalItems", 0),
+                "totalValue": doc.get("totalValue", 0),
+                "lowStockItems": doc.get("lowStockItems", 0),
+                "newItemsAdded": doc.get("newItemsAdded", 0),
             })
         else:
              results.append({
                 "year": doc["_id"],
-                "totalItems": doc["totalItems"],
-                "totalValue": doc["totalValue"],
-                "lowStockItems": doc["lowStockItems"],
-                "newItemsAdded": doc["newItemsAdded"],
+                "totalItems": doc.get("totalItems", 0),
+                "totalValue": doc.get("totalValue", 0),
+                "lowStockItems": doc.get("lowStockItems", 0),
+                "newItemsAdded": doc.get("newItemsAdded", 0),
             })
     return results
 
@@ -251,4 +263,3 @@ async def create_admin(admin_data: AdminCreate):
 
 async def get_admin_by_username(username: str):
     return await admins_collection.find_one({"username": username})
-

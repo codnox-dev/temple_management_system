@@ -63,9 +63,17 @@ class StockItemUpdate(BaseModel):
 
 class StockItemInDB(StockItemBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    # Both addedOn and expiryDate can now be returned as datetime objects from the DB
     addedOn: datetime
     expiryDate: Optional[datetime] = None
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
+    model_config = ConfigDict(
+        populate_by_name=True, 
+        from_attributes=True, 
+        json_encoders={
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat() # Ensure datetime is serialized to ISO string
+        }
+    )
 
 
 # --- Schema for Available Rituals ---
@@ -159,4 +167,3 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-
