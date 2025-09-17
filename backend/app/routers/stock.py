@@ -12,7 +12,12 @@ async def create_stock_item(stock_item: StockItemCreate):
     """
     Create a new stock item.
     """
-    return await crud.create_stock_item(stock_item)
+    try:
+        new_item = await crud.create_stock_item(stock_item)
+        return new_item
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.get("/stock", response_model=List[StockItemInDB])
 async def get_all_stock_items():
@@ -44,24 +49,30 @@ async def delete_stock_item(item_id: str):
 
     deleted = await crud.delete_stock_item_by_id(item_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Stock item not found")
+        raise HTTPException(status_code=404, detail="Stock item not a found")
+    # No return content for a 204 response
     return
 
 @router.get("/stock/analytics")
 async def get_stock_analytics(
-    period: str = Query("monthly", enum=["monthly", "yearly"]),
+    period: str = Query("monthly", enum=["monthly", "yearly", "category"]),
     year: int = Query(datetime.now().year)
 ):
     """
     Get stock analytics data.
-    Can be filtered by period (monthly or yearly) and year.
+    Can be filtered by period (monthly, yearly, or category) and year.
     """
     try:
-        analytics_data = await crud.get_stock_analytics_data(period, year)
+        if period == "category":
+            analytics_data = await crud.get_stock_analytics_by_category(year)
+        else:
+            analytics_data = await crud.get_stock_analytics_data(period, year)
         return analytics_data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
+# This endpoint is now consolidated into the one above.
+# You can remove it if you prefer, but it's fine to keep for backward compatibility.
 @router.get("/stock/analytics/category")
 async def get_stock_category_analytics(year: int = Query(datetime.now().year)):
     """
@@ -72,4 +83,3 @@ async def get_stock_category_analytics(year: int = Query(datetime.now().year)):
         return analytics_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
