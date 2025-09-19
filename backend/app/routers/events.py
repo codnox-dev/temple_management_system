@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import event_service, auth_service
-from ..schemas import EventCreate, EventInDB
+from ..models import EventCreate, EventInDB
 
 router = APIRouter()
 

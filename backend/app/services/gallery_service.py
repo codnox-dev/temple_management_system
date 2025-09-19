@@ -1,5 +1,5 @@
 from ..database import gallery_collection
-from ..schemas import GalleryImageCreate
+from ..models import GalleryImageCreate
 from bson import ObjectId
 from typing import Dict, Any
 

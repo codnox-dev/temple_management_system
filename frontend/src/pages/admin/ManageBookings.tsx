@@ -43,7 +43,7 @@ interface Booking {
 }
 
 // --- API Fetching ---
-const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
+const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
 
 
 const ManageBookings = () => {

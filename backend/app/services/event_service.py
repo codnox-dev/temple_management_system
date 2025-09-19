@@ -1,5 +1,5 @@
 from ..database import events_collection
-from ..schemas import EventCreate
+from ..models import EventCreate
 from bson import ObjectId
 from typing import Dict, Any
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import ritual_service, auth_service
-from ..schemas import AvailableRitualCreate, AvailableRitualInDB
+from ..models import AvailableRitualCreate, AvailableRitualInDB
 
 router = APIRouter()
 
@@ -52,4 +52,3 @@ async def delete_ritual(
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Ritual with ID {id} not found")
     return
-

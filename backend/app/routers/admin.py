@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from ..services import auth_service
-from ..schemas import Token
+from ..models import Token
 from ..database import admins_collection
 
 router = APIRouter()
@@ -12,8 +12,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     """
     Used to authenticate the admin and return a JWT access token.
     """
-    # In a real app, you'd fetch the user from the database.
-    # This is a placeholder for fetching admin user details.
     admin = await admins_collection.find_one({"username": form_data.username})
     if not admin or not auth_service.verify_password(form_data.password, admin["hashed_password"]):
         raise HTTPException(

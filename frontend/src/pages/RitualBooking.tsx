@@ -112,7 +112,7 @@ const RitualBooking = () => {
 	};
 
 	const bookingMutation = useMutation({
-		mutationFn: (newBooking: any) => api.post('/bookings', newBooking),
+		mutationFn: (newBooking: any) => api.post('/bookings/', newBooking),
         onSuccess: () => {
             toast.success("Booking successful! Thank you for your devotion.");
             setFormData({ name: '', email: '', phone: '', address: '' });

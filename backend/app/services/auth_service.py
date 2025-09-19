@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from ..database import admins_collection
-from ..schemas import AdminCreate
+from ..models import AdminCreate
 
 # Load environment variables from .env file
 load_dotenv()

@@ -1,5 +1,5 @@
 from ..database import bookings_collection
-from ..schemas import BookingCreate
+from ..models import BookingCreate
 
 async def create_booking(booking: BookingCreate):
     booking_data = booking.model_dump()

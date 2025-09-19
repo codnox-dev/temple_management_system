@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import booking_service, auth_service
-from ..schemas import BookingCreate, BookingInDB
+from ..models import BookingCreate, BookingInDB
 
 router = APIRouter()
 

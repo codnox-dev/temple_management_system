@@ -1,5 +1,5 @@
 from ..database import available_rituals_collection
-from ..schemas import AvailableRitualCreate
+from ..models import AvailableRitualCreate
 from bson import ObjectId
 from typing import Dict, Any
 

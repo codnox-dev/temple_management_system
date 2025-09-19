@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from .routers import rituals, bookings, events, admin, gallery
 from .database import available_rituals_collection, admins_collection
 from .services import auth_service
-from .schemas import AvailableRitualBase, AdminCreate
+from .models import AvailableRitualBase, AdminCreate
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
