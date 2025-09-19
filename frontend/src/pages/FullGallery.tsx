@@ -13,7 +13,7 @@ interface GalleryImage {
     category: string;
 }
 
-const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 
 const FullGallery = () => {
   const { data: galleryImages, isLoading, isError } = useQuery<GalleryImage[]>({

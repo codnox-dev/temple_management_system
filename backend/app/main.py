@@ -2,10 +2,8 @@ import os
 from fastapi import FastAPI
 from .routers import rituals, bookings, events, admin, gallery, stock
 from .database import available_rituals_collection, admins_collection
-from . import crud, auth
-from .schemas import AvailableRitualBase, AdminCreate
-from typing import List
-import asyncio
+from .services import auth_service
+from .models import AvailableRitualBase, AdminCreate
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -43,7 +41,8 @@ async def startup_db_client():
             AvailableRitualBase(name='Special Blessing', description='Personalized blessing for health and prosperity.', price=501, duration='1 hour', popular=True, icon_name='Heart'),
             AvailableRitualBase(name='Festival Ceremony', description='Grand rituals for special occasions.', price=1001, duration='2 hours', popular=False, icon_name='Star'),
         ]
-        # You may want to insert initial_rituals into the database here if needed.
+        # You would typically insert these into the database.
+        # For example: await available_rituals_collection.insert_many([r.model_dump() for r in initial_rituals])
         print("Database populated with initial rituals.")
 
     # --- Create Default Admin User from .env ---
@@ -57,14 +56,15 @@ async def startup_db_client():
         if not admin_password:
              raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
 
-        hashed_password = auth.get_password_hash(admin_password)
+        hashed_password = auth_service.get_password_hash(admin_password)
         admin_user = AdminCreate(
             name=admin_name,
             email=admin_email,
             username=admin_username,
             hashed_password=hashed_password
         )
-        await crud.create_admin(admin_user)
+        # Use the create_admin function from the auth_service
+        await auth_service.create_admin(admin_user)
         print(f"Default admin created with username '{admin_username}'.")
         print("Password is set from the DEFAULT_ADMIN_PASSWORD in your .env file.")
 
