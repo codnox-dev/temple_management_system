@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react';
 
-const API_URL = 'http://localhost:8080/api/events';
+import { get } from '@/api/api';
+import api from '@/api/api';
 
 // Define the shape of an event object
 interface Event {
@@ -24,7 +25,7 @@ interface Event {
 
 // Fetch all events
 const fetchEvents = async (): Promise<Event[]> => {
-    const { data } = await axios.get(API_URL);
+    const data = await get<Event[]>('/events/');
     return data;
 };
 
@@ -55,9 +56,9 @@ const ManageEvents = () => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
             if (isEditing) {
-                return axios.put(`${API_URL}/${isEditing._id}`, eventPayload, config);
+                return api.put(`/events/${isEditing._id}`, eventPayload, config);
             }
-            return axios.post(API_URL, eventPayload, config);
+            return api.post('/events/', eventPayload, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminEvents'] });
@@ -72,7 +73,7 @@ const ManageEvents = () => {
         mutationFn: (id: string) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            return axios.delete(`${API_URL}/${id}`, config);
+            return api.delete(`/events/${id}`, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminEvents'] });

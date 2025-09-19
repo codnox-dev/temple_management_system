@@ -15,7 +15,7 @@ interface GalleryImage {
     category: string;
 }
 
-const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 
 const ManageGallery = () => {
     const queryClient = useQueryClient();

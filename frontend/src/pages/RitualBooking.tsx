@@ -35,7 +35,7 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 const fetchRituals = async (): Promise<Ritual[]> => {
-	const data = await get<ApiRitual[]>('/rituals');
+	const data = await get<ApiRitual[]>('/rituals/');
 	return data.map(r => ({ ...r, id: r._id }));
 };
 

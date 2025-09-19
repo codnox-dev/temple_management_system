@@ -10,7 +10,7 @@ interface GalleryImage {
 	category: string;
 }
 
-const fetchGalleryImages = () => get<GalleryImage[]>('/gallery');
+const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 
 
 const GalleryPreview = () => {
