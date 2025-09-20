@@ -55,7 +55,7 @@ type RitualInstance = {
 const frequencyMultipliers: Record<Subscription, number> = { 'one-time': 1, daily: 30, weekly: 4, monthly: 1 };
 
 const RitualBooking = () => {
-    const navigate = useNavigate();
+	const navigate = useNavigate();
     const { data: rituals = [], isLoading } = useQuery({ 
         queryKey: ['rituals'], 
         queryFn: fetchRituals,
@@ -86,7 +86,13 @@ const RitualBooking = () => {
 	}, [filteredRituals, showAllRituals, gridCols]);
 
 	const addInstance = (ritualId: string) => {
-		setInstances(prev => [...prev, { id: `${ritualId}-${Date.now()}`, ritualId, devoteeName: '', naal: '', dob: '', subscription: 'one-time', quantity: 1 }]);
+		const uniqueId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+			? (crypto as any).randomUUID()
+			: `${ritualId}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+		setInstances(prev => [
+			...prev,
+			{ id: uniqueId, ritualId, devoteeName: '', naal: '', dob: '', subscription: 'one-time', quantity: 1 }
+		]);
 	};
 
 	const updateInstance = <K extends keyof RitualInstance>(id: RitualInstance['id'], key: K, value: RitualInstance[K]) => {
@@ -164,7 +170,9 @@ const RitualBooking = () => {
 					<h2 className="text-2xl font-playfair font-semibold mb-6 text-foreground">Select Rituals</h2>
 					<div className="mb-6"><Label htmlFor="search">Search Ritual</Label><Input id="search" placeholder="Search by name or description..." value={search} onChange={e => setSearch(e.target.value)} className="mt-1" /></div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-						{isLoading ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-lg border border-primary/20 p-4 h-40 bg-slate-200 animate-pulse"></div>)
+						{isLoading ? Array.from({ length: 3 }).map((_, i) => (
+							<div key={`skeleton-${i}`} className="rounded-lg border border-primary/20 p-4 h-40 bg-slate-200 animate-pulse"></div>
+						))
                         : visibleRituals.map((ritual) => (
 								<div key={ritual.id} role="button" tabIndex={0} onClick={() => addInstance(ritual.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') addInstance(ritual.id);}} className="rounded-lg border border-primary/20 p-4 hover:bg-card/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40">
 									<div className="flex items-center gap-2 mb-2">
@@ -195,7 +203,21 @@ const RitualBooking = () => {
 										<div className="text-sm font-medium text-foreground mb-3">{r.name} #{idx + 1}</div>
 										<div className="space-y-3">
 											<div><Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label><Input id={`devotee-${inst.id}`} value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="mt-1" placeholder="Enter devotee name" required/></div>
-											<div><Label htmlFor={`naal-${inst.id}`}>Naal *</Label><select id={`naal-${inst.id}`} value={inst.naal} onChange={e => updateInstance(inst.id, 'naal', e.target.value)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" required><option value="" disabled>Select Naal</option>{NAALS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+											<div>
+												<Label htmlFor={`naal-${inst.id}`}>Naal *</Label>
+												<select
+													id={`naal-${inst.id}`}
+													value={inst.naal}
+													onChange={e => updateInstance(inst.id, 'naal', e.target.value)}
+													className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+													required
+												>
+													<option value="" disabled>Select Naal</option>
+													{NAALS.map((n, idx) => (
+														<option key={`naal-${idx}`} value={n}>{n}</option>
+													))}
+												</select>
+											</div>
 											<div><Label htmlFor={`dob-${inst.id}`}>Date of Birth *</Label><Input id={`dob-${inst.id}`} type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="mt-1" required/></div>
 											<div className="grid grid-cols-3 gap-3">
 												<div className="col-span-2"><Label htmlFor={`sub-${inst.id}`}>Subscription</Label><select id={`sub-${inst.id}`} value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
