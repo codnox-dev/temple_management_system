@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
 from .main_models import PyObjectId
+from datetime import datetime
 
 # --- Schemas for Admin Authentication ---
 # Defines the base structure for an admin user.
@@ -9,6 +10,21 @@ class AdminBase(BaseModel):
     name: str = Field(..., example="Administrator")
     email: EmailStr = Field(..., example="admin@example.com")
     username: str = Field(..., example="adminuser")
+    role: str = Field(..., example="super_admin")
+    role_id: int = Field(..., example=1)
+    mobile_number: int = Field(..., example=1234567890)
+    mobile_prefix: str = Field(..., example="+91")
+    profile_picture: Optional[str] = Field(None, example="https://example.com/profile.jpg")
+    dob: Optional[str] = Field(None, example="1990-01-01")
+    last_login: Optional[datetime] = Field(None)
+    permissions: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: str = Field(..., example="system")
+    updated_at: Optional[datetime] = Field(None)
+    updated_by: Optional[str] = Field(None)
+    notification_preference: List[str] = Field(default_factory=list)
+    notification_list: Optional[List[str]] = Field(None)
+    isRestricted: bool = Field(False)
 
 # Used when creating a new admin, includes the hashed password.
 class AdminCreate(AdminBase):
