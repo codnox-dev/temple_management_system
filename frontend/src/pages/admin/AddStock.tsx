@@ -38,7 +38,7 @@ const AddStock = () => {
   const fetchStockItems = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get<StockItem[]>('/stock');
+      const response = await api.get<StockItem[]>('/stock/');
       setStockItems(response.data);
       setError(null);
     } catch (err) {
@@ -86,7 +86,7 @@ const AddStock = () => {
             setEditingItem(null);
         } else {
             // Add new logic
-            const response = await api.post<StockItem>('/stock', { ...itemToSend, addedOn: new Date().toISOString().split('T')[0] });
+            const response = await api.post<StockItem>('/stock/', { ...itemToSend, addedOn: new Date().toISOString().split('T')[0] });
             setStockItems([response.data, ...stockItems]);
         }
         setFormState(initialFormState);
@@ -309,3 +309,4 @@ const AddStock = () => {
 };
 
 export default AddStock;
+
