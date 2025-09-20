@@ -29,8 +29,10 @@ async def create_new_event(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to create a new event. Admin access is required.
+    Used to create a new event. Requires role_id <= 3 (Super/Admin/Privileged/Editor).
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create events")
     created_event = await event_service.create_event(event)
     if created_event:
         return created_event
@@ -43,8 +45,10 @@ async def update_event(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to update an existing event. Admin access is required.
+    Used to update an existing event. Requires role_id <= 3.
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update events")
     updated_event = await event_service.update_event_by_id(id, event.model_dump())
     if updated_event is not None:
         return updated_event
@@ -56,8 +60,10 @@ async def delete_event(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to delete an event. Admin access is required.
+    Used to delete an event. Requires role_id <= 3.
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete events")
     deleted = await event_service.delete_event_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Event with ID {id} not found")

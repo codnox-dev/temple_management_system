@@ -20,8 +20,10 @@ const Navigation = () => {
 
   const handleScroll = () => {
     setIsScrolled(window.scrollY > 50);
-
-    const sections = navItems.map(item => document.querySelector(item.path));
+    // Only query DOM for hash anchors; skip real routes like '/gallery'
+    const sections = navItems
+      .filter(item => item.path.startsWith('#'))
+      .map(item => document.querySelector(item.path));
     const scrollPosition = window.scrollY + window.innerHeight / 2;
 
     for (const section of sections) {

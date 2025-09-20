@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   Globe,
@@ -17,6 +18,9 @@ import {
 } from 'lucide-react';
 
 const TempleSidebar = () => {
+  const { user } = useAuth() as any;
+  const roleId = user?.role_id ?? 99;
+
   const [isWebsiteExpanded, setIsWebsiteExpanded] = useState(true);
   const [isStockExpanded, setIsStockExpanded] = useState(true);
   const [isAdminExpanded, setIsAdminExpanded] = useState(true);
@@ -52,14 +56,20 @@ const TempleSidebar = () => {
       </div>
 
       <nav className="space-y-2">
+    {/* Dashboard visible to all except Editors (3) and Employees (4) */}
+    {roleId !== 3 && roleId !== 4 && (
         <NavLink to="/admin" end className={navLinkClass}>
             <LayoutDashboard className="h-5 w-5" />
             <span className="font-medium">Dashboard</span>
         </NavLink>
+        )}
+        {/* Bookings hidden for Editors */}
+        {roleId !== 3 && (
         <NavLink to="/admin/bookings" className={navLinkClass}>
             <BookOpen className="h-5 w-5" />
             <span className="font-medium">All Bookings</span>
         </NavLink>
+        )}
         
         {/* Website Management Section */}
         <div>
@@ -76,23 +86,33 @@ const TempleSidebar = () => {
           
           {isWebsiteExpanded && (
             <div className="ml-6 mt-2 space-y-1">
+        {/* Editors (3) can access Events & Gallery; Employees (4) only Rituals */}
+        {(roleId !== 4) && (
                 <NavLink to="/admin/events" className={subNavLinkClass}>
                     <Calendar className="h-4 w-4" />
                     <span>Event Management</span>
                 </NavLink>
+                )}
+        {(roleId !== 4) && (
                 <NavLink to="/admin/gallery" className={subNavLinkClass}>
                     <Image className="h-4 w-4" />
                     <span>Gallery Management</span>
                 </NavLink>
+                )}
+                {(
+                  roleId === 3 || roleId === 4 || roleId < 3 || roleId >= 5
+                ) && (
                 <NavLink to="/admin/rituals" className={subNavLinkClass}>
                     <Flame className="h-4 w-4" />
                     <span>Ritual Management</span>
                 </NavLink>
+                )}
             </div>
           )}
         </div>
 
-        {/* Stock Management Section */}
+  {/* Stock Management Section: visible for all except Editor (3) */}
+  {roleId !== 3 && (
         <div>
           <button
             onClick={() => setIsStockExpanded(!isStockExpanded)}
@@ -118,8 +138,11 @@ const TempleSidebar = () => {
              </div>
           )}
         </div>
+        )}
 
         {/* Admin Management Section */}
+        {/* Admin Management visible only to role_id <= 2 (Super/Admin/Privileged), but page will also gate */}
+        {roleId <= 2 && (
         <div>
           <button
             onClick={() => setIsAdminExpanded(!isAdminExpanded)}
@@ -141,6 +164,7 @@ const TempleSidebar = () => {
             </div>
           )}
         </div>
+        )}
       </nav>
     </aside>
   );

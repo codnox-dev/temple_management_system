@@ -1,17 +1,19 @@
-from fastapi import APIRouter, HTTPException, Query, Body, status
+from fastapi import APIRouter, HTTPException, Query, Body, status, Depends
 from ..models.stock_models import StockItemCreate, StockItemUpdate, StockItemInDB
 from typing import List,Dict, Any
 from datetime import datetime
 from bson import ObjectId
-from ..services import stock_service, stock_analytics_service
+from ..services import stock_service, stock_analytics_service, auth_service
 
 router = APIRouter()
 
 @router.post("", response_model=StockItemInDB, status_code=status.HTTP_201_CREATED) # Changed from "/"
-async def create_stock_item(stock_item: StockItemCreate):
+async def create_stock_item(stock_item: StockItemCreate, current_admin: dict = Depends(auth_service.get_current_admin)):
     """
     Create a new stock item.
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create stock items")
     try:
         return await stock_service.create_stock_item_service(stock_item)
     except Exception as e:
@@ -25,10 +27,12 @@ async def get_all_stock_items():
     return await stock_service.get_all_stock_items_service()
 
 @router.put("/{item_id}", response_model=StockItemInDB)
-async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...)):
+async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...), current_admin: dict = Depends(auth_service.get_current_admin)):
     """
     Update a stock item by its ID.
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update stock items")
     if not ObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
 
@@ -38,10 +42,12 @@ async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...
     return updated_item
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_stock_item(item_id: str):
+async def delete_stock_item(item_id: str, current_admin: dict = Depends(auth_service.get_current_admin)):
     """
     Delete a stock item by its ID.
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete stock items")
     if not ObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
 

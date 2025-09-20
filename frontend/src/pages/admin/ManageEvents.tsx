@@ -11,6 +11,7 @@ import { Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react';
 
 import { get } from '@/api/api';
 import api from '@/api/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Define the shape of an event object
 interface Event {
@@ -31,6 +32,9 @@ const fetchEvents = async (): Promise<Event[]> => {
 
 const ManageEvents = () => {
     const queryClient = useQueryClient();
+    const { user } = (useAuth() as any) || {};
+    const roleId: number = user?.role_id ?? 99;
+    const isReadOnly = roleId > 3;
     const [isEditing, setIsEditing] = useState<Event | null>(null);
     const [formData, setFormData] = useState({ title: '', date: '', time: '', location: '', description: '', image: '' });
 
@@ -55,6 +59,7 @@ const ManageEvents = () => {
         mutationFn: (eventPayload: Omit<Event, '_id'>) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 3) throw new Error('Not authorized');
             if (isEditing) {
                 return api.put(`/events/${isEditing._id}`, eventPayload, config);
             }
@@ -73,6 +78,7 @@ const ManageEvents = () => {
         mutationFn: (id: string) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 3) throw new Error('Not authorized');
             return api.delete(`/events/${id}`, config);
         },
         onSuccess: () => {
@@ -85,6 +91,7 @@ const ManageEvents = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (isReadOnly) { toast.error('You are not authorized to modify events.'); return; }
         mutation.mutate(formData);
     };
 
@@ -143,14 +150,16 @@ const ManageEvents = () => {
                         <Input 
                             placeholder="Title" 
                             value={formData.title} 
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                             required 
                         />
                         <Textarea 
                             placeholder="Description" 
                             value={formData.description} 
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                             required 
                         />
@@ -158,14 +167,16 @@ const ManageEvents = () => {
                            <Input 
                                 type="date" 
                                 value={formData.date} 
-                                onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                disabled={isReadOnly}
                                 className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                                 required 
                             />
                            <Input 
                                 placeholder="Time (e.g., 6:00 PM)" 
                                 value={formData.time} 
-                                onChange={(e) => setFormData({ ...formData, time: e.target.value })} 
+                                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                                disabled={isReadOnly}
                                 className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                                 required 
                             />
@@ -173,21 +184,23 @@ const ManageEvents = () => {
                         <Input 
                             placeholder="Location" 
                             value={formData.location} 
-                            onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                             required 
                         />
                         <Input 
                             placeholder="Image URL" 
                             value={formData.image} 
-                            onChange={(e) => setFormData({ ...formData, image: e.target.value })} 
+                            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                            disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                             required 
                         />
                         <div className="flex gap-2">
                            <Button 
                                 type="submit" 
-                                disabled={mutation.isPending}
+                                disabled={mutation.isPending || isReadOnly}
                                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                             >
                                 {isEditing ? 'Update' : 'Add'} Event
@@ -211,6 +224,7 @@ const ManageEvents = () => {
                                     variant="outline" 
                                     size="sm" 
                                     onClick={() => setIsEditing(event)}
+                                    disabled={roleId > 3}
                                     className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
                                 >
                                     <Edit className="h-4 w-4 mr-2" />Edit
@@ -219,6 +233,7 @@ const ManageEvents = () => {
                                     variant="destructive" 
                                     size="sm" 
                                     onClick={() => deleteMutation.mutate(event._id)}
+                                    disabled={roleId > 3}
                                     className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />Delete

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Package, Calendar, DollarSign, AlertTriangle, Save, Edit, Trash2, X } from 'lucide-react';
 import api from '@/api/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StockItem {
   _id: string;
@@ -34,6 +35,8 @@ const AddStock = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = (useAuth() as any) || {};
+  const roleId: number = user?.role_id ?? 99;
 
   const fetchStockItems = async () => {
     try {
@@ -79,13 +82,15 @@ const AddStock = () => {
             expiryDate: formState.expiryDate || undefined,
         };
 
-        if (editingItem) {
+    if (editingItem) {
             // Update logic
+      if (roleId > 4) throw new Error('Not authorized');
             const response = await api.put<StockItem>(`/stock/${editingItem._id}`, itemToSend);
             setStockItems(stockItems.map(item => item._id === editingItem._id ? response.data : item));
             setEditingItem(null);
         } else {
             // Add new logic
+      if (roleId > 4) throw new Error('Not authorized');
             const response = await api.post<StockItem>('/stock/', { ...itemToSend, addedOn: new Date().toISOString().split('T')[0] });
             setStockItems([response.data, ...stockItems]);
         }
@@ -99,6 +104,7 @@ const AddStock = () => {
   };
   
   const handleEdit = (item: StockItem) => {
+    if (roleId > 4) { setError('You are not authorized to edit stock.'); return; }
     setEditingItem(item);
     setFormState({
         ...item,
@@ -113,6 +119,7 @@ const AddStock = () => {
   const handleDelete = async (itemId: string) => {
     if (window.confirm("Are you sure you want to delete this item?")) {
         try {
+            if (roleId > 4) throw new Error('Not authorized');
             await api.delete(`/stock/${itemId}`);
             setStockItems(stockItems.filter(item => item._id !== itemId));
             setError(null);
@@ -147,6 +154,7 @@ const AddStock = () => {
         </div>
         <button
           onClick={() => { setEditingItem(null); setFormState(initialFormState); setShowAddForm(true); }}
+          disabled={roleId > 4}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30 flex items-center space-x-2"
         >
           <Plus className="h-5 w-5" />
@@ -254,7 +262,7 @@ const AddStock = () => {
                 </div>
                 <div className="flex justify-end space-x-4 mt-6">
                     <button onClick={closeForm} className="px-6 py-3 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors">Cancel</button>
-                    <button onClick={handleSubmit} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center space-x-2">
+          <button onClick={handleSubmit} disabled={roleId > 4} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center space-x-2">
                         <Save className="h-5 w-5" />
                         <span>{editingItem ? 'Update Item' : 'Add Item'}</span>
                     </button>
@@ -296,8 +304,8 @@ const AddStock = () => {
                         </div>
                     </div>
                     <div className="flex justify-end space-x-2 mt-4">
-                        <button onClick={() => handleEdit(item)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-md"><Edit size={16}/></button>
-                        <button onClick={() => handleDelete(item._id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-md"><Trash2 size={16}/></button>
+            <button onClick={() => handleEdit(item)} disabled={roleId > 4} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-md disabled:opacity-50"><Edit size={16}/></button>
+            <button onClick={() => handleDelete(item._id)} disabled={roleId > 4} className="p-2 text-red-400 hover:bg-red-900/50 rounded-md disabled:opacity-50"><Trash2 size={16}/></button>
                     </div>
                 </div>
             ))}

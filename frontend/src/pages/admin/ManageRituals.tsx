@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { get } from '../../api/api';
-import { AxiosError } from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, Flame, DollarSign, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Defines the shape of a ritual object, using _id to match the backend response
 interface Ritual {
@@ -27,6 +27,8 @@ const fetchRituals = () => get<Ritual[]>('/rituals/');
 
 const ManageRituals = () => {
     const queryClient = useQueryClient();
+    const { user } = (useAuth() as any) || {};
+    const roleId: number = user?.role_id ?? 99;
     const [isEditing, setIsEditing] = useState<Ritual | null>(null);
     const [formData, setFormData] = useState({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star' });
 
@@ -51,14 +53,18 @@ const ManageRituals = () => {
 
     // Centralized mutation error handler
     const handleMutationError = (error: unknown) => {
-        if (error instanceof AxiosError && error.response) {
-            if (error.response.status === 401) {
+        const resp = (error as any)?.response;
+        if (resp) {
+            if (resp.status === 401) {
                 toast.error('Unauthorized. Please log in again.');
-            } else if (error.response.status === 422) {
-                const validationErrors = error.response.data.detail.map((err: any) => `${err.loc[1]}: ${err.msg}`).join('\n');
+            } else if (resp.status === 422) {
+                const detail = resp.data?.detail ?? [];
+                const validationErrors = Array.isArray(detail)
+                  ? detail.map((err: any) => `${err?.loc?.[1] ?? ''}: ${err?.msg ?? ''}`).join('\n')
+                  : String(detail);
                 toast.error('Validation Error', { description: <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4"><code className="text-white">{validationErrors}</code></pre>});
             } else {
-                toast.error(`An error occurred: ${error.response.data.detail || 'Please try again.'}`);
+                toast.error(`An error occurred: ${resp.data?.detail || 'Please try again.'}`);
             }
         } else {
             toast.error('Failed to save ritual.');
@@ -70,12 +76,14 @@ const ManageRituals = () => {
         mutationFn: (ritualPayload: Omit<Ritual, '_id'>) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 4) throw new Error('Not authorized');
             
             if (isEditing) {
                 // Correctly use isEditing._id for the update URL
                 return api.put(`/rituals/${isEditing._id}`, ritualPayload, config);
             }
-            return api.post('/rituals/', ritualPayload, config);
+            // Backend route is declared as @router.post("") mounted at /rituals, so no trailing slash
+            return api.post('/rituals', ritualPayload, config);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
@@ -91,6 +99,7 @@ const ManageRituals = () => {
         mutationFn: (id: string) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 4) throw new Error('Not authorized');
             return api.delete(`/rituals/${id}`, config);
         },
         onSuccess: () => {
@@ -109,7 +118,8 @@ const ManageRituals = () => {
             toast.error("Please enter a valid price greater than zero.");
             return;
         }
-        mutation.mutate({ ...formData, price });
+    if (roleId > 4) { toast.error('You are not authorized to modify rituals.'); return; }
+    mutation.mutate({ ...formData, price });
     };
 
     // Calculate stats
@@ -263,6 +273,7 @@ const ManageRituals = () => {
                                     variant="outline" 
                                     size="icon" 
                                     onClick={() => setIsEditing(ritual)}
+                                    disabled={roleId > 4}
                                     className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
                                 >
                                     <Edit className="h-4 w-4" />
@@ -272,6 +283,7 @@ const ManageRituals = () => {
                                     variant="destructive" 
                                     size="icon" 
                                     onClick={() => deleteMutation.mutate(ritual._id)}
+                                    disabled={roleId > 4}
                                     className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"
                                 >
                                     <Trash2 className="h-4 w-4" />

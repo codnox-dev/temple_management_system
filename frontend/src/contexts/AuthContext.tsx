@@ -2,10 +2,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { setAuthToken } from '../api/api';
 
-const AuthContext = createContext(null);
+type AuthUser = { _id?: string; username: string; role_id?: number; role?: string } | null;
+type AuthContextType = {
+  user: AuthUser;
+  isAuthenticated: boolean;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<AuthUser>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -19,7 +28,7 @@ export const AuthProvider = ({ children }) => {
           const me = await api.get('/admin/me');
           const data = (me as any)?.data ?? me;
           setIsAuthenticated(true);
-          setUser({ username: data?.username });
+          setUser({ username: data?.username, role_id: data?.role_id, role: data?.role, _id: data?._id });
         } catch (e) {
           // Token invalid; clean up
           setAuthToken(null);
@@ -54,12 +63,21 @@ export const AuthProvider = ({ children }) => {
           const me = await api.get('/admin/me');
           const data = (me as any)?.data ?? me;
           setIsAuthenticated(true);
-          setUser({ username: data?.username });
+          setUser({ username: data?.username, role_id: data?.role_id, role: data?.role, _id: data?._id });
+          // role-based landing
+          const rid = Number(data?.role_id ?? 99);
+          if (rid === 3) {
+            navigate('/admin/events');
+          } else if (rid === 4) {
+            navigate('/admin/bookings');
+          } else {
+            navigate('/admin');
+          }
         } catch (e) {
           setIsAuthenticated(true);
           setUser({ username });
+          navigate('/admin');
         }
-        navigate('/admin');
         return true;
       }
       return false;
