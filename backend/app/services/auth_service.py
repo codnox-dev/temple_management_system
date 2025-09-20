@@ -58,9 +58,15 @@ async def create_admin(admin: AdminCreate):
     new_admin = await admins_collection.find_one({"_id": result.inserted_id})
     return new_admin
 
+async def get_admin_by_username(username: str):
+    """Fetches a single admin user from the database by username."""
+    return await admins_collection.find_one({"username": username})
+
 # --- Dependency for protected routes ---
 async def get_current_admin(token: str = Depends(oauth2_scheme)):
-    """Decodes the token to get the current admin user."""
+    """
+    Decodes the JWT token, fetches the user from the database, and returns the full admin document.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -73,5 +79,8 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    # In a real app, you would also check if the user exists in the DB
-    return {"username": username}
+    
+    admin = await get_admin_by_username(username)
+    if admin is None:
+        raise credentials_exception
+    return admin
