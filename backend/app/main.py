@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from .routers import rituals, bookings, events, admin, gallery, stock
 from .database import available_rituals_collection, admins_collection
 from .services import auth_service
-from .models import AvailableRitualBase, AdminCreate
+from .models.admin_models import AdminCreate
+from .models.ritual_models import AvailableRitualBase
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -19,7 +20,7 @@ app = FastAPI(
 
 # --- CORS Middleware ---
 # Allows the frontend to communicate with the backend
-origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"] # Added new origin for vite dev server
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -54,7 +55,7 @@ async def startup_db_client():
         admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
 
         if not admin_password:
-             raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
+            raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
 
         hashed_password = auth_service.get_password_hash(admin_password)
         admin_user = AdminCreate(
@@ -75,10 +76,9 @@ app.include_router(rituals.router, tags=["Rituals"], prefix="/api/rituals")
 app.include_router(events.router, tags=["Events"], prefix="/api/events")
 app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
 app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
-app.include_router(stock.router, tags=["Stock"], prefix="/api")
+app.include_router(stock.router, tags=["Stock"], prefix="/api/stock")
 
 
 @app.get("/api")
 async def root():
     return {"message": "Welcome to the Temple Management System API"}
-

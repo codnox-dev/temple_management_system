@@ -1,32 +1,30 @@
 from fastapi import APIRouter, HTTPException, Query, Body, status
-from .. import crud
-from ..schemas import StockItemCreate, StockItemUpdate, StockItemInDB
-from typing import List, Dict, Any
+from ..models.stock_models import StockItemCreate, StockItemUpdate, StockItemInDB
+from typing import List,Dict, Any
 from datetime import datetime
 from bson import ObjectId
+from ..services import stock_service, stock_analytics_service
 
 router = APIRouter()
 
-@router.post("/stock", response_model=StockItemInDB, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=StockItemInDB, status_code=status.HTTP_201_CREATED) # Changed from "/"
 async def create_stock_item(stock_item: StockItemCreate):
     """
     Create a new stock item.
     """
     try:
-        new_item = await crud.create_stock_item(stock_item)
-        return new_item
+        return await stock_service.create_stock_item_service(stock_item)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/stock", response_model=List[StockItemInDB])
+@router.get("", response_model=List[StockItemInDB]) # Changed from "/"
 async def get_all_stock_items():
     """
     Retrieve all stock items.
     """
-    return await crud.get_all_stock_items()
+    return await stock_service.get_all_stock_items_service()
 
-@router.put("/stock/{item_id}", response_model=StockItemInDB)
+@router.put("/{item_id}", response_model=StockItemInDB)
 async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...)):
     """
     Update a stock item by its ID.
@@ -34,12 +32,12 @@ async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...
     if not ObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
 
-    updated_item = await crud.update_stock_item_by_id(item_id, stock_item)
+    updated_item = await stock_service.update_stock_item_service(item_id, stock_item)
     if updated_item is None:
         raise HTTPException(status_code=404, detail="Stock item not found")
     return updated_item
 
-@router.delete("/stock/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_stock_item(item_id: str):
     """
     Delete a stock item by its ID.
@@ -47,13 +45,12 @@ async def delete_stock_item(item_id: str):
     if not ObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
 
-    deleted = await crud.delete_stock_item_by_id(item_id)
+    deleted = await stock_service.delete_stock_item_service(item_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Stock item not a found")
-    # No return content for a 204 response
+        raise HTTPException(status_code=404, detail="Stock item not found")
     return
 
-@router.get("/stock/analytics")
+@router.get("/analytics")
 async def get_stock_analytics(
     period: str = Query("monthly", enum=["monthly", "yearly", "category"]),
     year: int = Query(datetime.now().year)
@@ -63,23 +60,18 @@ async def get_stock_analytics(
     Can be filtered by period (monthly, yearly, or category) and year.
     """
     try:
-        if period == "category":
-            analytics_data = await crud.get_stock_analytics_by_category(year)
-        else:
-            analytics_data = await crud.get_stock_analytics_data(period, year)
+        analytics_data = await stock_analytics_service.get_stock_analytics_service(period, year)
         return analytics_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-# This endpoint is now consolidated into the one above.
-# You can remove it if you prefer, but it's fine to keep for backward compatibility.
-@router.get("/stock/analytics/category")
+@router.get("/analytics/category")
 async def get_stock_category_analytics(year: int = Query(datetime.now().year)):
     """
     Get stock analytics data grouped by category for a specific year.
     """
     try:
-        analytics_data = await crud.get_stock_analytics_by_category(year)
-        return analytics_data
+        return await stock_analytics_service.get_stock_category_analytics_service(year)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
