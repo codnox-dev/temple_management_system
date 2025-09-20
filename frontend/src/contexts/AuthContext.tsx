@@ -11,14 +11,25 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Here you might want to verify the token with the backend
-      // For simplicity, we'll just assume the token is valid if it exists
-      setIsAuthenticated(true);
-      setUser({ username: 'admin' }); // Placeholder user
-    }
-    setLoading(false);
+    const init = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        setAuthToken(token);
+        try {
+          const me = await api.get('/admin/me');
+          const data = (me as any)?.data ?? me;
+          setIsAuthenticated(true);
+          setUser({ username: data?.username });
+        } catch (e) {
+          // Token invalid; clean up
+          setAuthToken(null);
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+    void init();
   }, []);
 
   const login = async (username, password) => {
@@ -38,8 +49,16 @@ export const AuthProvider = ({ children }) => {
       const token = (response as any)?.access_token ?? (response as any)?.data?.access_token; // support wrapper vs raw
       if (token) {
         setAuthToken(token);
-        setIsAuthenticated(true);
-        setUser({ username });
+        // load real user
+        try {
+          const me = await api.get('/admin/me');
+          const data = (me as any)?.data ?? me;
+          setIsAuthenticated(true);
+          setUser({ username: data?.username });
+        } catch (e) {
+          setIsAuthenticated(true);
+          setUser({ username });
+        }
         navigate('/admin');
         return true;
       }
