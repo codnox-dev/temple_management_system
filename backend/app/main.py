@@ -1,4 +1,5 @@
 import os
+import random
 from fastapi import FastAPI
 from .routers import rituals, bookings, events, admin, gallery, stock
 from .database import available_rituals_collection, admins_collection
@@ -62,7 +63,15 @@ async def startup_db_client():
             name=admin_name,
             email=admin_email,
             username=admin_username,
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            role="super_admin",
+            role_id=1,
+            mobile_number=int(''.join([str(random.randint(0, 9)) for _ in range(10)])),
+            mobile_prefix="+91",
+            profile_picture="https://example.com/default-avatar.png",
+            dob="1970-01-01",
+            created_by="system",
+            notification_preference=["email", "whatsapp"],
         )
         # Use the create_admin function from the auth_service
         await auth_service.create_admin(admin_user)
