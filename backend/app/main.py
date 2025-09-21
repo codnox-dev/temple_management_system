@@ -1,7 +1,7 @@
 import os
 import random
 from fastapi import FastAPI
-from .routers import rituals, bookings, events, admin, gallery, stock, roles
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile # 1. Import the new profile router
 from .database import available_rituals_collection, admins_collection, roles_collection
 from .models.role_models import RoleBase
 from .services import auth_service
@@ -110,7 +110,7 @@ app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
 app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
 app.include_router(stock.router, tags=["Stock"], prefix="/api/stock")
 app.include_router(roles.router, tags=["Roles"], prefix="/api/roles")
-
+app.include_router(profile.router, tags=["Profile"], prefix="/api/profile") # 2. Include the new router
 
 @app.get("/api")
 async def root():

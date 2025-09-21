@@ -20,6 +20,7 @@ import AdminDashboard from "./pages/admin/Admin";
 import AddStock from "./pages/admin/AddStock";
 import StockAnalytics from "./pages/admin/StockAnalytics";
 import CreateAdmin from "./pages/admin/AdminManagement";
+import EditProfile from "./pages/admin/EditProfile"; // Import the new component
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="stock/add" element={<AddStock />} />
               <Route path="stock/analytics" element={<StockAnalytics />} />
               <Route path="management" element={<CreateAdmin />} />
+              <Route path="edit-profile" element={<EditProfile />} /> {/* The new route */}
             </Route>
 
             {/* Catch-all Not Found Route */}
@@ -74,4 +76,3 @@ const App = () => (
 );
 
 export default App;
-

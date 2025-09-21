@@ -2,10 +2,17 @@ import { useState, useEffect } from 'react';
 import { Menu, X, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * A traditional, responsive navigation bar component.
+ * It's transparent at the top of the page and gains a solid background on scroll.
+ * It features smooth scrolling to sections and highlights the active section.
+ */
 const Navigation = () => {
+  // State for toggling the mobile menu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  // State to track if the page has been scrolled
   const [isScrolled, setIsScrolled] = useState(false);
+  // State to track the currently active section in the viewport
   const [activeSection, setActiveSection] = useState('home');
   const navigate = useNavigate();
 
@@ -14,115 +21,137 @@ const Navigation = () => {
     { label: 'About', path: '#about' },
     { label: 'Rituals', path: '#rituals' },
     { label: 'Events', path: '#events' },
-    { label: 'Gallery', path: '/gallery' }, // route to full gallery page
+    { label: 'Gallery', path: '/gallery' }, // This will navigate to a new page
     { label: 'Contact', path: '#contact' },
   ];
 
-  const handleScroll = () => {
-    setIsScrolled(window.scrollY > 50);
-
-    const sections = navItems.map(item => document.querySelector(item.path));
-    const scrollPosition = window.scrollY + window.innerHeight / 2;
-
-    for (const section of sections) {
-      if (section instanceof HTMLElement && section.offsetTop <= scrollPosition && section.offsetTop + section.offsetHeight > scrollPosition) {
-        setActiveSection(section.id);
-        break;
-      }
-    }
-  };
-
+  // Effect to handle scroll events
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    const handleScroll = () => {
+      // Set scrolled state to true if user has scrolled more than 10px
+      setIsScrolled(window.scrollY > 10);
 
+      // Determine which section is currently active
+      let currentSection = '';
+      navItems.forEach(item => {
+        if (item.path.startsWith('#')) {
+          const section = document.querySelector(item.path);
+          // Type guard to ensure section is an HTMLElement and has offsetTop
+          if (section instanceof HTMLElement) {
+            const sectionTop = section.offsetTop;
+            if (window.scrollY >= sectionTop - 100) { // Offset for better accuracy
+              currentSection = item.path.substring(1);
+            }
+          }
+        }
+      });
+      setActiveSection(currentSection);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Cleanup function to remove the event listener
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [navItems]);
+
+  // Handles clicks on navigation links
   const handleNavClick = (e, path) => {
     e.preventDefault();
     if (path.startsWith('#')) {
+      // Smooth scroll for internal links
       document.querySelector(path)?.scrollIntoView({ behavior: 'smooth' });
     } else {
+      // Use react-router for external links
       navigate(path);
     }
-    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+    // Close mobile menu after a click
+    if (isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
   };
+
+  // Dynamically set text color based on scroll state for better visibility
+  const textColor = isScrolled ? 'text-gray-800' : 'text-white';
+  const activeLinkColor = isScrolled ? 'text-orange-600' : 'text-orange-400';
+  const logoTextColor = isScrolled ? 'text-gray-900' : 'text-white';
 
   return (
     <nav
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 cursor-pointer group
-      transition-all duration-2500 ease-in-out overflow-hidden
-      md:w-[15%] md:hover:w-[80%] hover:bg-white/10 backdrop-blur-xl hover:shadow-2xl md:rounded-full
-      bg-white/30 backdrop-blur-xl`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ease-in-out ${
+        isScrolled ? 'bg-white/90 backdrop-blur-sm shadow-lg' : 'bg-black/20 backdrop-blur-md'
+      }`}
     >
-      {/* Desktop and Tablet Navbar */}
-      <div className="flex items-center justify-between h-16 px-4 md:px-8 w-full relative">
-        {/* Logo and Brand Name */}
-        <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-2 shrink-0">
-          <div className="p-2 bg-[hsl(var(--primary))] rounded-full transition-transform duration-2000 group-hover:scale-110">
-            <Flame className="h-6 w-6 text-white" />
-          </div>
-          <div className="flex items-center space-x-2 transition-all duration-2000 shrink-0">
-            <span className="text-xl font-playfair font-bold text-[hsl(var(--primary))] whitespace-nowrap transition-colors duration-2000">
-              Vamanan Temple
-            </span>
-            {/* Animated Arrow (Desktop Only) */}
-            <div className={`arrow-indicator relative w-10 h-6 hidden md:flex items-center justify-start transition-transform duration-2000 group-hover:rotate-180 group-hover:translate-x-1 ${isScrolled ? 'text-orange-500' : 'text-white'}`}>
-            </div>
-          </div>
-        </a>
-
-        {/* Navigation Links - Hidden initially, shown on hover (Desktop Only) */}
-        <div className={`hidden md:flex items-center space-x-8 opacity-0 group-hover:opacity-100`}>
-          {navItems.map((item, index) => (
-            <a
-              key={item.path}
-              href={item.path}
-              onClick={(e) => handleNavClick(e, item.path)}
-              className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition-colors duration-300
-              group-hover:animate-fade-in
-              ${activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''}`}
-              style={{ animationDelay: `0.${index}s` }}
-            >
-              {item.label}
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo and Brand Name */}
+          <div className="flex-shrink-0">
+            <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-3">
+              <div className="p-2 bg-orange-500 rounded-full">
+                <Flame className="h-6 w-6 text-white" />
+              </div>
+              <span className={`text-xl font-playfair font-bold whitespace-nowrap ${logoTextColor} transition-colors duration-300`}>
+                Vamanan Temple
+              </span>
             </a>
-          ))}
-          {/* Book Now Button */}
-          <button className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2 px-4 rounded-full font-semibold shadow-md hover:bg-[hsl(var(--secondary))] transition-colors whitespace-nowrap">
-            Book Now
-          </button>
-        </div>
+          </div>
 
-        {/* Mobile Hamburger Menu (Mobile Only) */}
-        <button
-          className="md:hidden p-2 rounded-full hover:bg-[hsl(var(--muted))] transition-colors shrink-0"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X className="h-6 w-6 text-black" /> : <Menu className="h-6 w-6 text-black" />}
-        </button>
-      </div>
-
-      {/* Mobile Dropdown Menu - No pill shape for mobile */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden py-6 border-t border-border/50 bg-[hsl(var(--background))]/80 backdrop-blur-sm mt-2 mx-2">
-          {/* Aligned content to center */}
-          <div className="flex flex-col space-y-4 items-center shrink-0">
+          {/* Desktop Navigation Links & Button */}
+          <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <a
                 key={item.path}
                 href={item.path}
                 onClick={(e) => handleNavClick(e, item.path)}
-                className={`nav-link text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] block py-2 ${
-                  activeSection === item.path.substring(1) ? 'font-bold text-[hsl(var(--secondary))]' : ''
+                className={`font-semibold ${textColor} hover:text-orange-400 transition-colors duration-300 ${
+                  activeSection === item.path.substring(1) ? `font-bold ${activeLinkColor}` : ''
                 }`}
               >
                 {item.label}
               </a>
             ))}
-            <button className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2 px-4 rounded-full font-semibold shadow-md hover:bg-[hsl(var(--secondary))] transition-colors w-full mt-4">
+            <button className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap">
               Book Now
             </button>
+          </div>
+
+          {/* Mobile Hamburger Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-md inline-flex items-center justify-center focus:outline-none"
+              aria-label="Main menu"
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? (
+                <X className={`h-6 w-6 ${textColor}`} />
+              ) : (
+                <Menu className={`h-6 w-6 ${textColor}`} />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Dropdown Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white shadow-xl">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            {navItems.map((item) => (
+              <a
+                key={item.path}
+                href={item.path}
+                onClick={(e) => handleNavClick(e, item.path)}
+                className={`block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-gray-50 ${
+                  activeSection === item.path.substring(1) ? 'font-bold text-orange-600 bg-orange-50' : ''
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+            <div className="pt-4 px-2">
+              <button className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors">
+                Book Now
+              </button>
+            </div>
           </div>
         </div>
       )}
