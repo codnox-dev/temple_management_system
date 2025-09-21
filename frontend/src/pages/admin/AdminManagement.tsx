@@ -82,6 +82,8 @@ const AdminManagement = () => {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
+  const { user } = useAuth() as any;
+  const myRoleId: number = user?.role_id ?? 99;
 
   useEffect(() => {
     (async () => {
@@ -98,6 +100,10 @@ const AdminManagement = () => {
     queryKey: ['admins'],
     queryFn: fetchAdmins,
   });
+
+  if (myRoleId > 2) {
+      return <div className="text-red-400">You are not authorized to access this page.</div>;
+  }
 
   if (isError) {
       toast.error('Failed to fetch admins. You may not have permission.');
@@ -121,6 +127,7 @@ const AdminManagement = () => {
         </div>
         <Button
           onClick={() => setShowAddForm(true)}
+          disabled={myRoleId > 2}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30 flex items-center space-x-2"
         >
           <Users className="h-5 w-5" />
@@ -198,6 +205,11 @@ const StatCard = ({ icon: Icon, title, value, color }: { icon: React.ElementType
 const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const queryClient = useQueryClient();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { user } = useAuth() as any;
+  const myRoleId: number = user?.role_id ?? 99;
+  const myId: string | undefined = user?._id;
+  const isSuperAdmin = admin.role_id === 0;
+  const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myRoleId >= 2 && myId && admin._id === myId);
 
   const deleteMutation = useMutation<void, Error, string>({
     mutationFn: (id: string) => del(`/admin/users/${id}/`),
@@ -240,7 +252,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       <TableCell className="px-6 py-4 flex items-center gap-2">
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-purple-400 hover:text-white"><Edit className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="text-purple-400 hover:text-white" disabled={!canModify}><Edit className="h-4 w-4" /></Button>
           </DialogTrigger>
           <DialogContent className="bg-slate-900 border-purple-500/50 text-white">
             <DialogHeader><DialogTitle>Edit Admin</DialogTitle></DialogHeader>
@@ -255,15 +267,16 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
             />
           </DialogContent>
         </Dialog>
-        <Button variant="ghost" size="icon" className="text-red-500 hover:text-white" onClick={() => deleteMutation.mutate(admin._id)}><Trash2 className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" className="text-yellow-500 hover:text-white" onClick={() => restrictMutation.mutate({ id: admin._id, payload: { isRestricted: !admin.isRestricted } })}>{admin.isRestricted ? <CheckCircle className="h-4 w-4" /> : <Shield className="h-4 w-4" />}</Button>
+        <Button variant="ghost" size="icon" className="text-red-500 hover:text-white" disabled={!canModify} onClick={() => deleteMutation.mutate(admin._id)}><Trash2 className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className="text-yellow-500 hover:text-white" disabled={!canModify} onClick={() => restrictMutation.mutate({ id: admin._id, payload: { isRestricted: !admin.isRestricted } })}>{admin.isRestricted ? <CheckCircle className="h-4 w-4" /> : <Shield className="h-4 w-4" />}</Button>
       </TableCell>
     </TableRow>
   );
 };
 
 const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; adminToEdit?: Admin; onSuccess: () => void; onClose?: () => void; }) => {
-  const auth = useAuth() as { user: { username: string } | null };
+  const auth = useAuth() as any;
+  const myRoleId: number = auth?.user?.role_id ?? 99;
   type FormState = {
     name: string;
     email: string;
@@ -289,6 +302,8 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
     isRestricted: adminToEdit?.isRestricted || false,
   });
   const [showPassword, setShowPassword] = useState(false);
+  // Allowed roles: hide super admin always; only roles with role_id strictly greater than myRoleId
+  const allowedRoles = roles.filter(r => r.role_id !== 0 && r.role_id > myRoleId);
 
   const mutation: UseMutationResult<void, Error, AdminCreationPayload | Partial<AdminUpdatePayload>> = useMutation<void, Error, AdminCreationPayload | Partial<AdminUpdatePayload>>({
     mutationFn: (payload) => {
@@ -366,14 +381,14 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
                 setFormData({ ...formData, role_id: undefined, role: '' });
                 return;
               }
-              const selected = roles.find(r => String(r.role_id) === val);
+              const selected = allowedRoles.find(r => String(r.role_id) === val);
               if (selected) {
                 setFormData({ ...formData, role_id: selected.role_id, role: selected.role_name });
               }
             }}
           >
             <option value="">Select role</option>
-            {roles.map(r => (
+            {allowedRoles.map(r => (
               <option key={r._id} value={String(r.role_id)}>{r.role_name}</option>
             ))}
           </select>
@@ -404,7 +419,7 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
       </div>
       <div className="flex justify-end gap-4">
         {onClose && <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>}
-        <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Saving...' : 'Save Admin'}</Button>
+        <Button type="submit" disabled={mutation.isPending || (!adminToEdit && allowedRoles.length === 0)}>{mutation.isPending ? 'Saving...' : 'Save Admin'}</Button>
       </div>
     </form>
   );

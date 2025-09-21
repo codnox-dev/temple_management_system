@@ -1,7 +1,7 @@
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RitualBooking from "./pages/RitualBooking";
@@ -11,6 +11,7 @@ import FullGallery from "./pages/FullGallery";
 import Login from "./pages/Login";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuth } from "./contexts/AuthContext";
 import AdminLayout from "./components/AdminLayout";
 import ManageRituals from "./pages/admin/ManageRituals";
 import ManageEvents from "./pages/admin/ManageEvents";
@@ -30,6 +31,25 @@ const Placeholder = ({ name }: { name: string }) => (
     <h1 className="text-4xl font-bold">{name} Page</h1>
   </div>
 );
+
+const RoleGuard = ({ allow, children }: { allow: (roleId?: number) => boolean; children: React.ReactNode }) => {
+  const { user } = (useAuth() as any) || {};
+  const roleId: number | undefined = user?.role_id;
+  if (!allow(roleId)) {
+    return <NotFound />;
+  }
+  return <>{children}</>;
+};
+
+// Decides where to land when visiting /admin based on role
+const AdminIndexRouter = () => {
+  const { user } = (useAuth() as any) || {};
+  const roleId: number = user?.role_id ?? 99;
+  // Editors (3) -> events, Employees (4) -> bookings, others -> dashboard
+  if (roleId === 3) return <Navigate to="/admin/events" replace />;
+  if (roleId === 4) return <Navigate to="/admin/bookings" replace />;
+  return <AdminDashboard />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -55,15 +75,50 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<AdminDashboard />} />
-              <Route path="rituals" element={<ManageRituals />} />
-              <Route path="events" element={<ManageEvents />} />
-              <Route path="gallery" element={<ManageGallery />} />
-              <Route path="bookings" element={<ManageBookings />} />
-              <Route path="stock/add" element={<AddStock />} />
-              <Route path="stock/analytics" element={<StockAnalytics />} />
-              <Route path="management" element={<CreateAdmin />} />
-              <Route path="edit-profile" element={<EditProfile />} /> {/* The new route */}
+              {/* Dashboard hidden for editor (3) and employee (4); redirect to role landing */}
+              <Route index element={<AdminIndexRouter />} />
+              {/* Website Management: Editor(3) can access only these; Employee(4) only rituals; others allowed */}
+              <Route path="rituals" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 4}>
+                  <ManageRituals />
+                </RoleGuard>
+              } />
+              <Route path="events" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) !== 4}>
+                  <ManageEvents />
+                </RoleGuard>
+              } />
+              <Route path="gallery" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) !== 4}>
+                  <ManageGallery />
+                </RoleGuard>
+              } />
+
+              {/* Bookings hidden for editor; employees can access */}
+              <Route path="bookings" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) !== 3}>
+                  <ManageBookings />
+                </RoleGuard>
+              } />
+
+              {/* Stock visible to all except editor (3); viewers see read-only */}
+              <Route path="stock/add" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) !== 3}>
+                  <AddStock />
+                </RoleGuard>
+              } />
+              <Route path="stock/analytics" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) !== 3}>
+                  <StockAnalytics />
+                </RoleGuard>
+              } />
+
+              {/* Admin Management visible only to role_id <= 2 (Super/Admin/Privileged) */}
+              <Route path="management" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 2}>
+                  <CreateAdmin />
+                </RoleGuard>
+              } />
             </Route>
 
             {/* Catch-all Not Found Route */}
@@ -74,5 +129,7 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
+
 
 export default App;

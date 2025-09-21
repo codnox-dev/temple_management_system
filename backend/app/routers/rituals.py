@@ -19,8 +19,10 @@ async def create_new_ritual(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to create a new available ritual. Admin access is required.
+    Used to create a new available ritual. Requires role_id <= 4 (Super/Admin/Privileged/Editor/Employee).
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create rituals")
     created_ritual = await ritual_service.create_ritual(ritual)
     if created_ritual:
         return created_ritual
@@ -33,8 +35,10 @@ async def update_ritual(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to update an existing ritual. Admin access is required.
+    Used to update an existing ritual. Requires role_id <= 4.
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update rituals")
     updated_ritual = await ritual_service.update_ritual_by_id(id, ritual.model_dump())
     if updated_ritual is not None:
         return updated_ritual
@@ -46,8 +50,10 @@ async def delete_ritual(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to delete a ritual. Admin access is required.
+    Used to delete a ritual. Requires role_id <= 4.
     """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete rituals")
     deleted = await ritual_service.delete_ritual_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Ritual with ID {id} not found")

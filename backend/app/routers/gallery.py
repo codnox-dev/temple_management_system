@@ -18,8 +18,10 @@ async def create_gallery_image(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to create a new gallery image. Admin access is required.
+    Used to create a new gallery image. Requires role_id <= 3 (Super/Admin/Privileged/Editor).
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create gallery images")
     created_image = await gallery_service.create_gallery_image(image)
     if created_image:
         return created_image
@@ -32,8 +34,10 @@ async def update_gallery_image(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to update an existing gallery image. Admin access is required.
+    Used to update an existing gallery image. Requires role_id <= 3.
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update gallery images")
     updated_image = await gallery_service.update_gallery_image_by_id(id, image.model_dump())
     if updated_image:
         return updated_image
@@ -45,8 +49,10 @@ async def delete_gallery_image(
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
     """
-    Used to delete a gallery image. Admin access is required.
+    Used to delete a gallery image. Requires role_id <= 3.
     """
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete gallery images")
     deleted = await gallery_service.delete_gallery_image_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Image with ID {id} not found")

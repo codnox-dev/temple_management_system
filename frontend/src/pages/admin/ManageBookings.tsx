@@ -20,8 +20,10 @@ import {
   } from "@/components/ui/accordion"
 import { Calendar, Users, DollarSign } from 'lucide-react';
 
-// --- Type Definitions ---
-// Based on your schemas.py
+/**
+ * Defines the data structure for a single ritual instance within a booking.
+ * Aligns with the backend `RitualInstance` Pydantic schema.
+ */
 interface RitualInstance {
     ritualId: string;
     ritualName: string;
@@ -32,8 +34,12 @@ interface RitualInstance {
     quantity: number;
 }
 
+/**
+ * Defines the data structure for a booking object.
+ * Aligns with the backend `Booking` Pydantic schema.
+ */
 interface Booking {
-    _id: string;
+    _id: string; // MongoDB's default identifier
     name: string;
     email: string;
     phone: string;
@@ -42,32 +48,46 @@ interface Booking {
     instances: RitualInstance[];
 }
 
-// --- API Fetching ---
+/**
+* Asynchronously fetches the list of all bookings from the API endpoint.
+* Utilized by React Query for data fetching and caching.
+* @returns A promise that resolves to an array of Booking objects.
+*/
 const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
 
 
+/**
+ * A component for administrators to view and manage all customer bookings.
+ * It displays key statistics and a detailed table of all bookings.
+ */
 const ManageBookings = () => {
+    // Fetches and manages booking data, including loading and error states.
     const { data: bookings, isLoading, isError } = useQuery<Booking[]>({
         queryKey: ['adminBookings'],
         queryFn: fetchBookings,
-        onError: () => {
-            toast.error("Failed to fetch bookings. You might need to log in again.");
+        onError: (err) => {
+            // Provides user feedback on data fetching failure.
+            console.error("Error fetching bookings:", err);
+            toast.error("Failed to fetch bookings. Please check your connection or try logging in again.");
         }
     });
 
-    if (isLoading) return <p>Loading bookings...</p>;
+    // Renders a loading state while data is being fetched.
+    if (isLoading) return <p className="text-purple-300">Loading bookings...</p>;
+    // Renders an error state if the data fetch fails.
     if (isError) return <p className="text-red-500">Error fetching bookings. Please try refreshing the page.</p>;
 
-    // Calculate stats
+    // Calculate derived statistics for the dashboard cards.
     const totalBookings = bookings?.length || 0;
     const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
-    const totalRituals = bookings?.reduce((sum, booking) => sum + booking.instances.length, 0) || 0;
+    const totalRituals = bookings?.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
+
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Bookings</h1>
             
-            {/* Stats Cards */}
+            {/* Section for displaying key statistics about all bookings. */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -95,7 +115,7 @@ const ManageBookings = () => {
                 
                 <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-purple-300">Total Rituals</CardTitle>
+                        <CardTitle className="text-sm font-medium text-purple-300">Total Rituals Booked</CardTitle>
                         <div className="p-2 rounded-lg bg-amber-400/20">
                             <Users className="h-4 w-4 text-amber-400" />
                         </div>
@@ -106,6 +126,7 @@ const ManageBookings = () => {
                 </Card>
             </div>
 
+            {/* A detailed table listing all bookings and their associated rituals. */}
             <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
                 <CardHeader>
                     <CardTitle className="text-purple-400">All Bookings</CardTitle>
@@ -134,7 +155,7 @@ const ManageBookings = () => {
                                     <TableCell className="text-right font-mono text-white">₹{booking.total_cost.toFixed(2)}</TableCell>
                                     <TableCell className="text-center">
                                        <Accordion type="single" collapsible className="w-full">
-                                            <AccordionItem value="item-1" className="border-purple-500/30">
+                                            <AccordionItem value={booking._id} className="border-purple-500/30">
                                                 <AccordionTrigger className="text-purple-300 hover:text-purple-400 hover:no-underline">
                                                     View {booking.instances.length} Ritual(s)
                                                 </AccordionTrigger>
@@ -142,11 +163,12 @@ const ManageBookings = () => {
                                                     <div className="space-y-2 text-left p-2 bg-purple-900/30 rounded-md">
                                                         {booking.instances.map((instance, index) => (
                                                             <div key={index} className="border-b border-purple-500/30 last:border-b-0 py-1">
-                                                                <p className="font-semibold text-white">{instance.ritualName} (Qty: {instance.quantity})</p>
+                                                                <div className="font-semibold text-white">{instance.ritualName} (Qty: {instance.quantity})</div>
                                                                 <p className="text-sm text-purple-300">For: {instance.devoteeName}</p>
-                                                                <p className="text-xs text-purple-400">
-                                                                    Naal: {instance.naal} | DOB: {instance.dob} | Sub: <Badge variant="outline" className="border-purple-500/30 text-purple-300">{instance.subscription}</Badge>
-                                                                </p>
+                                                                {/* FIX: Replaced <p> with <div> to prevent DOM nesting errors from the <Badge> component. */}
+                                                                <div className="text-xs text-purple-400">
+                                                                    Naal: {instance.naal} | DOB: {instance.dob} | Sub: <Badge variant="outline" className="ml-1 border-purple-500/30 text-purple-300">{instance.subscription}</Badge>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
