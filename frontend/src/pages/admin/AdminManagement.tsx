@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
-import { get, post, put, del } from '../../api/api';
+import { get, post, put, del, API_BASE_URL } from '../../api/api';
 import { toast } from 'sonner';
 import {
   Table,
@@ -31,6 +31,9 @@ import {
   Edit,
   Eye,
   EyeOff,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 // import { AxiosError } from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +52,14 @@ interface Admin {
   isRestricted: boolean;
   created_at: string;
   last_login?: string;
+  profile_picture?: string | null;
+  dob?: string | null;
+  updated_at?: string;
+  updated_by?: string;
+  created_by?: string;
+  notification_preference?: string[];
+  notification_list?: string[];
+  last_profile_update?: string;
 }
 
 interface AdminCreationPayload extends Omit<Admin, '_id' | 'created_at' | 'last_login'> {
@@ -169,7 +180,7 @@ const AdminManagement = () => {
                 <TableHead className="px-6 py-3 text-purple-300">Contact</TableHead>
                 <TableHead className="px-6 py-3 text-purple-300">Status</TableHead>
                 <TableHead className="px-6 py-3 text-purple-300">Role</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300">Actions</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300">Profile</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -204,12 +215,28 @@ const StatCard = ({ icon: Icon, title, value, color }: { icon: React.ElementType
 
 const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const queryClient = useQueryClient();
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  // inline edit states
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [editingDob, setEditingDob] = useState(false);
+  const [emailValue, setEmailValue] = useState(admin.email);
+  const [prefixValue, setPrefixValue] = useState(admin.mobile_prefix);
+  const [mobileValue, setMobileValue] = useState(String(admin.mobile_number ?? ''));
+  const [dobValue, setDobValue] = useState(admin.dob || '');
   const { user } = useAuth() as any;
   const myRoleId: number = user?.role_id ?? 99;
   const myId: string | undefined = user?._id;
   const isSuperAdmin = admin.role_id === 0;
   const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myRoleId >= 2 && myId && admin._id === myId);
+
+  const resolveProfileUrl = (p?: string | null) => {
+    if (!p) return 'https://placehold.co/150x150/1E293B/FFFFFF?text=👤';
+    if (p.startsWith('/static')) return `${API_BASE_URL}${p}`;
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+    // fallback treat as relative to API
+    return `${API_BASE_URL}${p.startsWith('/') ? p : '/' + p}`;
+  };
 
   const deleteMutation = useMutation<void, Error, string>({
     mutationFn: (id: string) => del(`/admin/users/${id}/`),
@@ -233,11 +260,55 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
     }
   });
 
+  const updateMutation = useMutation<void, Error, { id: string; payload: Partial<Admin> }>({
+    mutationFn: ({ id, payload }) => put(`/admin/users/${id}/`, payload),
+    onSuccess: () => {
+      toast.success('Profile updated');
+      queryClient.invalidateQueries({ queryKey: ['admins'] });
+      setEditingEmail(false);
+      setEditingPhone(false);
+      setEditingDob(false);
+    },
+    onError: (e: any) => {
+      const msg = e?.response?.data?.detail || e?.message || 'Failed to update profile';
+      toast.error(String(msg));
+    }
+  });
+
+  const saveEmail = () => {
+    if (!canModify) return;
+    updateMutation.mutate({ id: admin._id, payload: { email: emailValue } });
+  };
+  const savePhone = () => {
+    if (!canModify) return;
+    const num = Number(mobileValue);
+    if (!Number.isFinite(num)) {
+      toast.error('Phone must be a number');
+      return;
+    }
+    updateMutation.mutate({ id: admin._id, payload: { mobile_prefix: prefixValue, mobile_number: num } });
+  };
+  const saveDob = () => {
+    if (!canModify) return;
+    updateMutation.mutate({ id: admin._id, payload: { dob: dobValue } });
+  };
+
   return (
     <TableRow className="border-b border-purple-500/30 hover:bg-purple-900/20">
       <TableCell className="px-6 py-4">
-        <div className="font-semibold text-white">{admin.name}</div>
-        <div className="text-xs text-gray-400">{admin.username}</div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setIsProfileDialogOpen(true)} className="shrink-0 focus:outline-none">
+            <img
+              src={resolveProfileUrl(admin.profile_picture).replace('150x150', '48x48')}
+              alt={admin.name}
+              className="w-12 h-12 rounded-full object-cover border-2 border-purple-500/40 hover:border-purple-400 transition"
+            />
+          </button>
+          <div>
+            <div className="font-semibold text-white">{admin.name}</div>
+            <div className="text-xs text-gray-400">{admin.username}</div>
+          </div>
+        </div>
       </TableCell>
       <TableCell className="px-6 py-4">
         <div>{admin.email}</div>
@@ -249,26 +320,136 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
         </Badge>
       </TableCell>
       <TableCell className="px-6 py-4">{admin.role}</TableCell>
-      <TableCell className="px-6 py-4 flex items-center gap-2">
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-purple-400 hover:text-white" disabled={!canModify}><Edit className="h-4 w-4" /></Button>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-purple-500/50 text-white">
-            <DialogHeader><DialogTitle>Edit Admin</DialogTitle></DialogHeader>
-            <AdminForm 
-              roles={roles}
-              adminToEdit={admin} 
-              onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: ['admins'] });
-                setIsEditDialogOpen(false);
-              }}
-              onClose={() => setIsEditDialogOpen(false)}
-            />
+      <TableCell className="px-6 py-4">
+        <div className="flex flex-wrap gap-2">
+          <Button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white" onClick={() => setIsProfileDialogOpen(true)}>Open Profile</Button>
+          <Button className="bg-red-600 text-white" disabled={!canModify} onClick={() => deleteMutation.mutate(admin._id)}>Delete</Button>
+          <Button className="bg-amber-600 text-white" disabled={!canModify} onClick={() => restrictMutation.mutate({ id: admin._id, payload: { isRestricted: !admin.isRestricted } })}>
+            {admin.isRestricted ? 'Unrestrict' : 'Restrict'}
+          </Button>
+        </div>
+        <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+          <DialogContent className="max-w-2xl bg-slate-900 border-purple-500/50 text-white">
+            <DialogHeader>
+              <DialogTitle>User Profile</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1 flex flex-col items-center">
+                <img
+                  src={resolveProfileUrl(admin.profile_picture)}
+                  alt={admin.name}
+                  className="w-32 h-32 rounded-full object-cover border-4 border-purple-500/50"
+                />
+                <div className="mt-4 text-center">
+                  <div className="text-lg font-semibold">{admin.name}</div>
+                  <div className="text-sm text-gray-400">{admin.username}</div>
+                </div>
+              </div>
+              <div className="md:col-span-2 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-purple-300/80">Email</div>
+                      {canModify && (
+                        editingEmail ? (
+                          <div className="flex items-center gap-1">
+                            <button className="text-green-400" onClick={saveEmail} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-400" onClick={() => { setEditingEmail(false); setEmailValue(admin.email); }} title="Cancel"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <button className="text-purple-300" onClick={() => setEditingEmail(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                        )
+                      )}
+                    </div>
+                    {editingEmail ? (
+                      <Input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 mt-1" />
+                    ) : (
+                      <div className="text-sm text-white mt-0.5 break-words">{emailValue}</div>
+                    )}
+                  </div>
+                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-purple-300/80">Phone</div>
+                      {canModify && (
+                        editingPhone ? (
+                          <div className="flex items-center gap-1">
+                            <button className="text-green-400" onClick={savePhone} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-400" onClick={() => { setEditingPhone(false); setPrefixValue(admin.mobile_prefix); setMobileValue(String(admin.mobile_number ?? '')); }} title="Cancel"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <button className="text-purple-300" onClick={() => setEditingPhone(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                        )
+                      )}
+                    </div>
+                    {editingPhone ? (
+                      <div className="flex gap-2 mt-1">
+                        <Input value={prefixValue} onChange={(e) => setPrefixValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 w-20" />
+                        <Input type="tel" value={mobileValue} onChange={(e) => setMobileValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 flex-1" />
+                      </div>
+                    ) : (
+                      <div className="text-sm text-white mt-0.5 break-words">{`${prefixValue} ${mobileValue}`}</div>
+                    )}
+                  </div>
+                  <Info label="Role" value={`${admin.role} (ID ${admin.role_id})`} />
+                  <Info label="Status" value={admin.isRestricted ? 'Restricted' : 'Active'} />
+                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-purple-300/80">DOB</div>
+                      {canModify && (
+                        editingDob ? (
+                          <div className="flex items-center gap-1">
+                            <button className="text-green-400" onClick={saveDob} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-400" onClick={() => { setEditingDob(false); setDobValue(admin.dob || ''); }} title="Cancel"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <button className="text-purple-300" onClick={() => setEditingDob(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                        )
+                      )}
+                    </div>
+                    {editingDob ? (
+                      <Input type="date" value={dobValue} onChange={(e) => setDobValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 mt-1" />
+                    ) : (
+                      <div className="text-sm text-white mt-0.5 break-words">{dobValue || '—'}</div>
+                    )}
+                  </div>
+                  <Info label="Last Login" value={admin.last_login ? new Date(admin.last_login).toLocaleString() : '—'} />
+                  <Info label="Created By" value={admin.created_by || '—'} />
+                  <Info label="Created At" value={admin.created_at ? new Date(admin.created_at).toLocaleString() : '—'} />
+                  <Info label="Updated By" value={admin.updated_by || '—'} />
+                  <Info label="Updated At" value={admin.updated_at ? new Date(admin.updated_at).toLocaleString() : '—'} />
+                  <Info label="Last Profile Update" value={admin.last_profile_update ? new Date(admin.last_profile_update).toLocaleDateString() : '—'} />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">Permissions</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(admin.permissions || []).length > 0 ? admin.permissions.map((p, idx) => (
+                      <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
+                    )) : <span className="text-gray-500">None</span>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Notification Preference</div>
+                    <div className="flex flex-wrap gap-2">
+                      {(admin.notification_preference || []).length > 0 ? admin.notification_preference.map((p, idx) => (
+                        <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
+                      )) : <span className="text-gray-500">None</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Notification List</div>
+                    <div className="flex flex-wrap gap-2">
+                      {(admin.notification_list || []).length > 0 ? admin.notification_list.map((p, idx) => (
+                        <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
+                      )) : <span className="text-gray-500">None</span>}
+                    </div>
+                  </div>
+                </div>
+                {/* no actions here; actions are visible in the table row */}
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
-        <Button variant="ghost" size="icon" className="text-red-500 hover:text-white" disabled={!canModify} onClick={() => deleteMutation.mutate(admin._id)}><Trash2 className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" className="text-yellow-500 hover:text-white" disabled={!canModify} onClick={() => restrictMutation.mutate({ id: admin._id, payload: { isRestricted: !admin.isRestricted } })}>{admin.isRestricted ? <CheckCircle className="h-4 w-4" /> : <Shield className="h-4 w-4" />}</Button>
       </TableCell>
     </TableRow>
   );
@@ -343,7 +524,7 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
       const diff: Partial<AdminUpdatePayload> = {};
       if (formData.name !== adminToEdit.name) diff.name = formData.name;
       if (formData.email !== adminToEdit.email) diff.email = formData.email;
-      if (formData.username !== adminToEdit.username) diff.username = formData.username;
+      // Username cannot be edited after creation
       if (formData.mobile_prefix !== adminToEdit.mobile_prefix) diff.mobile_prefix = formData.mobile_prefix;
       const mobileNum = Number(formData.mobile_number);
       if (mobileNum !== adminToEdit.mobile_number) diff.mobile_number = mobileNum;
@@ -395,7 +576,15 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         </div>
         <FormField label="Name" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
         <FormField label="Email" id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-        <FormField label="Username" id="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+        {adminToEdit ? (
+          <div>
+            <Label htmlFor="username" className="text-purple-300">Username</Label>
+            <Input id="username" className="bg-slate-800/50 border-purple-500/30 mt-1 opacity-70" value={formData.username} disabled />
+            <div className="text-xs text-gray-400 mt-1">Username is permanent and cannot be changed.</div>
+          </div>
+        ) : (
+          <FormField label="Username" id="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+        )}
         <div className="flex gap-2">
           <div className="w-1/3">
             <FormField label="Prefix" id="mobile_prefix" value={formData.mobile_prefix} onChange={(e) => setFormData({ ...formData, mobile_prefix: e.target.value })} />
@@ -433,3 +622,13 @@ const FormField = ({ label, id, ...props }: { label: string, id: string, [key: s
 );
 
 export default AdminManagement;
+
+// Small labeled value helper used in the profile dialog
+function Info({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+      <div className="text-xs uppercase tracking-wide text-purple-300/80">{label}</div>
+      <div className="text-sm text-white mt-0.5 break-words">{String(value)}</div>
+    </div>
+  );
+}

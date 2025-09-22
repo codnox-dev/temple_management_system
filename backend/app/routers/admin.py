@@ -85,7 +85,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 # --- Admin Management Endpoints ---
 
-@router.get("/users/", response_model=List[AdminInDB])
+@router.get("/users/", response_model=List[AdminPublic])
 async def get_all_admins(current_admin: dict = Depends(auth_service.get_current_admin)):
     """
     Retrieves all admin users. Accessible by Super Admin (0), Admin (1), and Privileged (2).
@@ -93,10 +93,10 @@ async def get_all_admins(current_admin: dict = Depends(auth_service.get_current_
     if not _can_view_admin_mgmt(current_admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view admin management")
     
-    admins = await admins_collection.find().to_list(1000)
+    admins = await admins_collection.find({}, {"hashed_password": 0}).to_list(1000)
     return admins
 
-@router.post("/users/", response_model=AdminInDB, status_code=status.HTTP_201_CREATED)
+@router.post("/users/", response_model=AdminPublic, status_code=status.HTTP_201_CREATED)
 async def create_new_admin(
     admin_data: AdminCreateInput,
     current_admin: dict = Depends(auth_service.get_current_admin)
@@ -127,9 +127,11 @@ async def create_new_admin(
 
     # Use the service to create the admin
     created_admin = await auth_service.create_admin(full_create)
+    if isinstance(created_admin, dict):
+        created_admin.pop("hashed_password", None)
     return created_admin
 
-@router.put("/users/{user_id}/", response_model=AdminInDB)
+@router.put("/users/{user_id}/", response_model=AdminPublic)
 async def update_admin_user(
     user_id: str,
     admin_update: AdminUpdate,
@@ -148,6 +150,12 @@ async def update_admin_user(
         raise HTTPException(status_code=404, detail="Admin not found")
 
     payload = admin_update.model_dump(exclude_unset=True)
+
+    # Disallow username changes explicitly
+    if "username" in payload and str(payload.get("username")) != str(target.get("username")):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username cannot be changed after creation")
+    # Ensure username is not updated even if same value is provided
+    payload.pop("username", None)
 
     # Disallow any changes to Super Admin account
     if int(target.get("role_id", 99)) == 0:
@@ -173,7 +181,8 @@ async def update_admin_user(
     updated_admin = await admins_collection.find_one_and_update(
         {"_id": ObjectId(user_id)},
         {"$set": update_data},
-        return_document=ReturnDocument.AFTER
+        return_document=ReturnDocument.AFTER,
+        projection={"hashed_password": 0},
     )
 
     if updated_admin is None:
