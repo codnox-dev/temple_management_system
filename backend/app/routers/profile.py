@@ -76,22 +76,31 @@ async def upload_profile_picture(
     # Validate cooldown using fresh DB value to avoid serialization differences
     db_doc = await admins_collection.find_one({"_id": ObjectId(current_admin.get("_id"))}, {"last_profile_update": 1})
     last_update = db_doc.get("last_profile_update") if db_doc else None
-    if last_update:
-        # last_update from Mongo is typically a datetime; handle string fallback just in case
-        last_dt = last_update if isinstance(last_update, datetime) else datetime.fromisoformat(str(last_update))
-        next_allowed = last_dt.replace(microsecond=0)  # normalize
-        from datetime import timedelta as _td
-        next_allowed = last_dt + _td(days=30)
-        now = datetime.utcnow()
-        if now < next_allowed:
-            # return precise ISO timestamp for frontend to format if needed
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "message": "Profile picture was updated recently. Please wait before changing again.",
-                    "next_allowed": next_allowed.isoformat() + "Z",
-                },
-            )
+    if last_update is not None:
+        # Normalize last_update to datetime if possible
+        last_dt: Optional[datetime] = None
+        if isinstance(last_update, datetime):
+            last_dt = last_update
+        elif isinstance(last_update, str):
+            # handle ISO strings with optional Z suffix
+            s = last_update.rstrip("Z")
+            try:
+                last_dt = datetime.fromisoformat(s)
+            except Exception:
+                last_dt = None
+        # Enforce cooldown only if we successfully parsed a timestamp
+        if last_dt is not None:
+            from datetime import timedelta as _td
+            next_allowed = last_dt + _td(days=30)
+            now = datetime.utcnow()
+            if now < next_allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail={
+                        "message": "Profile picture was updated recently. Please wait before changing again.",
+                        "next_allowed": next_allowed.isoformat() + "Z",
+                    },
+                )
 
     # Read file in memory (limit size)
     content = await file.read()
@@ -102,7 +111,7 @@ async def upload_profile_picture(
     # Validate image type
     kind = imghdr.what(None, h=content)
     allowed = {"jpeg", "png", "gif", "webp"}
-    allowed_mimes = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    allowed_mimes = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
     if (kind not in allowed) and (file.content_type not in allowed_mimes):
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported image type. Allowed: jpeg, png, gif, webp.")
 

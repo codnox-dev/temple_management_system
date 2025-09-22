@@ -20,6 +20,7 @@ const EditProfile: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState('');
+  const [lastProfileUpdate, setLastProfileUpdate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const EditProfile: React.FC = () => {
           mobile_number: userData.mobile_number.toString(),
         });
         setRole(userData.role);
+        // cache last_profile_update locally to avoid repeated API calls on every click
+        setLastProfileUpdate((userData as any)?.last_profile_update || null);
         const pic = userData.profile_picture || null;
         setImagePreview(pic ? (pic.startsWith('/static') ? `${API_BASE_URL}${pic}` : pic) : null);
       } catch (err) {
@@ -69,28 +72,20 @@ const EditProfile: React.FC = () => {
     }
   };
   
-  const preCheckAndOpenPicker = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    try {
-      const me: any = await get('/profile/me');
-      const last = me?.last_profile_update;
-      if (last) {
-        const lastDt = new Date(last);
-        const nextAllowed = new Date(lastDt.getTime() + 30 * 24 * 60 * 60 * 1000);
-        const now = new Date();
-        if (now < nextAllowed) {
-          const ms = nextAllowed.getTime() - now.getTime();
-          const days = Math.floor(ms / (24 * 60 * 60 * 1000));
-          const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-          toast.error(`You can change your profile picture on ${nextAllowed.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
-          return;
-        }
+  const preCheckAndOpenPicker = () => {
+    if (lastProfileUpdate) {
+      const lastDt = new Date(lastProfileUpdate);
+      const nextAllowed = new Date(lastDt.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      if (now < nextAllowed) {
+        const ms = nextAllowed.getTime() - now.getTime();
+        const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        toast.error(`You can change your profile picture on ${nextAllowed.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
+        return;
       }
-      fileInputRef.current?.click();
-    } catch (err) {
-      // If check fails, allow file picker as fallback
-      fileInputRef.current?.click();
     }
+    fileInputRef.current?.click();
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -191,11 +186,17 @@ const EditProfile: React.FC = () => {
               alt="Profile Preview" 
               className="w-full h-full rounded-full object-cover border-4 border-purple-500/50"
             />
-            <label onClick={preCheckAndOpenPicker} className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <button
+              type="button"
+              onClick={preCheckAndOpenPicker}
+              aria-label="Upload profile picture"
+              className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            >
               <Upload className="w-8 h-8" />
-              <input ref={fileInputRef} type="file" id="profile-upload" className="hidden" accept="image/*" onChange={handleImageChange} />
-            </label>
+            </button>
           </div>
+          {/* Hidden file input lives outside clickable overlay to avoid nested label quirks */}
+          <input ref={fileInputRef} type="file" id="profile-upload" className="hidden" accept="image/*" onChange={handleImageChange} />
           <p className="mt-4 text-center text-gray-400 text-sm">
             Upload a new photo (JPG/PNG/GIF/WEBP, under 2 MB).<br />
             You can change your profile picture once every 30 days.
