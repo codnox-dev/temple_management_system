@@ -103,6 +103,7 @@ async def startup_db_client():
             profile_picture="https://example.com/default-avatar.png",
             dob="1970-01-01",
             created_by="system",
+            last_profile_update=None,
             permissions=role_perms,
             notification_preference=["email", "whatsapp"],
         )
