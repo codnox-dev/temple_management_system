@@ -1,16 +1,28 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import TempleSidebar from "./TempleSidebar";
 import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Profile from "./Profile";
 
 const AdminLayout = () => {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Mock user data for the profile component
+  const mockUser = {
+    name: 'Admin User',
+    phone: '+91 12345 67890',
+    role: 'Administrator',
+    profileImageUrl: 'https://placehold.co/100x100/A78BFA/FFFFFF?text=A' // Purple theme placeholder
+  };
+
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900">
       <TempleSidebar />
       
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 border-b border-purple-500/30 bg-slate-900/80 backdrop-blur-sm flex items-center justify-between px-6 flex-shrink-0">
+        <header className="relative h-16 border-b border-purple-500/30 bg-slate-900/80 backdrop-blur-sm flex items-center justify-between px-6 flex-shrink-0 z-20">
           <div className="flex items-center gap-4">
             {/* Mobile sidebar trigger can be added here in the future */}
             <div className="flex items-center gap-2">
@@ -29,14 +41,24 @@ const AdminLayout = () => {
             <Button variant="ghost" size="icon" className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white">
               <Bell className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white">
-              <User className="h-4 w-4" />
-            </Button>
+            
+            {/* Profile Icon and Dropdown */}
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+              >
+                <User className="h-4 w-4" />
+              </Button>
+              {isProfileOpen && <Profile user={mockUser} onClose={() => setIsProfileOpen(false)} />}
+            </div>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900">
+        <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
       </div>
@@ -45,3 +67,4 @@ const AdminLayout = () => {
 }
 
 export default AdminLayout;
+

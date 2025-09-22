@@ -21,15 +21,9 @@ import AdminDashboard from "./pages/admin/Admin";
 import AddStock from "./pages/admin/AddStock";
 import StockAnalytics from "./pages/admin/StockAnalytics";
 import CreateAdmin from "./pages/admin/AdminManagement";
+import EditProfile from "./pages/admin/EditProfile";
 
 const queryClient = new QueryClient();
-
-// Placeholder components for missing files to allow compilation
-const Placeholder = ({ name }: { name: string }) => (
-  <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-    <h1 className="text-4xl font-bold">{name} Page</h1>
-  </div>
-);
 
 const RoleGuard = ({ allow, children }: { allow: (roleId?: number) => boolean; children: React.ReactNode }) => {
   const { user } = (useAuth() as any) || {};
@@ -118,6 +112,10 @@ const App = () => (
                   <CreateAdmin />
                 </RoleGuard>
               } />
+
+              {/* Edit Profile accessible to all logged-in users */}
+              <Route path="edit-profile" element={<EditProfile />} />
+
             </Route>
 
             {/* Catch-all Not Found Route */}
@@ -130,3 +128,4 @@ const App = () => (
 );
 
 export default App;
+
