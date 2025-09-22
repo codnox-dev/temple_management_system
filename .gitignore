@@ -25,3 +25,6 @@ lerna-debug.log*
 *.sw?
 __pycache__/
 *.pyc
+
+# Folers
+backend/profile/

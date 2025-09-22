@@ -22,6 +22,8 @@ class AdminBase(BaseModel):
     created_by: str = Field(..., example="system")
     updated_at: Optional[datetime] = Field(None)
     updated_by: Optional[str] = Field(None)
+    # Tracks the last time a user updated their profile picture (for cooldown enforcement)
+    last_profile_update: Optional[datetime] = Field(None)
     notification_preference: List[str] = Field(default_factory=list)
     notification_list: Optional[List[str]] = Field(None)
     isRestricted: bool = Field(False)

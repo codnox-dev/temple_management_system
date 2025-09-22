@@ -1,6 +1,7 @@
 import os
 import random
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile # 1. Import the new profile router
 from .database import available_rituals_collection, admins_collection, roles_collection
 from .models.role_models import RoleBase
@@ -9,6 +10,7 @@ from .models.admin_models import AdminCreate
 from .models.ritual_models import AvailableRitualBase
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pymongo import ASCENDING
 
 # Load environment variables from .env file at the very beginning
 load_dotenv()
@@ -35,6 +37,14 @@ app.add_middleware(
 # --- Startup Event to Populate Database ---
 @app.on_event("startup")
 async def startup_db_client():
+    # --- Ensure Unique Indexes ---
+    try:
+        await admins_collection.create_index([("username", ASCENDING)], unique=True)
+        print("Ensured unique index on admins.username")
+    except Exception as e:
+        # Will fail if duplicates exist; surface a warning so it can be resolved
+        print(f"Warning: Could not ensure unique index on admins.username: {e}")
+
     # --- Populate Rituals ---
     if await available_rituals_collection.count_documents({}) == 0:
         print("Populating database with initial rituals...")
@@ -111,6 +121,16 @@ app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
 app.include_router(stock.router, tags=["Stock"], prefix="/api/stock")
 app.include_router(roles.router, tags=["Roles"], prefix="/api/roles")
 app.include_router(profile.router, tags=["Profile"], prefix="/api/profile") # 2. Include the new router
+
+# Serve static files for profile pictures under /static/
+import os as _os
+_base_dir = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), ".."))
+_profile_dir = _os.path.join(_base_dir, "profile")
+try:
+    _os.makedirs(_profile_dir, exist_ok=True)
+except Exception:
+    pass
+app.mount("/static", StaticFiles(directory=_base_dir), name="static")
 
 @app.get("/api")
 async def root():

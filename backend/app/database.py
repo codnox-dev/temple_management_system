@@ -1,6 +1,7 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
+from pymongo import ASCENDING
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,3 +26,9 @@ admins_collection = database.get_collection("admins")
 gallery_collection = database.get_collection("gallery_images")
 stock_collection = database.get_collection("stock")
 roles_collection = database.get_collection("roles")
+
+# Ensure unique index on username for admins collection
+try:
+    admins_collection.create_index([("username", ASCENDING)], unique=True)
+except Exception:
+    pass
