@@ -26,6 +26,7 @@ admins_collection = database.get_collection("admins")
 gallery_collection = database.get_collection("gallery_images")
 stock_collection = database.get_collection("stock")
 roles_collection = database.get_collection("roles")
+activities_collection = database.get_collection("activities")
 
 # Ensure unique index on username for admins collection
 try:

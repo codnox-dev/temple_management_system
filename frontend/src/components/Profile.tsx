@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { get, API_BASE_URL } from '@/api/api'; // Using alias-based import path
+import { useAuth } from '@/contexts/AuthContext';
 
 // This interface should match the AdminPublic Pydantic model from your FastAPI backend
 export interface UserProfile {
@@ -27,6 +28,7 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -57,6 +59,12 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const handleEditClick = () => {
     navigate('/admin/edit-profile');
+    onClose();
+  };
+
+  const handleLogoutClick = () => {
+    logout();
+    navigate('/login');
     onClose();
   };
 
@@ -113,6 +121,14 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-4 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-pink-500/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-pink-500"
         >
           Edit Details
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogoutClick}
+          className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2.5 px-4 rounded-full font-semibold shadow-md hover:from-red-500 hover:to-red-600 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-red-500"
+        >
+          Logout
         </button>
       </div>
     </div>

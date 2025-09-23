@@ -2,6 +2,9 @@ from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import event_service, auth_service
 from ..models import EventCreate, EventInDB
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
+from datetime import datetime
 
 router = APIRouter()
 
@@ -35,6 +38,14 @@ async def create_new_event(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create events")
     created_event = await event_service.create_event(event)
     if created_event:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Added a new event titled '{event.title}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return created_event
     raise HTTPException(status_code=400, detail="Event could not be created.")
 
@@ -51,6 +62,14 @@ async def update_event(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update events")
     updated_event = await event_service.update_event_by_id(id, event.model_dump())
     if updated_event is not None:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Updated the event '{updated_event['title']}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return updated_event
     raise HTTPException(status_code=404, detail=f"Event with ID {id} not found")
 
@@ -67,4 +86,14 @@ async def delete_event(
     deleted = await event_service.delete_event_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Event with ID {id} not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Deleted an event (ID: {id}).",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return

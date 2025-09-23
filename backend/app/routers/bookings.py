@@ -2,6 +2,9 @@ from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import booking_service, auth_service
 from ..models import BookingCreate, BookingInDB
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
+from datetime import datetime
 
 router = APIRouter()
 
@@ -12,6 +15,14 @@ async def create_new_booking(booking: BookingCreate = Body(...)):
     """
     created_booking = await booking_service.create_booking(booking)
     if created_booking:
+        # Log activity for new booking
+        activity = ActivityCreate(
+            username="guest",
+            role="Public User",
+            activity=f"Created new booking for ritual: {booking.ritual_name} on {booking.booking_date}",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return created_booking
     raise HTTPException(status_code=400, detail="Booking could not be created.")
 

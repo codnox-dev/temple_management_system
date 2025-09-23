@@ -10,6 +10,8 @@ from ..models.admin_models import AdminPublic # Corrected: Import AdminPublic fr
 from pydantic import BaseModel, Field
 from typing import Optional
 from urllib.parse import unquote
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
 
 router = APIRouter()
 
@@ -58,6 +60,17 @@ async def update_my_profile(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
 
     updated_admin.pop("hashed_password", None)
+    
+    # Build a human-readable summary of what changed
+    fields = ", ".join(k.replace("_", " ") for k in update_data.keys()) or "profile"
+    summary = f"Updated own profile details ({fields})."
+    await create_activity(ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=summary,
+        timestamp=datetime.utcnow()
+    ))
+    
     return updated_admin
 
 
@@ -136,6 +149,15 @@ async def upload_profile_picture(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
 
     updated_admin.pop("hashed_password", None)
+    
+    # Log activity
+    await create_activity(ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity="Updated profile picture.",
+        timestamp=datetime.utcnow()
+    ))
+    
     return updated_admin
 
 

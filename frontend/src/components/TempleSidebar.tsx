@@ -14,7 +14,8 @@ import {
   ChevronDown,
   ChevronRight,
   BarChart3,
-  Plus
+  Plus,
+  Activity
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean };
@@ -168,6 +169,10 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
                 <NavLink to="/admin/management" className={subNavLinkClass}>
                     <Users className="h-4 w-4" />
                     <span>Manage Admins</span>
+                </NavLink>
+                <NavLink to="/admin/activity" className={subNavLinkClass}>
+                    <Activity className="h-4 w-4" />
+                    <span>Activity Log</span>
                 </NavLink>
             </div>
           )}
