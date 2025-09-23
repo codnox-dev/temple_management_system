@@ -38,7 +38,7 @@ const EditProfile: React.FC = () => {
         // cache last_profile_update locally to avoid repeated API calls on every click
         setLastProfileUpdate((userData as any)?.last_profile_update || null);
         const pic = userData.profile_picture || null;
-        setImagePreview(pic ? (pic.startsWith('/static') ? `${API_BASE_URL}${pic}` : pic) : null);
+        setImagePreview(pic ? (pic.startsWith('/static') || pic.startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
       } catch (err) {
         console.error("Failed to fetch user data:", err);
         setError("Could not load your profile data. Please try again later.");
@@ -111,7 +111,8 @@ const EditProfile: React.FC = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
         // Use fetch here to send multipart since our api.ts defaults JSON
-        const res = await fetch(`${window.location.origin.replace(/:\d+$/, ':8080')}/api/profile/me/upload`, {
+        // Use API_BASE_URL to ensure calls go to backend origin
+        const res = await fetch(`${API_BASE_URL}/api/profile/me/upload`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -144,7 +145,7 @@ const EditProfile: React.FC = () => {
         const updated = await res.json();
         // Update preview with server path
         const p = updated?.profile_picture || null;
-        setImagePreview(p ? (String(p).startsWith('/static') ? `${API_BASE_URL}${p}` : p) : null);
+        setImagePreview(p ? (String(p).startsWith('/static') || String(p).startsWith('/api/') ? `${API_BASE_URL}${p}` : p) : null);
       }
       // Using the 'put' helper directly from api.ts
       await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);

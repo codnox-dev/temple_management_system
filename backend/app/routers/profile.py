@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import Response
 from bson import ObjectId
 from datetime import datetime
 from pymongo import ReturnDocument
 from ..services import auth_service
+from ..services.storage_service import storage_service
 from ..database import admins_collection
 from ..models.admin_models import AdminPublic # Corrected: Import AdminPublic from admin_models
 from pydantic import BaseModel, Field
 from typing import Optional
-import os
-import imghdr
+from urllib.parse import unquote
 
 router = APIRouter()
 
@@ -70,8 +71,8 @@ async def upload_profile_picture(
     - Max size 2 MB
     - Accept only image types (jpeg, png, gif, webp)
     - Cooldown: can update at most once every 30 days
-    Stores file under /backend/profile/{username}/{dd_MM_yyyy}/original_filename
-    and updates admins.profile_picture with the stored path and last_profile_update timestamp.
+    Stores file in MinIO bucket under: {username}/{YYYY-MM-DD_HH-MM-SS_microseconds}/{filename}
+    and updates admins.profile_picture with the MinIO URL and last_profile_update timestamp.
     """
     # Validate cooldown using fresh DB value to avoid serialization differences
     db_doc = await admins_collection.find_one({"_id": ObjectId(current_admin.get("_id"))}, {"last_profile_update": 1})
@@ -102,42 +103,28 @@ async def upload_profile_picture(
                     },
                 )
 
-    # Read file in memory (limit size)
+    # Read file in memory
     content = await file.read()
-    max_bytes = 2 * 1024 * 1024  # 2 MB
-    if len(content) > max_bytes:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large. Max 2 MB allowed.")
-
-    # Validate image type
-    kind = imghdr.what(None, h=content)
-    allowed = {"jpeg", "png", "gif", "webp"}
-    allowed_mimes = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
-    if (kind not in allowed) and (file.content_type not in allowed_mimes):
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported image type. Allowed: jpeg, png, gif, webp.")
-
-    # Build storage path: /backend/profile/{username}/{dd_MM_yyyy}/
+    
+    # Get username
     username = current_admin.get("username")
     if not username:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username missing")
-    date_folder = datetime.utcnow().strftime("%d_%m_%Y")
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    storage_dir = os.path.join(base_dir, "profile", username, date_folder)
-    os.makedirs(storage_dir, exist_ok=True)
 
-    # Use original filename sanitized
-    safe_name = os.path.basename(file.filename or f"profile.{kind}")
-    save_path = os.path.join(storage_dir, safe_name)
-    with open(save_path, "wb") as f:
-        f.write(content)
+    # Upload to MinIO using the storage service
+    try:
+        object_path, public_url = storage_service.upload_profile_picture(username, file, content)
+    except HTTPException:
+        raise  # Re-raise HTTPException from storage service
+    except Exception as e:
+        print(f"Unexpected error during upload: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload profile picture")
 
-    # Store relative path for serving via static endpoint, e.g., "/static/profile/..."
-    rel_path = os.path.relpath(save_path, base_dir).replace(os.sep, "/")
-
-    # Update admin document
+    # Update admin document with the new MinIO URL
     updated_admin = await admins_collection.find_one_and_update(
         {"_id": ObjectId(current_admin.get("_id"))},
         {"$set": {
-            "profile_picture": f"/static/{rel_path}",
+            "profile_picture": public_url,
             "last_profile_update": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "updated_by": username,
@@ -150,4 +137,33 @@ async def upload_profile_picture(
 
     updated_admin.pop("hashed_password", None)
     return updated_admin
+
+
+@router.get("/files/{object_path:path}")
+async def serve_profile_file(object_path: str):
+    """
+    Serve files from MinIO bucket with proper content types and caching headers.
+    """
+    try:
+        # Decode the URL-encoded object path
+        decoded_path = unquote(object_path)
+        
+        # Get file from MinIO
+        content, content_type, metadata = storage_service.get_file(decoded_path)
+        
+        # Return file with proper headers
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                "ETag": f'"{decoded_path}"',
+            }
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTPException from storage service
+    except Exception as e:
+        print(f"Unexpected error serving file: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to serve file")
 

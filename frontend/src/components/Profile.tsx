@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { get } from '@/api/api'; // Using alias-based import path
+import { get, API_BASE_URL } from '@/api/api'; // Using alias-based import path
 
 // This interface should match the AdminPublic Pydantic model from your FastAPI backend
 export interface UserProfile {
@@ -13,6 +13,14 @@ export interface UserProfile {
   mobile_prefix: string;
   profile_picture?: string;
 }
+
+const resolveProfileUrl = (p?: string | null, fallbackChar: string = 'U') => {
+  const placeholder = `https://placehold.co/150x150/A78BFA/FFFFFF?text=${fallbackChar}`;
+  if (!p) return placeholder;
+  if (p.startsWith('/static') || p.startsWith('/api/')) return `${API_BASE_URL}${p}`;
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  return `${API_BASE_URL}${p.startsWith('/') ? p : '/' + p}`;
+};
 
 const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -68,6 +76,8 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     );
   }
 
+  const imgSrc = resolveProfileUrl(user.profile_picture, user.name?.charAt(0) || 'U');
+
   return (
     <div
       ref={profileRef}
@@ -78,7 +88,7 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="p-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full transition-transform duration-300 hover:scale-105 cursor-pointer">
           <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-800 p-1">
             <img
-              src={user.profile_picture || `https://placehold.co/150x150/A78BFA/FFFFFF?text=${user.name.charAt(0)}`}
+              src={imgSrc}
               alt="User Profile"
               className="w-full h-full object-cover rounded-full"
             />

@@ -232,7 +232,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
 
   const resolveProfileUrl = (p?: string | null) => {
     if (!p) return 'https://placehold.co/150x150/1E293B/FFFFFF?text=👤';
-    if (p.startsWith('/static')) return `${API_BASE_URL}${p}`;
+    if (p.startsWith('/static') || p.startsWith('/api/')) return `${API_BASE_URL}${p}`;
     if (p.startsWith('http://') || p.startsWith('https://')) return p;
     // fallback treat as relative to API
     return `${API_BASE_URL}${p.startsWith('/') ? p : '/' + p}`;
