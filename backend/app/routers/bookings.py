@@ -9,11 +9,18 @@ router = APIRouter()
 async def create_new_booking(booking: BookingCreate = Body(...)):
     """
     Used to create a new booking record. This is a public endpoint.
+    This will also check for stock availability and deduct the required stock.
     """
-    created_booking = await booking_service.create_booking(booking)
-    if created_booking:
+    try:
+        created_booking = await booking_service.create_booking(booking)
         return created_booking
-    raise HTTPException(status_code=400, detail="Booking could not be created.")
+    except HTTPException as e:
+        # Re-raise the specific exception from the service layer (e.g., insufficient stock)
+        raise e
+    except Exception as e:
+        # Catch any other unexpected errors during the booking process
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred during booking: {str(e)}")
+
 
 @router.get("/", response_description="List all bookings", response_model=List[BookingInDB])
 async def list_all_bookings(current_admin: dict = Depends(auth_service.get_current_admin)):
