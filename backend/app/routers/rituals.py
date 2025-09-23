@@ -2,6 +2,9 @@ from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import ritual_service, auth_service
 from ..models import AvailableRitualCreate, AvailableRitualInDB
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
+from datetime import datetime
 
 router = APIRouter()
 
@@ -25,6 +28,14 @@ async def create_new_ritual(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create rituals")
     created_ritual = await ritual_service.create_ritual(ritual)
     if created_ritual:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Added a new ritual named '{ritual.name}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return created_ritual
     raise HTTPException(status_code=400, detail="Ritual could not be created.")
 
@@ -41,6 +52,14 @@ async def update_ritual(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update rituals")
     updated_ritual = await ritual_service.update_ritual_by_id(id, ritual.model_dump())
     if updated_ritual is not None:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Updated the ritual '{updated_ritual['name']}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return updated_ritual
     raise HTTPException(status_code=404, detail=f"Ritual with ID {id} not found")
 
@@ -57,4 +76,14 @@ async def delete_ritual(
     deleted = await ritual_service.delete_ritual_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Ritual with ID {id} not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Deleted a ritual (ID: {id}).",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return

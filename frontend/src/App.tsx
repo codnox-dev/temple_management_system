@@ -22,6 +22,7 @@ import AddStock from "./pages/admin/AddStock";
 import StockAnalytics from "./pages/admin/StockAnalytics";
 import CreateAdmin from "./pages/admin/AdminManagement";
 import EditProfile from "./pages/admin/EditProfile";
+import Activity from "./pages/admin/Activity";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,13 @@ const App = () => (
               <Route path="management" element={
                 <RoleGuard allow={(rid) => (rid ?? 99) <= 2}>
                   <CreateAdmin />
+                </RoleGuard>
+              } />
+
+              {/* Activity Log visible only to role_id <= 2 (Super/Admin/Privileged) */}
+              <Route path="activity" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 2}>
+                  <Activity />
                 </RoleGuard>
               } />
 

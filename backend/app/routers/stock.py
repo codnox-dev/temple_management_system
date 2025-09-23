@@ -4,6 +4,8 @@ from typing import List,Dict, Any
 from datetime import datetime
 from bson import ObjectId
 from ..services import stock_service, stock_analytics_service, auth_service
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
 
 router = APIRouter()
 
@@ -15,7 +17,18 @@ async def create_stock_item(stock_item: StockItemCreate, current_admin: dict = D
     if int(current_admin.get("role_id", 99)) > 4:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create stock items")
     try:
-        return await stock_service.create_stock_item_service(stock_item)
+        created_item = await stock_service.create_stock_item_service(stock_item)
+        
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Added a new stock item: '{stock_item.name}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
+        
+        return created_item
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -39,6 +52,16 @@ async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...
     updated_item = await stock_service.update_stock_item_service(item_id, stock_item)
     if updated_item is None:
         raise HTTPException(status_code=404, detail="Stock item not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Updated the stock item '{updated_item['name']}'.",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return updated_item
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -54,6 +77,16 @@ async def delete_stock_item(item_id: str, current_admin: dict = Depends(auth_ser
     deleted = await stock_service.delete_stock_item_service(item_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Stock item not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Deleted a stock item (ID: {item_id}).",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return
 
 @router.get("/analytics")

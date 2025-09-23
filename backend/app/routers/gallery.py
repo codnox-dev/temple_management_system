@@ -2,6 +2,9 @@ from fastapi import APIRouter, Body, HTTPException, status, Depends
 from typing import List
 from ..services import gallery_service, auth_service
 from ..models import GalleryImageCreate, GalleryImageInDB
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
+from datetime import datetime
 
 router = APIRouter()
 
@@ -24,6 +27,14 @@ async def create_gallery_image(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create gallery images")
     created_image = await gallery_service.create_gallery_image(image)
     if created_image:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Added a new image to the gallery: '{image.title}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return created_image
     raise HTTPException(status_code=400, detail="Image could not be created.")
 
@@ -40,6 +51,14 @@ async def update_gallery_image(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update gallery images")
     updated_image = await gallery_service.update_gallery_image_by_id(id, image.model_dump())
     if updated_image:
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Updated the gallery image '{updated_image['title']}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
         return updated_image
     raise HTTPException(status_code=404, detail=f"Image with ID {id} not found")
 
@@ -56,4 +75,14 @@ async def delete_gallery_image(
     deleted = await gallery_service.delete_gallery_image_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Image with ID {id} not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Deleted a gallery image (ID: {id}).",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return

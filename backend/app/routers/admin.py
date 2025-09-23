@@ -8,6 +8,8 @@ from ..services import auth_service
 from typing import Optional
 from ..models.admin_models import AdminCreate, AdminCreateInput, AdminUpdate, AdminInDB, AdminPublic, Token
 from ..database import admins_collection
+from ..services.activity_service import create_activity
+from ..models.activity_models import ActivityCreate
 
 router = APIRouter()
 
@@ -81,6 +83,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = auth_service.create_access_token(
         data={"sub": admin["username"]}, expires_delta=access_token_expires
     )
+    
+    # Log activity
+    await create_activity(ActivityCreate(
+        username=admin["username"],
+        role=admin["role"],
+        activity="Signed in to the admin portal.",
+        timestamp=datetime.utcnow()
+    ))
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 # --- Admin Management Endpoints ---
@@ -129,6 +140,16 @@ async def create_new_admin(
     created_admin = await auth_service.create_admin(full_create)
     if isinstance(created_admin, dict):
         created_admin.pop("hashed_password", None)
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Created a new admin user '{created_admin['username']}' with the role '{created_admin['role']}'.",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return created_admin
 
 @router.put("/users/{user_id}/", response_model=AdminPublic)
@@ -187,6 +208,56 @@ async def update_admin_user(
 
     if updated_admin is None:
         raise HTTPException(status_code=404, detail="Admin not found")
+    
+    # Build human-readable change messages
+    change_msgs = []
+    # Role name change
+    if "role" in update_data and str(update_data.get("role")) != str(target.get("role")):
+        change_msgs.append(f"changed role from '{target.get('role')}' to '{update_data.get('role')}'")
+    # Role level change (only if role not already captured)
+    if "role_id" in update_data and int(update_data.get("role_id")) != int(target.get("role_id", -1)):
+        change_msgs.append(f"updated role level from {target.get('role_id')} to {update_data.get('role_id')}")
+    # Restriction status
+    if "isRestricted" in update_data:
+        prev = bool(target.get("isRestricted", False))
+        now = bool(update_data.get("isRestricted"))
+        if now and not prev:
+            change_msgs.append("restricted the user account")
+        elif not now and prev:
+            change_msgs.append("lifted the restriction on the user account")
+        else:
+            change_msgs.append("updated account restriction settings")
+    # Permissions
+    if "permissions" in update_data:
+        change_msgs.append("updated permissions")
+    # Password change
+    if "hashed_password" in update_data:
+        change_msgs.append("updated password")
+    # Profile-like fields
+    profile_fields = [
+        f for f in ("name","email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")
+        if f in update_data
+    ]
+    if profile_fields:
+        # Humanize field names
+        field_names = ", ".join(f.replace("_", " ") for f in profile_fields)
+        change_msgs.append(f"updated profile details ({field_names})")
+
+    # Fallback if nothing matched
+    if not change_msgs:
+        change_msgs.append("updated account details")
+
+    msg = f"Updated admin user '{updated_admin['username']}': " + "; ".join(change_msgs)
+
+    # Log activity with clear, non-technical language
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=msg,
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return updated_admin
 
 @router.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
@@ -216,4 +287,14 @@ async def delete_admin_user(
 
     if delete_result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Admin not found")
+    
+    # Log activity
+    activity = ActivityCreate(
+        username=current_admin["username"],
+        role=current_admin["role"],
+        activity=f"Deleted the admin user '{target['username']}' (role: {target['role']}).",
+        timestamp=datetime.utcnow()
+    )
+    await create_activity(activity)
+    
     return
