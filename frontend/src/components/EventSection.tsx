@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api, { get } from '../api/api';
+import { resolveImageUrl } from '../lib/utils';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 
 // Define the shape of an event object
@@ -48,7 +49,7 @@ const EventSection = () => {
             <div key={event._id} className="card-divine group overflow-hidden flex flex-col">
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src={event.image}
+                  src={resolveImageUrl(event.image)}
                   alt={event.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />

@@ -2,6 +2,7 @@ import { ExternalLink, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../api/api';
+import { resolveImageUrl } from '../lib/utils';
 
 interface GalleryImage {
 	_id: string;
@@ -48,7 +49,7 @@ const GalleryPreview = () => {
 						>
 							<div className="relative overflow-hidden rounded-lg">
 								<img
-									src={image.src}
+									src={resolveImageUrl(image.src)}
 									alt={image.title}
                                     onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
 									className={`w-full object-cover group-hover:scale-110 transition-transform duration-500 ${

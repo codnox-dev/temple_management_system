@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../api/api';
+import { resolveImageUrl } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 
@@ -50,7 +51,7 @@ const FullEvents = () => {
               <Card className="card-divine h-full flex flex-col overflow-hidden transform transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
                 <div className="relative h-56">
                   <img
-                    src={event.image}
+                    src={resolveImageUrl(event.image)}
                     alt={event.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />

@@ -5,7 +5,8 @@ from .main_models import PyObjectId
 # --- Schema for Gallery Images ---
 # Defines the base structure for a gallery image.
 class GalleryImageBase(BaseModel):
-    src: str = Field(..., example="https://placehold.co/600x400")
+    # Source will be a backend-served URL (e.g., /api/gallery/files/<object_path>)
+    src: str = Field(..., example="/api/gallery/files/2025-01-01_12-00-00_000000/photo.jpg")
     title: str = Field(..., example="Evening Aarti")
     category: str = Field(..., example="Rituals")
 

@@ -4,6 +4,7 @@ import { get } from '../api/api';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
+import { resolveImageUrl } from '@/lib/utils';
 
 // Define the shape of an event object
 interface Event {
@@ -75,7 +76,7 @@ const EventDetails = () => {
             </div>
             <div className="relative">
               <img
-                src={event.image}
+                src={resolveImageUrl(event.image)}
                 alt={event.title}
                 className="w-full h-64 object-cover rounded-lg shadow-lg"
               />

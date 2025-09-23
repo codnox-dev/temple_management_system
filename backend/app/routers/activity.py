@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
 from ..services.activity_service import get_all_activities
 from ..models.activity_models import ActivityInDB
@@ -17,6 +17,8 @@ async def get_activities(
     Get all activities, optionally filtered by role, username, or date.
     Requires admin authentication.
     """
+    if int(current_admin.get("role_id", 99)) > 1:
+        raise HTTPException(status_code=403, detail="Access denied")
     activities = await get_all_activities(role=role, username=username, date=date)
     # With response_model_by_alias=False, FastAPI will serialize `id` instead of `_id`.
     return activities

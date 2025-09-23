@@ -114,9 +114,9 @@ const App = () => (
                 </RoleGuard>
               } />
 
-              {/* Activity Log visible only to role_id <= 2 (Super/Admin/Privileged) */}
+              {/* Activity Log visible only to role_id <= 1 (Super/Admin) */}
               <Route path="activity" element={
-                <RoleGuard allow={(rid) => (rid ?? 99) <= 2}>
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
                   <Activity />
                 </RoleGuard>
               } />
