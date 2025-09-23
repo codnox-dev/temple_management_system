@@ -17,7 +17,9 @@ import {
   Plus
 } from 'lucide-react';
 
-const TempleSidebar = () => {
+type SidebarProps = { isOpen?: boolean };
+
+const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
   const { user } = useAuth() as any;
   const roleId = user?.role_id ?? 99;
 
@@ -39,8 +41,14 @@ const TempleSidebar = () => {
         : 'text-purple-300 hover:bg-purple-800/50 hover:text-white'
     }`;
 
+  // Visibility classes: hide by default; show when isOpen.
+  // On small screens, it's an absolute overlay. On large screens, it's relative when open, absolute when closed.
+  const baseClasses = "bg-gradient-to-b from-gray-900 via-purple-900 to-slate-900 text-white w-72 min-h-screen p-6 shadow-2xl border-r border-purple-500/30 z-30 transition-transform duration-300 ease-in-out";
+  const responsiveClasses = `fixed ${isOpen ? 'lg:relative' : 'lg:absolute lg:top-0 lg:left-0'}`;
+  const visibilityClasses = isOpen ? "translate-x-0" : "-translate-x-full";
+
   return (
-    <aside className="bg-gradient-to-b from-gray-900 via-purple-900 to-slate-900 text-white w-72 min-h-screen p-6 shadow-2xl hidden lg:block border-r border-purple-500/30">
+    <aside className={`${baseClasses} ${responsiveClasses} ${visibilityClasses}`}>
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
           <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md flex items-center justify-center">

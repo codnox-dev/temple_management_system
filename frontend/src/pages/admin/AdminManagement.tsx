@@ -126,7 +126,7 @@ const AdminManagement = () => {
   const permissionCount = new Set(admins.flatMap(a => a.permissions)).size;
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-6 text-white w-full">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
@@ -172,15 +172,15 @@ const AdminManagement = () => {
             Current Administrators
           </h2>
         </div>
-        <div className="overflow-x-auto">
-          <Table className="w-full text-sm text-left text-gray-400">
+        <div className="overflow-x-auto w-full">
+          <Table className="w-full min-w-full table-fixed text-sm text-left text-gray-400">
             <TableHeader>
               <TableRow className="border-b border-purple-500/30">
-                <TableHead className="px-6 py-3 text-purple-300">Admin</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300">Contact</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300">Status</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300">Role</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300">Profile</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Admin</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Contact</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/6">Status</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/6">Role</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Profile</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
