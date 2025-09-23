@@ -10,7 +10,8 @@ class EventBase(BaseModel):
     time: str = Field(..., example="6:00 PM")
     location: str = Field(..., example="Main Temple Hall")
     description: str = Field(...)
-    image: str = Field(..., example="https://placehold.co/600x400")
+    # Image will be a backend-served URL (e.g., /api/events/files/<object_path>)
+    image: str = Field(..., example="/api/events/files/2025-01-01_12-00-00_000000/banner.jpg")
 
 # Used when creating a new event.
 class EventCreate(EventBase):

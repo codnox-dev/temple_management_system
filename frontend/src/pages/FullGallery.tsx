@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get } from '../api/api';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
+import { resolveImageUrl } from '@/lib/utils';
 
 
 interface GalleryImage {
@@ -42,7 +43,7 @@ const FullGallery = () => {
             <Card key={image._id} className="card-divine group overflow-hidden cursor-pointer">
               <div className="relative overflow-hidden rounded-lg">
                 <img
-                  src={image.src}
+                  src={resolveImageUrl(image.src)}
                   alt={image.title}
                   className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
                   onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}

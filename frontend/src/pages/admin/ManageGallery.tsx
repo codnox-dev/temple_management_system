@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { get } from '../../api/api';
+import api, { get, API_BASE_URL } from '../../api/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, ImageIcon, Folder, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveImageUrl } from '@/lib/utils';
 
 
 interface GalleryImage {
@@ -25,12 +26,21 @@ const ManageGallery = () => {
         const isReadOnly = roleId > 3;
     const [isEditing, setIsEditing] = useState<GalleryImage | null>(null);
     const [formData, setFormData] = useState({ src: '', title: '', category: '' });
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFileName, setSelectedFileName] = useState<string>('');
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (isEditing) {
             setFormData({ src: isEditing.src, title: isEditing.title, category: isEditing.category });
+            setSelectedFile(null);
+            setSelectedFileName('');
         } else {
             setFormData({ src: '', title: '', category: '' });
+            setSelectedFile(null);
+            setSelectedFileName('');
         }
     }, [isEditing]);
 
@@ -52,6 +62,10 @@ const ManageGallery = () => {
             queryClient.invalidateQueries({ queryKey: ['galleryPreview'] });
             toast.success(`Image ${isEditing ? 'updated' : 'added'} successfully!`);
             setIsEditing(null);
+            setFormData({ src: '', title: '', category: '' });
+            setSelectedFile(null);
+            setSelectedFileName('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
         },
         onError: (error) => {
             console.error("Error saving image:", error);
@@ -78,10 +92,72 @@ const ManageGallery = () => {
         }
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isReadOnly) { toast.error('You are not authorized to modify gallery.'); return; }
-        mutation.mutate(formData);
+        
+        let imageUrl = formData.src;
+        
+        // If a new file is selected, upload it first
+        if (selectedFile) {
+            setUploading(true);
+            setUploadError(null);
+            try {
+                const token = localStorage.getItem('token');
+                const form = new FormData();
+                form.append('file', selectedFile);
+                const res = await fetch(`${API_BASE_URL}/api/gallery/upload`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token ?? ''}`,
+                    },
+                    body: form,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.detail || 'Upload failed');
+                }
+                const data = await res.json();
+                imageUrl = data.url;
+                toast.success('Image uploaded');
+            } catch (err: any) {
+                console.error(err);
+                setUploadError(err?.message || 'Upload failed');
+                toast.error('Image upload failed');
+                setUploading(false);
+                return;
+            } finally {
+                setUploading(false);
+            }
+        }
+        
+        if (!imageUrl) {
+            toast.error('Please select an image.');
+            return;
+        }
+        
+        mutation.mutate({ ...formData, src: imageUrl });
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                toast.error('Invalid file type. Please select an image.');
+                setSelectedFile(null);
+                setSelectedFileName('');
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+                return;
+            }
+            setSelectedFile(file);
+            setSelectedFileName(file.name);
+            setUploadError(null);
+        } else {
+            setSelectedFile(null);
+            setSelectedFileName('');
+        }
     };
 
     // Calculate stats
@@ -138,14 +214,17 @@ const ManageGallery = () => {
                 <CardHeader><CardTitle className="text-purple-400">{isEditing ? 'Edit Image' : 'Add New Image'}</CardTitle></CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input 
-                            placeholder="Image URL" 
-                            value={formData.src} 
-                            onChange={(e) => setFormData({ ...formData, src: e.target.value })}
-                            disabled={isReadOnly}
-                            className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
-                            required 
-                        />
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} disabled={isReadOnly || uploading} className="bg-slate-800/50 border-purple-500/30 text-white" />
+                                {selectedFileName && <span className="text-purple-300 text-sm">Selected: {selectedFileName}</span>}
+                                {uploading && <span className="text-purple-300 text-sm">Uploading...</span>}
+                                {uploadError && <span className="text-red-300 text-sm">{uploadError}</span>}
+                            </div>
+                            {(formData.src || selectedFile) && (
+                                <img src={selectedFile ? URL.createObjectURL(selectedFile) : resolveImageUrl(formData.src)} alt="Preview" className="w-full h-40 object-cover rounded-md" onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }} />
+                            )}
+                        </div>
                         <Input 
                             placeholder="Title" 
                             value={formData.title} 
@@ -181,7 +260,7 @@ const ManageGallery = () => {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {images?.map(image => (
                         <Card key={image._id} className="relative group bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
-                            <img src={image.src} alt={image.title} className="w-full h-40 object-cover rounded-t-lg" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}/>
+                            <img src={resolveImageUrl(image.src)} alt={image.title} className="w-full h-40 object-cover rounded-t-lg" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}/>
                             <div className="p-2">
                                <p className="font-semibold truncate text-white">{image.title}</p>
                                <p className="text-sm text-purple-300">{image.category}</p>
@@ -215,3 +294,4 @@ const ManageGallery = () => {
 };
 
 export default ManageGallery;
+

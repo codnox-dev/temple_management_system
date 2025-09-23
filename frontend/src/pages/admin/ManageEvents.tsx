@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react';
 
-import { get } from '@/api/api';
+import { get, API_BASE_URL } from '@/api/api';
 import api from '@/api/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveImageUrl } from '@/lib/utils';
 
 // Define the shape of an event object
 interface Event {
@@ -37,6 +37,11 @@ const ManageEvents = () => {
     const isReadOnly = roleId > 3;
     const [isEditing, setIsEditing] = useState<Event | null>(null);
     const [formData, setFormData] = useState({ title: '', date: '', time: '', location: '', description: '', image: '' });
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFileName, setSelectedFileName] = useState<string>('');
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (isEditing) {
@@ -48,8 +53,12 @@ const ManageEvents = () => {
                 description: isEditing.description,
                 image: isEditing.image,
             });
+            setSelectedFile(null);
+            setSelectedFileName('');
         } else {
             setFormData({ title: '', date: '', time: '', location: '', description: '', image: '' });
+            setSelectedFile(null);
+            setSelectedFileName('');
         }
     }, [isEditing]);
 
@@ -70,6 +79,10 @@ const ManageEvents = () => {
             queryClient.invalidateQueries({ queryKey: ['events'] });
             toast.success(`Event ${isEditing ? 'updated' : 'added'} successfully!`);
             setIsEditing(null);
+            setFormData({ title: '', date: '', time: '', location: '', description: '', image: '' });
+            setSelectedFile(null);
+            setSelectedFileName('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
         },
         onError: () => toast.error('Failed to save event.'),
     });
@@ -89,10 +102,72 @@ const ManageEvents = () => {
         onError: () => toast.error('Failed to delete event.'),
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isReadOnly) { toast.error('You are not authorized to modify events.'); return; }
-        mutation.mutate(formData);
+        
+        let imageUrl = formData.image;
+        
+        // If a new file is selected, upload it first
+        if (selectedFile) {
+            setUploading(true);
+            setUploadError(null);
+            try {
+                const token = localStorage.getItem('token');
+                const form = new FormData();
+                form.append('file', selectedFile);
+                const res = await fetch(`${API_BASE_URL}/api/events/upload`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token ?? ''}`,
+                    },
+                    body: form,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.detail || 'Upload failed');
+                }
+                const data = await res.json();
+                imageUrl = data.url;
+                toast.success('Image uploaded');
+            } catch (err: any) {
+                console.error(err);
+                setUploadError(err?.message || 'Upload failed');
+                toast.error('Image upload failed');
+                setUploading(false);
+                return;
+            } finally {
+                setUploading(false);
+            }
+        }
+        
+        if (!imageUrl) {
+            toast.error('Please select an image for the event.');
+            return;
+        }
+        
+        mutation.mutate({ ...formData, image: imageUrl });
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                toast.error('Invalid file type. Please select an image.');
+                setSelectedFile(null);
+                setSelectedFileName('');
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+                return;
+            }
+            setSelectedFile(file);
+            setSelectedFileName(file.name);
+            setUploadError(null);
+        } else {
+            setSelectedFile(null);
+            setSelectedFileName('');
+        }
     };
 
     // Calculate stats
@@ -189,14 +264,17 @@ const ManageEvents = () => {
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
                             required 
                         />
-                        <Input 
-                            placeholder="Image URL" 
-                            value={formData.image} 
-                            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                            disabled={isReadOnly}
-                            className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
-                            required 
-                        />
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} disabled={isReadOnly || uploading} className="bg-slate-800/50 border-purple-500/30 text-white" />
+                                {selectedFileName && <span className="text-purple-300 text-sm">Selected: {selectedFileName}</span>}
+                                {uploading && <span className="text-purple-300 text-sm">Uploading...</span>}
+                                {uploadError && <span className="text-red-300 text-sm">{uploadError}</span>}
+                            </div>
+                            {(formData.image || selectedFile) && (
+                                <img src={selectedFile ? URL.createObjectURL(selectedFile) : resolveImageUrl(formData.image)} alt="Preview" className="w-full h-32 object-cover rounded-md" onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }} />
+                            )}
+                        </div>
                         <div className="flex gap-2">
                            <Button 
                                 type="submit" 
@@ -216,7 +294,7 @@ const ManageEvents = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {events?.map(event => (
                         <Card key={event._id} className="p-4 bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
-                           <img src={event.image} alt={event.title} className="w-full h-32 object-cover rounded-md mb-4"/>
+                           <img src={resolveImageUrl(event.image)} alt={event.title} className="w-full h-32 object-cover rounded-md mb-4"/>
                            <h3 className="font-semibold text-white">{event.title}</h3>
                            <p className="text-sm text-purple-300">{new Date(event.date).toLocaleDateString()}</p>
                            <div className="flex gap-2 mt-4">
@@ -248,3 +326,4 @@ const ManageEvents = () => {
 };
 
 export default ManageEvents;
+
