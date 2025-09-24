@@ -20,6 +20,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import IntlTelInput from '@/components/ui/IntlTelInput';
+import IntlTelPrefix from '@/components/ui/IntlTelPrefix';
 // Removed unused Select components; using native select for simplicity
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -230,6 +232,19 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const isSuperAdmin = admin.role_id === 0;
   const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myRoleId >= 2 && myId && admin._id === myId);
 
+  // Effect to reset inline edit states when dialog is closed
+  useEffect(() => {
+    if (!isProfileDialogOpen) {
+      setEditingEmail(false);
+      setEditingPhone(false);
+      setEditingDob(false);
+      setEmailValue(admin.email);
+      setPrefixValue(admin.mobile_prefix);
+      setMobileValue(String(admin.mobile_number ?? ''));
+      setDobValue(admin.dob || '');
+    }
+  }, [isProfileDialogOpen, admin]);
+
   const resolveProfileUrl = (p?: string | null) => {
     if (!p) return 'https://placehold.co/150x150/1E293B/FFFFFF?text=👤';
     if (p.startsWith('/static') || p.startsWith('/api/')) return `${API_BASE_URL}${p}`;
@@ -329,9 +344,11 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
           </Button>
         </div>
         <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-          <DialogContent className="max-w-2xl bg-slate-900 border-purple-500/50 text-white">
+          <DialogContent className="max-w-4xl bg-slate-900 border-purple-500/50 text-white">
             <DialogHeader>
-              <DialogTitle>User Profile</DialogTitle>
+              <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Admin Profile: {admin.name}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-1 flex flex-col items-center">
@@ -347,6 +364,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
               </div>
               <div className="md:col-span-2 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Email panel */}
                   <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs uppercase tracking-wide text-purple-300/80">Email</div>
@@ -367,6 +385,8 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                       <div className="text-sm text-white mt-0.5 break-words">{emailValue}</div>
                     )}
                   </div>
+
+                  {/* Phone panel */}
                   <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs uppercase tracking-wide text-purple-300/80">Phone</div>
@@ -382,9 +402,22 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                       )}
                     </div>
                     {editingPhone ? (
-                      <div className="flex gap-2 mt-1">
-                        <Input value={prefixValue} onChange={(e) => setPrefixValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 w-20" />
-                        <Input type="tel" value={mobileValue} onChange={(e) => setMobileValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 flex-1" />
+                      <div className="mt-1 flex gap-2 items-center">
+                        <div className="w-32 h-10 bg-slate-900/60 border border-purple-500/30 rounded-md">
+                          <IntlTelPrefix
+                            value={prefixValue}
+                            preferredCountries={['in','us','gb','ae','sg']}
+                            onChange={(prefix) => setPrefixValue(prefix)}
+                          />
+                        </div>
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={mobileValue}
+                          onChange={(e) => setMobileValue(e.target.value.replace(/\D/g, ''))}
+                          className="bg-slate-900/60 border-purple-500/30 flex-1"
+                        />
                       </div>
                     ) : (
                       <div className="text-sm text-white mt-0.5 break-words">{`${prefixValue} ${mobileValue}`}</div>
@@ -587,10 +620,18 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         )}
         <div className="flex gap-2">
           <div className="w-1/3">
-            <FormField label="Prefix" id="mobile_prefix" value={formData.mobile_prefix} onChange={(e) => setFormData({ ...formData, mobile_prefix: e.target.value })} />
+            <Label htmlFor="mobile_prefix" className="text-purple-300">Prefix</Label>
+            <div className="bg-slate-800/50 border border-purple-500/30 mt-1 rounded-md h-10">
+              <IntlTelPrefix
+                value={formData.mobile_prefix}
+                preferredCountries={['in','us','gb','ae','sg']}
+                onChange={(prefix) => setFormData({ ...formData, mobile_prefix: prefix })}
+              />
+            </div>
           </div>
           <div className="w-2/3">
-            <FormField label="Mobile" id="mobile_number" type="number" value={formData.mobile_number} onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value as unknown as number })} />
+            <Label htmlFor="mobile_number" className="text-purple-300">Mobile</Label>
+            <Input id="mobile_number" inputMode="numeric" pattern="[0-9]*" type="tel" className="bg-slate-800/50 border-purple-500/30 mt-1 h-10" value={formData.mobile_number} onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value as unknown as number })} />
           </div>
         </div>
         {!adminToEdit && (

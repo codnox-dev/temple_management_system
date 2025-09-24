@@ -58,6 +58,7 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }, [onClose]);
 
   const handleEditClick = () => {
+    // Open profile page (view mode with an Edit button)
     navigate('/admin/edit-profile');
     onClose();
   };
@@ -115,12 +116,12 @@ const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         {/* Separator */}
         <hr className="w-full border-t border-purple-500/30 my-2" />
 
-        {/* Edit Details Button */}
+        {/* Open Profile Button */}
         <button
           onClick={handleEditClick}
           className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-4 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-pink-500/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-pink-500"
         >
-          Edit Details
+          Open Profile
         </button>
 
         {/* Logout Button */}

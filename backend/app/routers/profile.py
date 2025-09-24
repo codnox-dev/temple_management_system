@@ -19,6 +19,8 @@ router = APIRouter()
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(None, example="New Name")
     mobile_number: Optional[int] = Field(None, example=9876543210)
+    mobile_prefix: Optional[str] = Field(None, example="+91")
+    email: Optional[str] = Field(None, example="user@example.com")
     profile_picture: Optional[str] = Field(None, example="https://example.com/new_profile.jpg")
 
 @router.get("/me", response_model=AdminPublic) # This will now work correctly

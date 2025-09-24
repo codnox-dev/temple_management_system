@@ -1,19 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, User, Phone, Save, X, Loader2 } from 'lucide-react';
+import { Upload, User, Phone, Save, X, Loader2, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { get, put, API_BASE_URL } from '../../api/api'; // Corrected relative import path
 import { UserProfile } from '../../components/Profile'; // Corrected relative import path
 import { toast } from 'sonner';
+import IntlTelInput from '@/components/ui/IntlTelInput';
+import IntlTelPrefix from '@/components/ui/IntlTelPrefix';
 
 // This interface matches the ProfileUpdate Pydantic model from your FastAPI backend
 export interface ProfileUpdatePayload {
   name?: string;
   mobile_number?: number;
+  mobile_prefix?: string;
+  email?: string;
   profile_picture?: string;
 }
 
 const EditProfile: React.FC = () => {
-  const [formData, setFormData] = useState({ name: '', mobile_number: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', mobile_prefix: '+91', mobile_number: '' });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -21,6 +25,7 @@ const EditProfile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState('');
   const [lastProfileUpdate, setLastProfileUpdate] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   const navigate = useNavigate();
@@ -32,7 +37,9 @@ const EditProfile: React.FC = () => {
         const userData = await get<UserProfile>('/profile/me');
         setFormData({
           name: userData.name,
-          mobile_number: userData.mobile_number.toString(),
+          email: userData.email,
+          mobile_prefix: userData.mobile_prefix || '+91',
+          mobile_number: String(userData.mobile_number ?? ''),
         });
         setRole(userData.role);
         // cache last_profile_update locally to avoid repeated API calls on every click
@@ -95,6 +102,8 @@ const EditProfile: React.FC = () => {
     
     const payload: ProfileUpdatePayload = {
       name: formData.name,
+      email: formData.email,
+      mobile_prefix: formData.mobile_prefix,
       mobile_number: parseInt(formData.mobile_number, 10),
       // profile_picture: newImageUrl // from your upload service
     };
@@ -149,7 +158,8 @@ const EditProfile: React.FC = () => {
       }
       // Using the 'put' helper directly from api.ts
       await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);
-      navigate(-1); // Navigate back after a successful save
+      toast.success('Profile updated successfully!');
+      setIsEditing(false); // Exit editing mode after saving
     } catch (err) {
       console.error("Failed to update profile:", err);
       setError("Failed to save changes. Please check your input and try again. If uploading a new photo, ensure it's an image under 2 MB and you haven't changed it in the last 30 days.");
@@ -168,9 +178,19 @@ const EditProfile: React.FC = () => {
 
   return (
     <div className="bg-slate-900/80 backdrop-blur-lg rounded-2xl p-8 max-w-4xl mx-auto my-10 border border-purple-800/50 shadow-[0_0_30px_-10px_rgba(192,132,252,0.4)]">
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-8">
-        Edit Profile
-      </h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          Profile
+        </h1>
+        <button
+          type="button"
+          onClick={() => setIsEditing((v) => !v)}
+          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
+        >
+          <Pencil className="w-4 h-4" />
+          {isEditing ? 'Stop Editing' : 'Edit Profile'}
+        </button>
+      </div>
       
       {error && (
         <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6">
@@ -191,7 +211,8 @@ const EditProfile: React.FC = () => {
               type="button"
               onClick={preCheckAndOpenPicker}
               aria-label="Upload profile picture"
-              className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              className={`absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white transition-opacity ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} cursor-pointer`}
+              disabled={!isEditing}
             >
               <Upload className="w-8 h-8" />
             </button>
@@ -213,21 +234,49 @@ const EditProfile: React.FC = () => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
+              className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+              disabled={!isEditing}
               placeholder="Full Name"
             />
           </div>
 
+          {/* Email */}
           <div className="relative">
-            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
             <input 
-              type="tel" 
-              name="mobile_number"
-              value={formData.mobile_number}
+              type="email" 
+              name="email"
+              value={formData.email}
               onChange={handleInputChange}
-              className="w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
-              placeholder="Phone Number"
+              className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 px-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+              disabled={!isEditing}
+              placeholder="Email"
             />
+          </div>
+
+          {/* Phone split: prefix dropdown + number input */}
+          <div className={`flex gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
+            <div className="relative w-40 h-12 bg-slate-800/50 border border-purple-700/50 rounded-full">
+              <IntlTelPrefix
+                value={formData.mobile_prefix}
+                preferredCountries={['in', 'us', 'gb', 'ae', 'sg']}
+                disabled={!isEditing}
+                onChange={(prefix) => setFormData(prev => ({ ...prev, mobile_prefix: prefix }))}
+              />
+            </div>
+            <div className="relative flex-1">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+              <input
+                type="tel"
+                name="mobile_number"
+                value={formData.mobile_number}
+                onChange={handleInputChange}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all`}
+                placeholder="Phone Number"
+                disabled={!isEditing}
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-4 bg-slate-800/50 border border-purple-700/50 rounded-full p-4">
@@ -237,18 +286,9 @@ const EditProfile: React.FC = () => {
           
           <div className="flex justify-end items-center gap-4 pt-4">
             <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-300 py-2.5 px-6 rounded-full font-semibold hover:bg-slate-700/50 transition-colors"
-              disabled={isSaving}
-            >
-              <X className="w-4 h-4" />
-              Cancel
-            </button>
-            <button
               type="submit"
               className="flex items-center justify-center gap-2 w-40 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isSaving}
+              disabled={isSaving || !isEditing}
             >
               {isSaving ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
