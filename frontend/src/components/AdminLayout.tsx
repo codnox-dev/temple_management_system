@@ -12,7 +12,8 @@ const AdminLayout = () => {
   const toggleSidebar = () => setIsSidebarOpen((v) => !v);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900">
+    // admin-surface class will scope white/orange theme overrides (see index.css additions)
+    <div className="min-h-screen w-full admin-surface">
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
@@ -24,34 +25,34 @@ const AdminLayout = () => {
       <div className="flex">
         <TempleSidebar isOpen={isSidebarOpen} />
         
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 admin-main">
           {/* Header */}
-          <header className="relative h-16 border-b border-purple-500/30 bg-slate-900/80 backdrop-blur-sm flex items-center justify-between px-6 flex-shrink-0 z-10">
+          <header className="relative h-16 admin-header flex items-center justify-between px-6 flex-shrink-0 z-10 border-b">
             <div className="flex items-center gap-4">
               {/* Sidebar toggle */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white"
+                className="h-9 w-9 text-neutral-600 hover:bg-orange-100 hover:text-orange-600 transition-colors"
                 onClick={toggleSidebar}
                 aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
               >
                 <Menu className="h-4 w-4" />
               </Button>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md flex items-center justify-center">
+                <div className="w-8 h-8 bg-orange-500/90 rounded-md flex items-center justify-center shadow-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                     <path d="M2 17l10 5 10-5"></path>
                     <path d="M2 12l10 5 10-5"></path>
                   </svg>
                 </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Temple Dashboard</h1>
+                <h1 className="text-xl font-bold text-neutral-800 tracking-tight">Temple Dashboard</h1>
               </div>
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-neutral-600 hover:bg-orange-100 hover:text-orange-600 transition-colors">
                 <Bell className="h-4 w-4" />
               </Button>
               
@@ -60,7 +61,7 @@ const AdminLayout = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-9 w-9 text-purple-300 hover:bg-purple-800/50 hover:text-white"
+                  className="h-9 w-9 text-neutral-600 hover:bg-orange-100 hover:text-orange-600 transition-colors"
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                 >
                   <User className="h-4 w-4" />

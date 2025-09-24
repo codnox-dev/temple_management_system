@@ -284,3 +284,77 @@
 .bg-gradient-golden {
   background: var(--gradient-golden);
 }
+
+/* ================= Admin White / Orange Minimal Theme (Scoped) ================= */
+/* Scope only under .admin-surface so public site remains unchanged */
+.admin-surface {
+  background-image: linear-gradient(to bottom right, #ffffff, #fff8f1);
+  color: #1f2937; /* neutral-800 */
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-surface .admin-header {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(6px);
+  border-color: #e5e7eb; /* neutral-200 */
+}
+
+.admin-surface .admin-main { background: transparent; }
+
+/* Neutralize dark themed card backgrounds */
+.admin-surface .admin-main [class*="bg-slate-900"],
+.admin-surface .admin-main [class*="bg-slate-800"],
+.admin-surface .admin-main [class*="bg-purple-900"],
+.admin-surface .admin-main [class*="bg-purple-800"] {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04), 0 1px 3px 1px rgba(0,0,0,0.08);
+}
+
+/* Headings remove gradient text */
+.admin-surface h1,
+.admin-surface h2,
+.admin-surface h3,
+.admin-surface h4 { background: none !important; -webkit-background-clip: initial !important; background-clip: initial !important; color:#111827 !important; }
+
+/* Accent recolor (basic common utility classes) */
+.admin-surface .text-purple-400,
+.admin-surface .text-purple-300,
+.admin-surface .text-pink-400 { color:#ea580c !important; }
+
+.admin-surface .border-purple-500\/30,
+.admin-surface .border-purple-500\/20 { border-color:#fdba74 !important; }
+
+.admin-surface .bg-purple-400\/20,
+.admin-surface .bg-pink-400\/20,
+.admin-surface .bg-amber-400\/20 { background: #fff3e6 !important; }
+
+/* Tables */
+.admin-surface table thead tr { background:#fff3e6; }
+.admin-surface table thead th { color:#475569; }
+.admin-surface table tbody tr { border-color:#e5e7eb; }
+.admin-surface table tbody tr:hover { background:#fff7ed; }
+
+/* Inputs */
+.admin-surface input,
+.admin-surface select,
+.admin-surface textarea { background:#ffffff; border:1px solid #d1d5db; }
+.admin-surface input:focus,
+.admin-surface select:focus,
+.admin-surface textarea:focus { outline:2px solid rgba(249,115,22,0.4); outline-offset:2px; border-color:#fb923c; }
+
+/* Gradient buttons override */
+.admin-surface .bg-gradient-to-r.from-purple-600.to-pink-600 { background: linear-gradient(90deg,#f97316,#fb923c) !important; }
+.admin-surface .bg-gradient-to-r.from-purple-600.to-pink-600:hover { filter: brightness(1.05); }
+
+/* Sidebar */
+.admin-surface .admin-sidebar { background:#ffffff; }
+
+/* Focus ring */
+.admin-surface :focus-visible { outline: 2px solid rgba(249,115,22,0.4); outline-offset:2px; }
+
+/* Badges (rough override) */
+.admin-surface .bg-amber-500\/20 { background:#ffedd5 !important; color:#9a3412 !important; border-color:#fdba74 !important; }
+
+/* Minor utility */
+.admin-section-title { font-size:0.75rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:rgba(234,88,12,0.8); }
