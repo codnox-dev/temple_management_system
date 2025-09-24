@@ -170,21 +170,19 @@ const EditProfile: React.FC = () => {
   if (initialLoading) {
     return (
       <div className="flex justify-center items-center h-96">
-        <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
+        <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-lg rounded-2xl p-8 max-w-4xl mx-auto my-10 border border-purple-800/50 shadow-[0_0_30px_-10px_rgba(192,132,252,0.4)]">
+    <div className="bg-white rounded-2xl p-8 max-w-4xl mx-auto my-10 border border-orange-200 shadow-sm">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Profile
-        </h1>
+        <h1 className="text-3xl font-bold text-orange-600">Profile</h1>
         <button
           type="button"
           onClick={() => setIsEditing((v) => !v)}
-          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
+          className="flex items-center gap-2 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300"
         >
           <Pencil className="w-4 h-4" />
           {isEditing ? 'Stop Editing' : 'Edit Profile'}
@@ -232,7 +230,7 @@ const EditProfile: React.FC = () => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+              className={`w-full bg-white border border-orange-300 rounded-full py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
               disabled={!isEditing}
               placeholder="Full Name"
             />
@@ -245,7 +243,7 @@ const EditProfile: React.FC = () => {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 px-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+              className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
               disabled={!isEditing}
               placeholder="Email"
             />
@@ -263,12 +261,12 @@ const EditProfile: React.FC = () => {
                   setFormData(prev => ({ ...prev, mobile_prefix: '+' + digits }));
                 }}
                 placeholder="+91"
-                className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 px-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+                className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
                 disabled={!isEditing}
               />
             </div>
             <div className="relative flex-1">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
               <input
                 type="tel"
                 name="mobile_number"
@@ -276,22 +274,22 @@ const EditProfile: React.FC = () => {
                 onChange={handleInputChange}
                 inputMode="numeric"
                 pattern="[0-9]*"
-                className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all`}
+                className={`w-full bg-white border border-orange-300 rounded-full py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all`}
                 placeholder="Phone Number"
                 disabled={!isEditing}
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-slate-800/50 border border-purple-700/50 rounded-full p-4">
-            <span className="text-sm font-semibold uppercase tracking-wider text-pink-300">Role:</span>
-            <span className="text-white font-medium">{role}</span>
+          <div className="flex items-center gap-4 bg-orange-50 border border-orange-200 rounded-full p-4">
+            <span className="text-sm font-semibold uppercase tracking-wider text-orange-700">Role:</span>
+            <span className="text-slate-900 font-medium">{role}</span>
           </div>
           
           <div className="flex justify-end items-center gap-4 pt-4">
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 w-40 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 w-40 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSaving || !isEditing}
             >
               {isSaving ? (

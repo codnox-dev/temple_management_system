@@ -256,20 +256,20 @@ const GalleryLayoutDesigner: React.FC<{
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
       {/* modal */}
-      <div className="relative bg-slate-900 border border-purple-500/30 rounded-lg shadow-2xl w-[95vw] max-w-[1280px] max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-purple-500/20">
+      <div className="relative bg-white border border-orange-200 rounded-lg shadow-2xl w-[95vw] max-w-[1280px] max-h-[92vh] flex flex-col overflow-hidden text-gray-900">
+        <div className="flex items-center justify-between p-4 border-b border-orange-200">
           <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-white">Layout Designer - {mode === 'full' ? 'Full Gallery' : 'Home Preview'}</h3>
-            <p className="text-xs text-purple-300/80">Drag to move, use corner handles to resize. Your layout is saved to your browser.</p>
+            <h3 className="text-lg font-semibold">Layout Designer - {mode === 'full' ? 'Full Gallery' : 'Home Preview'}</h3>
+            <p className="text-xs text-gray-600">Drag to move, use corner handles to resize. Your layout is saved to your browser.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleReset} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+            <Button variant="outline" onClick={handleReset} className="border-orange-300 text-orange-700 hover:bg-orange-50">
               <RotateCcw className="w-4 h-4 mr-2" /> Reset
             </Button>
-            <Button onClick={handleSave} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+            <Button onClick={handleSave} className="bg-orange-600 hover:bg-orange-700 text-white">
               <Save className="w-4 h-4 mr-2" /> Save
             </Button>
-            <Button variant="ghost" onClick={onClose} className="text-purple-200 hover:bg-purple-900/50">
+            <Button variant="ghost" onClick={onClose} className="text-gray-700 hover:bg-orange-50">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -278,10 +278,10 @@ const GalleryLayoutDesigner: React.FC<{
         {/* canvas wrapper with scroll */}
         <div className="p-4 overflow-auto">
           <div className="flex items-center gap-3 mb-3">
-            <label className="text-sm text-purple-200">Canvas Width</label>
+            <label className="text-sm text-gray-800">Canvas Width</label>
             <input
               type="number"
-              className="bg-slate-800/70 border border-purple-500/30 rounded px-2 py-1 text-purple-100 w-28"
+              className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
               value={designWInput}
               inputMode="numeric"
               min={400}
@@ -299,10 +299,10 @@ const GalleryLayoutDesigner: React.FC<{
                 }
               }}
             />
-            <label className="text-sm text-purple-200">Canvas Height</label>
+            <label className="text-sm text-gray-800">Canvas Height</label>
             <input
               type="number"
-              className="bg-slate-800/70 border border-purple-500/30 rounded px-2 py-1 text-purple-100 w-28"
+              className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
               value={designHInput}
               inputMode="numeric"
               min={300}
@@ -320,11 +320,11 @@ const GalleryLayoutDesigner: React.FC<{
                 }
               }}
             />
-            <span className="text-xs text-purple-300/80">(Make the canvas taller to accommodate more rows; scroll to view)</span>
+            <span className="text-xs text-gray-600">(Make the canvas taller to accommodate more rows; scroll to view)</span>
           </div>
           <div
             className={`relative rounded-md inline-block ${canvas.className}`}
-            style={{ width: designW, height: designH, backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.05) 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}
+            style={{ width: designW, height: designH, backgroundImage: 'linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.05) 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}
           >
             {merged.map((it) => {
               const img = byId[it.id];

@@ -349,10 +349,10 @@ const ManageGallery = () => {
             {slideConfigOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/70" onClick={() => setSlideConfigOpen(false)} />
-                    <div className="relative bg-slate-900 border border-purple-500/30 rounded-lg shadow-xl w-[95vw] max-w-3xl max-h-[85vh] flex flex-col">
-                        <div className="p-4 border-b border-purple-500/20 flex items-center justify-between">
-                            <h3 className="text-white font-semibold">Configure Slideshow</h3>
-                            <Button variant="ghost" onClick={() => setSlideConfigOpen(false)} className="text-purple-200 hover:bg-purple-900/50">Close</Button>
+                    <div className="relative bg-white border border-orange-200 rounded-lg shadow-xl w-[95vw] max-w-3xl max-h-[85vh] flex flex-col text-gray-900">
+                        <div className="p-4 border-b border-orange-200 flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900">Configure Slideshow</h3>
+                            <Button variant="ghost" onClick={() => setSlideConfigOpen(false)} className="text-gray-700 hover:bg-orange-50">Close</Button>
                         </div>
                         <div className="p-4 overflow-auto space-y-4">
                             {/* Image picker grid */}
@@ -367,10 +367,10 @@ const ManageGallery = () => {
                                                 setSlides((prev) => selected ? prev.filter((x) => x !== img._id) : [...prev, img._id]);
                                             }}
                                             disabled={isReadOnly}
-                                            className={`relative border rounded overflow-hidden ${selected ? 'border-primary' : 'border-slate-700'} ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            className={`relative border rounded overflow-hidden ${selected ? 'border-orange-500' : 'border-gray-300'} ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
-                                            {selected && <span className="absolute top-1 right-1 bg-primary text-xs px-1 rounded">Selected</span>}
+                                            {selected && <span className="absolute top-1 right-1 bg-orange-600 text-white text-xs px-1 rounded">Selected</span>}
                                         </button>
                                     );
                                 })}
@@ -378,13 +378,13 @@ const ManageGallery = () => {
                             {/* Selected order list */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-semibold text-purple-200">Selected Slides Order</h4>
+                                    <h4 className="text-sm font-semibold text-gray-800">Selected Slides Order</h4>
                                     <div className="flex gap-2">
-                                        <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Clear</Button>
+                                        <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-orange-300 text-orange-700 hover:bg-orange-50">Clear</Button>
                                     </div>
                                 </div>
                                 {slides.length === 0 ? (
-                                    <div className="text-sm text-purple-300">No images selected yet. Click images above to add them.</div>
+                                    <div className="text-sm text-gray-700">No images selected yet. Click images above to add them.</div>
                                 ) : (
                                     <div className="flex flex-wrap gap-3">
                                         {slides.map((id, idx) => {
@@ -400,7 +400,7 @@ const ManageGallery = () => {
                                                 });
                                             };
                                             return (
-                                                <div key={id} className="relative border border-purple-500/30 rounded-md overflow-hidden">
+                                                <div key={id} className="relative border border-orange-200 rounded-md overflow-hidden">
                                                     <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
                                                     <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs flex items-center justify-between px-1 py-0.5">
                                                         <span className="opacity-80">#{idx + 1}</span>
@@ -417,12 +417,12 @@ const ManageGallery = () => {
                                 )}
                             </div>
                             <div className="flex flex-wrap items-center gap-3">
-                                <label className="text-sm text-purple-200">Interval (ms)</label>
-                                <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
-                                <label className="text-sm text-purple-200">Transition (ms)</label>
-                                <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
-                                <label className="text-sm text-purple-200">Aspect Ratio</label>
-                                <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white rounded px-2 py-2">
+                                <label className="text-sm text-gray-800">Interval (ms)</label>
+                                <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 w-28" />
+                                <label className="text-sm text-gray-800">Transition (ms)</label>
+                                <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 w-28" />
+                                <label className="text-sm text-gray-800">Aspect Ratio</label>
+                                <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 rounded px-2 py-2">
                                     <option value="16:9">16:9</option>
                                     <option value="4:3">4:3</option>
                                     <option value="1:1">1:1</option>
@@ -430,8 +430,8 @@ const ManageGallery = () => {
                                 </select>
                             </div>
                         </div>
-                        <div className="p-4 border-t border-purple-500/20 flex items-center justify-end gap-2">
-                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Cancel</Button>
+                        <div className="p-4 border-t border-orange-200 flex items-center justify-end gap-2">
+                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-orange-300 text-orange-700 hover:bg-orange-50">Cancel</Button>
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
                                 try {
@@ -450,7 +450,7 @@ const ManageGallery = () => {
                                     console.error(e);
                                     toast.error('Failed to update slideshow');
                                 }
-                            }} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">Save</Button>
+                            }} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
                         </div>
                     </div>
                 </div>

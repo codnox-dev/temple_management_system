@@ -87,10 +87,10 @@ const GalleryPreview = () => {
 										const image = imagesById[it.id];
 										if (!image) return null;
 										return (
-											<div key={it.id} className="absolute card-divine overflow-hidden rounded-lg" style={{ left: it.x, top: it.y, width: it.w, height: it.h, zIndex: it.z ?? 1 }}>
+											<div key={it.id} className="absolute card-divine overflow-hidden rounded-lg group" style={{ left: it.x, top: it.y, width: it.w, height: it.h, zIndex: it.z ?? 1 }}>
 												<div className="relative w-full h-full">
 													<img src={resolveImageUrl(image.src)} alt={image.title} onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }} className="w-full h-full object-cover" />
-													<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+													<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
 														<div className="p-3 text-white w-full flex items-center justify-between">
 															<div>
 																<h3 className="font-playfair font-semibold mb-1 text-sm">{image.title}</h3>
@@ -116,7 +116,7 @@ const GalleryPreview = () => {
 								<div key={image._id} className={`card-divine group overflow-hidden cursor-pointer ${index === 0 ? 'md:col-span-2 md:row-span-2' : ''}`}>
 									<div className="relative overflow-hidden rounded-lg">
 										<img src={resolveImageUrl(image.src)} alt={image.title} onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }} className={`w-full object-cover group-hover:scale-110 transition-transform duration-500 ${index === 0 ? 'h-64 md:h-[400px]' : 'h-48'}`} />
-										<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+										<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
 											<div className="p-4 text-white w-full">
 												<div className="flex items-center justify-between">
 													<div>

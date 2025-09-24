@@ -153,13 +153,13 @@ const FullGallery = () => {
                         );
                       })
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">No slideshow images selected.</div>
+                      <div className="absolute inset-0 flex items-center justify-center text-white/80">No slideshow images selected.</div>
                     )}
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Interval: {intervalMs}ms • Transition: {transitionMs}ms • AR: {aspectRatio}</span>
+                    <span className="text-xs text-slate-200">Interval: {intervalMs}ms • Transition: {transitionMs}ms • AR: {aspectRatio}</span>
                   </div>
                   {slides.length > 1 && (
                     <div className="flex gap-2">
