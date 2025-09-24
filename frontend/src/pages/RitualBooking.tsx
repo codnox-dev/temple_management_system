@@ -136,6 +136,7 @@ const RitualBooking = () => {
         const bookingPayload = {
             ...formData,
             total_cost,
+            booked_by: 'self', // <-- mark as self-booked
             instances: instances.map(({id, ...rest}) => ({ // remove client-side id before sending
                 ...rest,
                 ritualName: ritualById(rest.ritualId)?.name || 'Unknown Ritual'
