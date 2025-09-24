@@ -15,7 +15,8 @@ import {
   ChevronRight,
   BarChart3,
   Plus,
-  Activity
+  Activity,
+  ShoppingCart
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean };
@@ -79,7 +80,15 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
             <span className="font-medium">All Bookings</span>
         </NavLink>
         )}
-        
+
+        {/* Employee Booking visible only to Employees (role_id === 4) */}
+        {roleId === 4 && (
+        <NavLink to="/admin/employee-booking" className={navLinkClass}>
+            <ShoppingCart className="h-5 w-5" />
+            <span className="font-medium">Employee Booking</span>
+        </NavLink>
+        )}
+
         {/* Website Management Section */}
         <div>
           <button
