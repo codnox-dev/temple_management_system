@@ -26,6 +26,9 @@ interface Ritual {
     popular: boolean;
     icon_name: string;
     required_stock: RequiredStock[];
+    booking_start_time?: string;   // NEW
+    booking_end_time?: string;     // NEW
+    employee_only?: boolean;       // NEW
 }
 
 interface StockItem {
@@ -48,7 +51,9 @@ const ManageRituals = () => {
     // --- State Management ---
     const [isEditing, setIsEditing] = useState<Ritual | null>(null);
     const [formData, setFormData] = useState({
-        name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star', required_stock: [] as RequiredStock[]
+        name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
+        required_stock: [] as RequiredStock[],
+        booking_start_time: '', booking_end_time: '', employee_only: false  // NEW
     });
     const [selectedStockId, setSelectedStockId] = useState('');
     const [requiredQuantity, setRequiredQuantity] = useState('1');
@@ -75,9 +80,13 @@ const ManageRituals = () => {
                 popular: isEditing.popular,
                 icon_name: isEditing.icon_name || 'Star',
                 required_stock: isEditing.required_stock.map(rs => ({...rs, stock_item_name: stockMap.get(rs.stock_item_id)?.name || 'Unknown'})),
+                booking_start_time: isEditing.booking_start_time || '',
+                booking_end_time: isEditing.booking_end_time || '',
+                employee_only: !!isEditing.employee_only
             });
         } else {
-            setFormData({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star', required_stock: [] });
+            setFormData({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
+                required_stock: [], booking_start_time: '', booking_end_time: '', employee_only: false });
         }
     }, [isEditing, stockMap]);
 
@@ -103,6 +112,10 @@ const ManageRituals = () => {
             // Sanitize required_stock before sending
             const payload = {
                 ...ritualPayload,
+                price: ritualPayload.price,
+                booking_start_time: ritualPayload.booking_start_time || null,   // NEW
+                booking_end_time: ritualPayload.booking_end_time || null,       // NEW
+                employee_only: !!ritualPayload.employee_only,                   // NEW
                 required_stock: ritualPayload.required_stock.map(({ stock_item_id, quantity_required }: RequiredStock) => ({
                     stock_item_id,
                     quantity_required: Number(quantity_required)
@@ -272,6 +285,27 @@ const ManageRituals = () => {
                             <Checkbox id="popular" checked={formData.popular} onCheckedChange={(checked) => setFormData({ ...formData, popular: !!checked })} className="border-purple-500/30 data-[state=checked]:bg-purple-600" />
                             <Label htmlFor="popular" className="text-purple-300">Mark as Popular</Label>
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Booking Time Inputs */}
+                            <div>
+                                <Label htmlFor="booking_start_time" className="text-purple-300">Booking Start (HH:MM)</Label>
+                                <Input id="booking_start_time" type="time" value={formData.booking_start_time}
+                                    onChange={e => setFormData({ ...formData, booking_start_time: e.target.value }) }
+                                    className="bg-slate-800/50 border-purple-500/30 text-white" />
+                            </div>
+                            <div>
+                                <Label htmlFor="booking_end_time" className="text-purple-300">Booking End (HH:MM)</Label>
+                                <Input id="booking_end_time" type="time" value={formData.booking_end_time}
+                                    onChange={e => setFormData({ ...formData, booking_end_time: e.target.value }) }
+                                    className="bg-slate-800/50 border-purple-500/30 text-white" />
+                            </div>
+                        </div>
+                        <div className="flex items-center mt-6">
+                            <Checkbox id="employee_only" checked={formData.employee_only}
+                                onCheckedChange={c => setFormData({ ...formData, employee_only: !!c }) }
+                                className="border-purple-500/30 data-[state=checked]:bg-purple-600" />
+                            <Label htmlFor="employee_only" className="ml-2 text-purple-300">Employee Only</Label>
+                        </div>
                         <div className="flex gap-2">
                            <Button type="submit" disabled={mutation.isPending} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">{isEditing ? 'Update Ritual' : 'Add Ritual'}</Button>
                            {isEditing && <Button variant="outline" type="button" onClick={() => setIsEditing(null)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Cancel</Button>}
@@ -289,6 +323,11 @@ const ManageRituals = () => {
                             <div className="flex items-center justify-between">
                                 <div className="flex-grow">
                                     <div className="font-semibold text-white">{ritual.name} - ₹{ritual.price}</div>
+                                    <p className="text-xs text-purple-400">
+                                        {ritual.booking_start_time && ritual.booking_end_time
+                                            ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
+                                        {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
+                                    </p>
                                     <p className="text-sm text-purple-300">{ritual.description}</p>
                                 </div>
                                 <div className="flex gap-2 ml-4">

@@ -12,6 +12,9 @@ interface Ritual {
   duration: string;
   icon: string;
   popular?: boolean;
+  booking_start_time?: string; // NEW
+  booking_end_time?: string;   // NEW
+  employee_only?: boolean;     // NEW
 }
 
 // --- Icon Mapping Utility ---
