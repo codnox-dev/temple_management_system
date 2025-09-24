@@ -21,15 +21,20 @@ database = client[DATABASE_NAME]
 # --- Collections ---
 available_rituals_collection = database.get_collection("available_rituals")
 bookings_collection = database.get_collection("bookings")
+# This new collection will store bookings made by employees
+employee_bookings_collection = database.get_collection("employee_bookings") 
 events_collection = database.get_collection("events")
 admins_collection = database.get_collection("admins")
 gallery_collection = database.get_collection("gallery_images")
 stock_collection = database.get_collection("stock")
 roles_collection = database.get_collection("roles")
-activities_collection = database.get_collection("activities")
+activities_collection = database.get_collection("activities") 
 
 # Ensure unique index on username for admins collection
-try:
-    admins_collection.create_index([("username", ASCENDING)], unique=True)
-except Exception:
-    pass
+async def ensure_indexes():
+    """Creates required indexes on startup if they don't exist."""
+    await admins_collection.create_index([("username", ASCENDING)], unique=True)
+
+# Note: The index creation is now within an async function.
+# This should be called during your application's startup event in main.py.
+

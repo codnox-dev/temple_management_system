@@ -20,10 +20,7 @@ import {
   } from "@/components/ui/accordion"
 import { Calendar, Users, DollarSign } from 'lucide-react';
 
-/**
- * Defines the data structure for a single ritual instance within a booking.
- * Aligns with the backend `RitualInstance` Pydantic schema.
- */
+// Extend booking interfaces to include booked_by and support employee bookings
 interface RitualInstance {
     ritualId: string;
     ritualName: string;
@@ -34,53 +31,104 @@ interface RitualInstance {
     quantity: number;
 }
 
-/**
- * Defines the data structure for a booking object.
- * Aligns with the backend `Booking` Pydantic schema.
- */
-interface Booking {
-    _id: string; // MongoDB's default identifier
+interface PublicBooking {
+    _id: string;
     name: string;
-    email: string;
-    phone: string;
-    address: string;
+    email?: string;
+    phone?: string;
+    address?: string;
     total_cost: number;
     instances: RitualInstance[];
+    booked_by?: string; // 'self' (default)
 }
+
+interface EmployeeBooking {
+    _id: string;
+    name: string;
+    total_cost: number;
+    instances: RitualInstance[];
+    booked_by: string; // employee username
+}
+
+type UnifiedBooking = {
+    _id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    total_cost: number;
+    instances: RitualInstance[];
+    booked_by: string; // 'self' or employee username
+    source: 'self' | 'employee';
+};
 
 /**
 * Asynchronously fetches the list of all bookings from the API endpoint.
 * Utilized by React Query for data fetching and caching.
 * @returns A promise that resolves to an array of Booking objects.
 */
-const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
-
+const fetchPublicBookings = (): Promise<PublicBooking[]> => get<PublicBooking[]>('/bookings/');
+const fetchEmployeeBookings = (): Promise<EmployeeBooking[]> => get<EmployeeBooking[]>('/employee-bookings/');
 
 /**
  * A component for administrators to view and manage all customer bookings.
  * It displays key statistics and a detailed table of all bookings.
  */
 const ManageBookings = () => {
-    // Fetches and manages booking data, including loading and error states.
-    const { data: bookings, isLoading, isError } = useQuery<Booking[]>({
-        queryKey: ['adminBookings'],
-        queryFn: fetchBookings,
+    // Fetch both public and employee bookings
+    const { data: publicBookings, isLoading: loadingPublic, isError: errorPublic } = useQuery<PublicBooking[]>({
+        queryKey: ['adminBookingsPublic'],
+        queryFn: fetchPublicBookings,
         onError: (err) => {
-            // Provides user feedback on data fetching failure.
-            console.error("Error fetching bookings:", err);
-            toast.error("Failed to fetch bookings. Please check your connection or try logging in again.");
+            console.error("Error fetching public bookings:", err);
+            toast.error("Failed to fetch public bookings.");
         }
     });
+
+    const { data: employeeBookings, isLoading: loadingEmployee, isError: errorEmployee } = useQuery<EmployeeBooking[]>({
+        queryKey: ['adminBookingsEmployee'],
+        queryFn: fetchEmployeeBookings,
+        onError: (err) => {
+            console.error("Error fetching employee bookings:", err);
+            toast.error("Failed to fetch employee bookings.");
+        }
+    });
+
+    const isLoading = loadingPublic || loadingEmployee;
+    const isError = errorPublic || errorEmployee;
 
     // Renders a loading state while data is being fetched.
     if (isLoading) return <p className="text-purple-300">Loading bookings...</p>;
     // Renders an error state if the data fetch fails.
     if (isError) return <p className="text-red-500">Error fetching bookings. Please try refreshing the page.</p>;
 
+    // Normalize combined list
+    const combined: UnifiedBooking[] = [
+        ...(publicBookings || []).map(b => ({
+            _id: b._id,
+            name: b.name,
+            email: b.email,
+            phone: b.phone,
+            address: b.address,
+            total_cost: b.total_cost,
+            instances: b.instances,
+            booked_by: b.booked_by || 'self',
+            source: 'self' as const
+        })),
+        ...(employeeBookings || []).map(b => ({
+            _id: b._id,
+            name: b.name,
+            total_cost: b.total_cost,
+            instances: b.instances,
+            booked_by: b.booked_by,
+            source: 'employee' as const
+        })),
+    ];
+
     // Calculate derived statistics for the dashboard cards.
-    const totalBookings = bookings?.length || 0;
-    const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
-    const totalRituals = bookings?.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
+    const totalBookings = combined.length;
+    const totalRevenue = combined.reduce((sum, booking) => sum + booking.total_cost, 0);
+    const totalRituals = combined.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
 
 
     return (
@@ -142,15 +190,20 @@ const ManageBookings = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {bookings?.map((booking) => (
+                            {combined.map((booking) => (
                                 <TableRow key={booking._id} className="border-purple-500/30 hover:bg-purple-900/20">
                                     <TableCell>
-                                        <div className="font-medium text-white">{booking.name}</div>
-                                        <div className="text-sm text-purple-300">{booking.address}</div>
+                                        <div className="font-medium text-white flex items-center gap-2">
+                                            {booking.name}
+                                            <Badge variant={booking.source === 'employee' ? 'default' : 'outline'} className={booking.source === 'employee' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'border-purple-500/30 text-purple-300'}>
+                                                {booking.source === 'employee' ? `Employee: ${booking.booked_by}` : 'Self'}
+                                            </Badge>
+                                        </div>
+                                        {booking.address && <div className="text-sm text-purple-300">{booking.address}</div>}
                                     </TableCell>
                                     <TableCell>
-                                        <div className="text-white">{booking.email}</div>
-                                        <div className="text-purple-300">{booking.phone}</div>
+                                        <div className="text-white">{booking.email || <span className="text-purple-400/70">N/A</span>}</div>
+                                        <div className="text-purple-300">{booking.phone || <span className="text-purple-400/70">N/A</span>}</div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-white">₹{booking.total_cost.toFixed(2)}</TableCell>
                                     <TableCell className="text-center">
@@ -165,7 +218,6 @@ const ManageBookings = () => {
                                                             <div key={index} className="border-b border-purple-500/30 last:border-b-0 py-1">
                                                                 <div className="font-semibold text-white">{instance.ritualName} (Qty: {instance.quantity})</div>
                                                                 <p className="text-sm text-purple-300">For: {instance.devoteeName}</p>
-                                                                {/* FIX: Replaced <p> with <div> to prevent DOM nesting errors from the <Badge> component. */}
                                                                 <div className="text-xs text-purple-400">
                                                                     Naal: {instance.naal} | DOB: {instance.dob} | Sub: <Badge variant="outline" className="ml-1 border-purple-500/30 text-purple-300">{instance.subscription}</Badge>
                                                                 </div>
