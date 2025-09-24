@@ -192,7 +192,7 @@ const EditProfile: React.FC = () => {
       </div>
       
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-md mb-6 text-sm">
           {error}
         </div>
       )}
@@ -200,11 +200,11 @@ const EditProfile: React.FC = () => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Profile Picture Section */}
         <div className="md:col-span-1 flex flex-col items-center">
-          <div className="relative group w-48 h-48">
-            <img 
-              src={imagePreview || 'https://placehold.co/150x150/1E293B/FFFFFF?text=?'} 
-              alt="Profile Preview" 
-              className="w-full h-full rounded-full object-cover border-4 border-purple-500/50"
+          <div className="relative group w-40 h-40">
+            <img
+              src={imagePreview || 'https://placehold.co/160x160/f3f4f6/666?text=?'}
+              alt="Profile Preview"
+              className="w-full h-full rounded-full object-cover border-4 border-orange-200 bg-neutral-100"
             />
             <button
               type="button"
@@ -213,23 +213,22 @@ const EditProfile: React.FC = () => {
               className={`absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white transition-opacity ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} cursor-pointer`}
               disabled={!isEditing}
             >
-              <Upload className="w-8 h-8" />
+              <Upload className="w-7 h-7" />
             </button>
           </div>
-          {/* Hidden file input lives outside clickable overlay to avoid nested label quirks */}
           <input ref={fileInputRef} type="file" id="profile-upload" className="hidden" accept="image/*" onChange={handleImageChange} />
-          <p className="mt-4 text-center text-gray-400 text-sm">
-            Upload a new photo (JPG/PNG/GIF/WEBP, under 2 MB).<br />
-            You can change your profile picture once every 30 days.
+          <p className="mt-4 text-center text-neutral-500 text-xs leading-relaxed">
+            JPG / PNG / GIF / WEBP &lt; 2 MB.
+            <br />Profile picture can be changed every 30 days.
           </p>
         </div>
 
         {/* User Details Form */}
         <div className="md:col-span-2 space-y-6">
           <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
-            <input 
-              type="text" 
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+            <input
+              type="text"
               name="name"
               value={formData.name}
               onChange={handleInputChange}

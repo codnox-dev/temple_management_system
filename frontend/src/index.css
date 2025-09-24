@@ -358,3 +358,16 @@
 
 /* Minor utility */
 .admin-section-title { font-size:0.75rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:rgba(234,88,12,0.8); }
+
+/* Make lingering white text visible on white background (exclude svg icons) */
+.admin-surface .admin-main div.text-white,
+.admin-surface .admin-main p.text-white,
+.admin-surface .admin-main span.text-white,
+.admin-surface .admin-main td.text-white,
+.admin-surface .admin-main th.text-white,
+.admin-surface .admin-main h1.text-white,
+.admin-surface .admin-main h2.text-white,
+.admin-surface .admin-main h3.text-white,
+.admin-surface .admin-main h4.text-white,
+.admin-surface .admin-main h5.text-white,
+.admin-surface .admin-main h6.text-white { color:#1f2937 !important; }
