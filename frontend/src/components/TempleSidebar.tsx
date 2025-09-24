@@ -15,7 +15,8 @@ import {
   ChevronRight,
   BarChart3,
   Plus,
-  Activity
+  Activity,
+  ShoppingCart
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean };
@@ -29,39 +30,39 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
   const [isAdminExpanded, setIsAdminExpanded] = useState(true);
   
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+    `w-full flex items-center space-x-3 px-4 py-3 rounded-md text-sm font-medium transition-colors duration-150 border ${
       isActive
-        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
-        : 'text-purple-300 hover:bg-purple-800/50 hover:text-white'
+        ? 'bg-orange-500 text-white border-orange-600 shadow-sm'
+        : 'bg-white text-neutral-700 border-neutral-200 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600'
     }`;
     
   const subNavLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 ${
+    `w-full flex items-center space-x-3 px-4 py-2 rounded-md text-sm transition-colors duration-150 border ${
       isActive
-        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
-        : 'text-purple-300 hover:bg-purple-800/50 hover:text-white'
+        ? 'bg-orange-100 text-orange-700 border-orange-300'
+        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600'
     }`;
 
   // Visibility classes: hide by default; show when isOpen.
   // On small screens, it's an absolute overlay. On large screens, it's relative when open, absolute when closed.
-  const baseClasses = "bg-gradient-to-b from-gray-900 via-purple-900 to-slate-900 text-white w-72 min-h-screen p-6 shadow-2xl border-r border-purple-500/30 z-30 transition-transform duration-300 ease-in-out";
+  const baseClasses = "bg-white text-neutral-800 w-72 min-h-screen p-6 shadow-lg border-r border-neutral-200 z-30 transition-transform duration-300 ease-in-out admin-sidebar";
   const responsiveClasses = `fixed ${isOpen ? 'lg:relative' : 'lg:absolute lg:top-0 lg:left-0'}`;
   const visibilityClasses = isOpen ? "translate-x-0" : "-translate-x-full";
 
   return (
     <aside className={`${baseClasses} ${responsiveClasses} ${visibilityClasses}`}>
-      <div className="mb-8">
-        <div className="flex items-center space-x-3 mb-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md flex items-center justify-center">
+      <div className="mb-6">
+        <div className="flex items-center space-x-3 mb-1">
+          <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                 <path d="M2 17l10 5 10-5"></path>
                 <path d="M2 12l10 5 10-5"></path>
             </svg>
           </div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Temple Admin</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-neutral-800">Temple Admin</h1>
         </div>
-        <p className="text-purple-400 text-sm">Sacred Management System</p>
+        <p className="text-xs text-neutral-500">Sacred Management System</p>
       </div>
 
       <nav className="space-y-2">
@@ -79,12 +80,20 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
             <span className="font-medium">All Bookings</span>
         </NavLink>
         )}
-        
+
+        {/* Employee Booking visible only to Employees (role_id === 4) */}
+        {roleId === 4 && (
+        <NavLink to="/admin/employee-booking" className={navLinkClass}>
+            <ShoppingCart className="h-5 w-5" />
+            <span className="font-medium">Employee Booking</span>
+        </NavLink>
+        )}
+
         {/* Website Management Section */}
         <div>
           <button
             onClick={() => setIsWebsiteExpanded(!isWebsiteExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-purple-300 hover:bg-purple-800/50 hover:text-white transition-all duration-200"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-neutral-600 hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-medium"
           >
             <div className="flex items-center space-x-3">
               <Globe className="h-5 w-5" />
@@ -125,7 +134,7 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
         <div>
           <button
             onClick={() => setIsStockExpanded(!isStockExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-purple-300 hover:bg-purple-800/50 hover:text-white transition-all duration-200"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-neutral-600 hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-medium"
           >
             <div className="flex items-center space-x-3">
               <Package className="h-5 w-5" />
@@ -155,7 +164,7 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
         <div>
           <button
             onClick={() => setIsAdminExpanded(!isAdminExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-purple-300 hover:bg-purple-800/50 hover:text-white transition-all duration-200"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-neutral-600 hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-medium"
           >
             <div className="flex items-center space-x-3">
               <Shield className="h-5 w-5" />

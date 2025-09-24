@@ -1,7 +1,13 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
 from .main_models import PyObjectId
+
+# --- Schema for Required Stock Item ---
+# Defines the structure for a stock item required for a ritual.
+class RequiredStockItem(BaseModel):
+    stock_item_id: str = Field(..., example="60c72b2f9b1d8e001f8b4567")
+    quantity_required: int = Field(..., gt=0, example=2)
 
 # --- Schema for Available Rituals ---
 # Defines the base structure for a ritual that is offered.
@@ -12,6 +18,7 @@ class AvailableRitualBase(BaseModel):
     duration: str = Field(..., example="30 mins")
     popular: Optional[bool] = Field(default=False, example=True)
     icon_name: str = Field(..., example="Flame")
+    required_stock: Optional[List[RequiredStockItem]] = Field([], example=[{"stock_item_id": "60c72b2f9b1d8e001f8b4567", "quantity_required": 1}])
 
 # Used when creating a new available ritual.
 class AvailableRitualCreate(AvailableRitualBase):

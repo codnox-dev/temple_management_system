@@ -23,6 +23,7 @@ import StockAnalytics from "./pages/admin/StockAnalytics";
 import CreateAdmin from "./pages/admin/AdminManagement";
 import EditProfile from "./pages/admin/EditProfile";
 import Activity from "./pages/admin/Activity";
+import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
 
 const queryClient = new QueryClient();
 
@@ -39,9 +40,9 @@ const RoleGuard = ({ allow, children }: { allow: (roleId?: number) => boolean; c
 const AdminIndexRouter = () => {
   const { user } = (useAuth() as any) || {};
   const roleId: number = user?.role_id ?? 99;
-  // Editors (3) -> events, Employees (4) -> bookings, others -> dashboard
+  // Editors (3) -> events, Employees (4) -> employee booking, others -> dashboard
   if (roleId === 3) return <Navigate to="/admin/events" replace />;
-  if (roleId === 4) return <Navigate to="/admin/bookings" replace />;
+  if (roleId === 4) return <Navigate to="/admin/employee-booking" replace />; // <-- updated
   return <AdminDashboard />;
 };
 
@@ -92,6 +93,13 @@ const App = () => (
               <Route path="bookings" element={
                 <RoleGuard allow={(rid) => (rid ?? 99) !== 3}>
                   <ManageBookings />
+                </RoleGuard>
+              } />
+
+              {/* Employee Booking: only employees (role_id === 4) */}
+              <Route path="employee-booking" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) === 4}>
+                  <EmployeeBooking />
                 </RoleGuard>
               } />
 

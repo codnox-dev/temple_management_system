@@ -13,6 +13,7 @@ class BookingBase(BaseModel):
     address: str = Field(..., example="123 Temple St")
     total_cost: float = Field(..., gt=0, example=553.0)
     instances: List[RitualInstance]
+    booked_by: str = Field(default="self", example="self")  # <-- added, defaults to 'self'
 
 # Used when creating a new booking.
 class BookingCreate(BookingBase):

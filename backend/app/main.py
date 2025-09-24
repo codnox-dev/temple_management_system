@@ -2,7 +2,7 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity # 1. Import the new profile router
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking  # changed: employee_bookings -> employee_booking
 from .database import available_rituals_collection, admins_collection, roles_collection
 from .models.role_models import RoleBase
 from .services import auth_service
@@ -118,18 +118,18 @@ app.include_router(admin.router, tags=["Admin"], prefix="/api/admin")
 app.include_router(rituals.router, tags=["Rituals"], prefix="/api/rituals")
 app.include_router(events.router, tags=["Events"], prefix="/api/events")
 app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
+app.include_router(employee_booking.router, tags=["Employee Bookings"], prefix="/api/employee-bookings")  # changed module name
 app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
 app.include_router(stock.router, tags=["Stock"], prefix="/api/stock")
 app.include_router(roles.router, tags=["Roles"], prefix="/api/roles")
-app.include_router(profile.router, tags=["Profile"], prefix="/api/profile") # 2. Include the new router
+app.include_router(profile.router, tags=["Profile"], prefix="/api/profile") 
 app.include_router(activity.router, tags=["Activity"], prefix="/api/activity")
 
 # Serve static files for profile pictures under /static/
-import os as _os
-_base_dir = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), ".."))
-_profile_dir = _os.path.join(_base_dir, "profile")
+_base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_profile_dir = os.path.join(_base_dir, "profile")
 try:
-    _os.makedirs(_profile_dir, exist_ok=True)
+    os.makedirs(_profile_dir, exist_ok=True)
 except Exception:
     pass
 app.mount("/static", StaticFiles(directory=_base_dir), name="static")
