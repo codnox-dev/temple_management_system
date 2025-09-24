@@ -2,7 +2,7 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking  # changed: employee_bookings -> employee_booking
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow  # changed: employee_bookings -> employee_booking
 from .database import available_rituals_collection, admins_collection, roles_collection
 from .models.role_models import RoleBase
 from .services import auth_service
@@ -120,10 +120,12 @@ app.include_router(events.router, tags=["Events"], prefix="/api/events")
 app.include_router(bookings.router, tags=["Bookings"], prefix="/api/bookings")
 app.include_router(employee_booking.router, tags=["Employee Bookings"], prefix="/api/employee-bookings")  # changed module name
 app.include_router(gallery.router, tags=["Gallery"], prefix="/api/gallery")
+app.include_router(gallery_layout.router, tags=["Gallery Layout"], prefix="/api/gallery-layout")
 app.include_router(stock.router, tags=["Stock"], prefix="/api/stock")
 app.include_router(roles.router, tags=["Roles"], prefix="/api/roles")
 app.include_router(profile.router, tags=["Profile"], prefix="/api/profile") 
 app.include_router(activity.router, tags=["Activity"], prefix="/api/activity")
+app.include_router(slideshow.router, tags=["Slideshow"], prefix="/api/slideshow")
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

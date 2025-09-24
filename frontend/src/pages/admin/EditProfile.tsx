@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { get, put, API_BASE_URL } from '../../api/api'; // Corrected relative import path
 import { UserProfile } from '../../components/Profile'; // Corrected relative import path
 import { toast } from 'sonner';
-import IntlTelInput from '@/components/ui/IntlTelInput';
-import IntlTelPrefix from '@/components/ui/IntlTelPrefix';
+// Removed intl-tel-input. Using simple "+<digits>" country code input.
 
 // This interface matches the ProfileUpdate Pydantic model from your FastAPI backend
 export interface ProfileUpdatePayload {
@@ -253,14 +252,20 @@ const EditProfile: React.FC = () => {
             />
           </div>
 
-          {/* Phone split: prefix dropdown + number input */}
+          {/* Phone split: simple country code + number input */}
           <div className={`flex gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
-            <div className="relative w-40 h-12 bg-slate-800/50 border border-purple-700/50 rounded-full">
-              <IntlTelPrefix
+            <div className="relative w-40">
+              <input
+                type="text"
+                name="mobile_prefix"
                 value={formData.mobile_prefix}
-                preferredCountries={['in', 'us', 'gb', 'ae', 'sg']}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^0-9]/g, '');
+                  setFormData(prev => ({ ...prev, mobile_prefix: '+' + digits }));
+                }}
+                placeholder="+91"
+                className={`w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 px-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
                 disabled={!isEditing}
-                onChange={(prefix) => setFormData(prev => ({ ...prev, mobile_prefix: prefix }))}
               />
             </div>
             <div className="relative flex-1">

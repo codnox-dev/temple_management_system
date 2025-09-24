@@ -20,8 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import IntlTelInput from '@/components/ui/IntlTelInput';
-import IntlTelPrefix from '@/components/ui/IntlTelPrefix';
+// Removed intl-tel-input. Using simple country code input "+<digits>".
 // Removed unused Select components; using native select for simplicity
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -344,9 +343,9 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
           </Button>
         </div>
         <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-          <DialogContent className="max-w-4xl bg-slate-900 border-purple-500/50 text-white">
+          <DialogContent className="max-w-4xl bg-white border border-orange-200 text-slate-800">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <DialogTitle className="text-xl font-bold text-orange-600">
                 Admin Profile: {admin.name}
               </DialogTitle>
             </DialogHeader>
@@ -355,94 +354,96 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                 <img
                   src={resolveProfileUrl(admin.profile_picture)}
                   alt={admin.name}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-purple-500/50"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-orange-300"
                 />
                 <div className="mt-4 text-center">
-                  <div className="text-lg font-semibold">{admin.name}</div>
-                  <div className="text-sm text-gray-400">{admin.username}</div>
+                  <div className="text-lg font-semibold text-slate-900">{admin.name}</div>
+                  <div className="text-sm text-slate-500">{admin.username}</div>
                 </div>
               </div>
               <div className="md:col-span-2 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   {/* Email panel */}
-                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wide text-purple-300/80">Email</div>
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Email</div>
                       {canModify && (
                         editingEmail ? (
                           <div className="flex items-center gap-1">
-                            <button className="text-green-400" onClick={saveEmail} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-400" onClick={() => { setEditingEmail(false); setEmailValue(admin.email); }} title="Cancel"><X className="w-4 h-4" /></button>
+                            <button className="text-green-600" onClick={saveEmail} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-600" onClick={() => { setEditingEmail(false); setEmailValue(admin.email); }} title="Cancel"><X className="w-4 h-4" /></button>
                           </div>
                         ) : (
-                          <button className="text-purple-300" onClick={() => setEditingEmail(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                          <button className="text-orange-600" onClick={() => setEditingEmail(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
                         )
                       )}
                     </div>
                     {editingEmail ? (
-                      <Input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 mt-1" />
+                      <Input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
                     ) : (
-                      <div className="text-sm text-white mt-0.5 break-words">{emailValue}</div>
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{emailValue}</div>
                     )}
                   </div>
 
                   {/* Phone panel */}
-                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wide text-purple-300/80">Phone</div>
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Phone</div>
                       {canModify && (
                         editingPhone ? (
                           <div className="flex items-center gap-1">
-                            <button className="text-green-400" onClick={savePhone} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-400" onClick={() => { setEditingPhone(false); setPrefixValue(admin.mobile_prefix); setMobileValue(String(admin.mobile_number ?? '')); }} title="Cancel"><X className="w-4 h-4" /></button>
+                            <button className="text-green-600" onClick={savePhone} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-600" onClick={() => { setEditingPhone(false); setPrefixValue(admin.mobile_prefix); setMobileValue(String(admin.mobile_number ?? '')); }} title="Cancel"><X className="w-4 h-4" /></button>
                           </div>
                         ) : (
-                          <button className="text-purple-300" onClick={() => setEditingPhone(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                          <button className="text-orange-600" onClick={() => setEditingPhone(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
                         )
                       )}
                     </div>
                     {editingPhone ? (
                       <div className="mt-1 flex gap-2 items-center">
-                        <div className="w-32 h-10 bg-slate-900/60 border border-purple-500/30 rounded-md">
-                          <IntlTelPrefix
-                            value={prefixValue}
-                            preferredCountries={['in','us','gb','ae','sg']}
-                            onChange={(prefix) => setPrefixValue(prefix)}
-                          />
-                        </div>
+                        <Input
+                          type="text"
+                          value={prefixValue}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, '');
+                            setPrefixValue('+' + digits);
+                          }}
+                          className="bg-white border-orange-300 w-24"
+                        />
                         <Input
                           type="tel"
                           inputMode="numeric"
                           pattern="[0-9]*"
                           value={mobileValue}
                           onChange={(e) => setMobileValue(e.target.value.replace(/\D/g, ''))}
-                          className="bg-slate-900/60 border-purple-500/30 flex-1"
+                          className="bg-white border-orange-300 flex-1"
                         />
                       </div>
                     ) : (
-                      <div className="text-sm text-white mt-0.5 break-words">{`${prefixValue} ${mobileValue}`}</div>
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{`${prefixValue} ${mobileValue}`}</div>
                     )}
                   </div>
                   <Info label="Role" value={`${admin.role} (ID ${admin.role_id})`} />
                   <Info label="Status" value={admin.isRestricted ? 'Restricted' : 'Active'} />
-                  <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wide text-purple-300/80">DOB</div>
+                      <div className="text-xs uppercase tracking-wide text-orange-600">DOB</div>
                       {canModify && (
                         editingDob ? (
                           <div className="flex items-center gap-1">
-                            <button className="text-green-400" onClick={saveDob} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-400" onClick={() => { setEditingDob(false); setDobValue(admin.dob || ''); }} title="Cancel"><X className="w-4 h-4" /></button>
+                            <button className="text-green-600" onClick={saveDob} title="Save"><Check className="w-4 h-4" /></button>
+                            <button className="text-red-600" onClick={() => { setEditingDob(false); setDobValue(admin.dob || ''); }} title="Cancel"><X className="w-4 h-4" /></button>
                           </div>
                         ) : (
-                          <button className="text-purple-300" onClick={() => setEditingDob(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
+                          <button className="text-orange-600" onClick={() => setEditingDob(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
                         )
                       )}
                     </div>
                     {editingDob ? (
-                      <Input type="date" value={dobValue} onChange={(e) => setDobValue(e.target.value)} className="bg-slate-900/60 border-purple-500/30 mt-1" />
+                      <Input type="date" value={dobValue} onChange={(e) => setDobValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
                     ) : (
-                      <div className="text-sm text-white mt-0.5 break-words">{dobValue || '—'}</div>
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{dobValue || '—'}</div>
                     )}
                   </div>
                   <Info label="Last Login" value={admin.last_login ? new Date(admin.last_login).toLocaleString() : '—'} />
@@ -453,28 +454,28 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                   <Info label="Last Profile Update" value={admin.last_profile_update ? new Date(admin.last_profile_update).toLocaleDateString() : '—'} />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-400 mb-1">Permissions</div>
+                  <div className="text-sm text-slate-600 mb-1">Permissions</div>
                   <div className="flex flex-wrap gap-2">
                     {(admin.permissions || []).length > 0 ? admin.permissions.map((p, idx) => (
-                      <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
-                    )) : <span className="text-gray-500">None</span>}
+                      <Badge key={idx} className="bg-orange-50 border border-orange-200 text-orange-700">{p}</Badge>
+                    )) : <span className="text-slate-400">None</span>}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Notification Preference</div>
+                    <div className="text-sm text-slate-600 mb-1">Notification Preference</div>
                     <div className="flex flex-wrap gap-2">
                       {(admin.notification_preference || []).length > 0 ? admin.notification_preference.map((p, idx) => (
-                        <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
-                      )) : <span className="text-gray-500">None</span>}
+                        <Badge key={idx} className="bg-orange-50 border border-orange-200 text-orange-700">{p}</Badge>
+                      )) : <span className="text-slate-400">None</span>}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Notification List</div>
+                    <div className="text-sm text-slate-600 mb-1">Notification List</div>
                     <div className="flex flex-wrap gap-2">
                       {(admin.notification_list || []).length > 0 ? admin.notification_list.map((p, idx) => (
-                        <Badge key={idx} className="bg-slate-800 border border-purple-500/30 text-purple-200">{p}</Badge>
-                      )) : <span className="text-gray-500">None</span>}
+                        <Badge key={idx} className="bg-orange-50 border border-orange-200 text-orange-700">{p}</Badge>
+                      )) : <span className="text-slate-400">None</span>}
                     </div>
                   </div>
                 </div>
@@ -621,13 +622,10 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         <div className="flex gap-2">
           <div className="w-1/3">
             <Label htmlFor="mobile_prefix" className="text-purple-300">Prefix</Label>
-            <div className="bg-slate-800/50 border border-purple-500/30 mt-1 rounded-md h-10">
-              <IntlTelPrefix
-                value={formData.mobile_prefix}
-                preferredCountries={['in','us','gb','ae','sg']}
-                onChange={(prefix) => setFormData({ ...formData, mobile_prefix: prefix })}
-              />
-            </div>
+            <Input id="mobile_prefix" value={formData.mobile_prefix} onChange={(e) => {
+              const digits = e.target.value.replace(/[^0-9]/g, '');
+              setFormData({ ...formData, mobile_prefix: '+' + digits });
+            }} className="bg-slate-800/50 border-purple-500/30 mt-1 h-10" />
           </div>
           <div className="w-2/3">
             <Label htmlFor="mobile_number" className="text-purple-300">Mobile</Label>
@@ -667,9 +665,9 @@ export default AdminManagement;
 // Small labeled value helper used in the profile dialog
 function Info({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-slate-800/40 border border-purple-500/20 rounded-md p-2">
-      <div className="text-xs uppercase tracking-wide text-purple-300/80">{label}</div>
-      <div className="text-sm text-white mt-0.5 break-words">{String(value)}</div>
+    <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
+      <div className="text-xs uppercase tracking-wide text-orange-600">{label}</div>
+      <div className="text-sm text-slate-900 mt-0.5 break-words">{String(value)}</div>
     </div>
   );
 }

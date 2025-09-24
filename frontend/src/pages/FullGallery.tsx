@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { get } from '../api/api';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { resolveImageUrl } from '@/lib/utils';
+import { get } from '@/api/api';
+import { Button } from '@/components/ui/button';
+
+type LayoutItem = { id: string; x: number; y: number; w: number; h: number; z?: number };
+const DESIGN_WIDTH_FALLBACK = 1200;
+const DESIGN_HEIGHT_FALLBACK = 800;
+
+type SlideConfig = { image_ids: string[]; interval_ms: number; transition_ms: number; aspect_ratio: string };
 
 
 interface GalleryImage {
@@ -22,8 +29,85 @@ const FullGallery = () => {
       queryFn: fetchGalleryImages,
   });
 
-  if (isLoading) return <div className="text-center py-20">Loading gallery...</div>;
-  if (isError) return <div className="text-center py-20">Error fetching gallery.</div>;
+  // attempt to load layout
+  const [layout, setLayout] = useState<LayoutItem[] | null>(null);
+  const [designW, setDesignW] = useState<number>(DESIGN_WIDTH_FALLBACK);
+  const [designH, setDesignH] = useState<number>(DESIGN_HEIGHT_FALLBACK);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await get<{ items: LayoutItem[]; design_width: number; design_height: number }>(`/gallery-layout/full`);
+        setLayout(data.items || null);
+        setDesignW(data.design_width || DESIGN_WIDTH_FALLBACK);
+        setDesignH(data.design_height || DESIGN_HEIGHT_FALLBACK);
+      } catch {
+        setLayout(null);
+        setDesignW(DESIGN_WIDTH_FALLBACK);
+        setDesignH(DESIGN_HEIGHT_FALLBACK);
+      }
+    })();
+  }, []);
+
+  const imagesById = useMemo(() => Object.fromEntries((galleryImages || []).map(i => [i._id, i])), [galleryImages]);
+
+  // Slideshow state
+  const [slides, setSlides] = useState<string[]>([]);
+  const [intervalMs, setIntervalMs] = useState(4000);
+  const [transitionMs, setTransitionMs] = useState(600);
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '4:3' | '1:1' | '21:9'>('16:9');
+  const [currentIdx, setCurrentIdx] = useState(0);
+  // read-only on this page
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await get<SlideConfig>('/slideshow/');
+        setSlides(cfg.image_ids || []);
+        setIntervalMs(cfg.interval_ms || 4000);
+        setTransitionMs(cfg.transition_ms || 600);
+        const ar = (cfg.aspect_ratio || '16:9') as any;
+        setAspectRatio(ar);
+      } catch {
+        // no config yet, ignore
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!slides.length) return;
+    const t = setInterval(() => {
+      setCurrentIdx((i) => (i + 1) % slides.length);
+    }, intervalMs);
+    return () => clearInterval(t);
+  }, [slides, intervalMs]);
+
+  // Saving not allowed here; managed from Manage Gallery
+
+  const arPadding = useMemo(() => {
+    switch (aspectRatio) {
+      case '4:3': return '75%';
+      case '1:1': return '100%';
+      case '21:9': return `${(9/21)*100}%`;
+      default: return `${(9/16)*100}%`;
+    }
+  }, [aspectRatio]);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onResize = () => {
+      const w = el.clientWidth;
+      const s = Math.min(w / designW, 1);
+      setScale(s);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const hasLayout = layout && layout.length > 0 && galleryImages && galleryImages.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-sacred py-20">
@@ -38,27 +122,118 @@ const FullGallery = () => {
           </h1>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {galleryImages?.map((image) => (
-            <Card key={image._id} className="card-divine group overflow-hidden cursor-pointer">
-              <div className="relative overflow-hidden rounded-lg">
-                <img
-                  src={resolveImageUrl(image.src)}
-                  alt={image.title}
-                  className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
-                  onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                  <div className="p-4 text-white w-full">
-                    <h3 className="font-playfair font-semibold mb-1">{image.title}</h3>
-                    <span className="text-sm opacity-80">{image.category}</span>
+        {isLoading && (
+          <div className="text-center py-20">Loading gallery...</div>
+        )}
+        {isError && (
+          <div className="text-center py-20">Error fetching gallery.</div>
+        )}
+
+        {/* Slideshow (top center) */}
+        {!isLoading && !isError && (
+          <div className="w-full flex justify-center mb-10">
+            <div className="w-full max-w-5xl">
+              <div className="relative">
+                <div className="relative w-full" style={{ paddingTop: arPadding }}>
+                  <div className="absolute inset-0 overflow-hidden rounded-lg shadow-lg bg-slate-900">
+                    {slides.length > 0 ? (
+                      slides.map((id, idx) => {
+                        const img = imagesById[id];
+                        if (!img) return null;
+                        const visible = idx === currentIdx;
+                        return (
+                          <img
+                            key={id}
+                            src={resolveImageUrl(img.src)}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/1200x675'; }}
+                            alt={img.title}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity"
+                            style={{ opacity: visible ? 1 : 0, transitionDuration: `${transitionMs}ms` }}
+                          />
+                        );
+                      })
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">No slideshow images selected.</div>
+                    )}
                   </div>
                 </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Interval: {intervalMs}ms • Transition: {transitionMs}ms • AR: {aspectRatio}</span>
+                  </div>
+                  {slides.length > 1 && (
+                    <div className="flex gap-2">
+                      <Button size="icon" variant="outline" onClick={() => setCurrentIdx((i) => (i - 1 + slides.length) % slides.length)}>&lt;</Button>
+                      <Button size="icon" variant="outline" onClick={() => setCurrentIdx((i) => (i + 1) % slides.length)}>&gt;</Button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            </div>
+          </div>
+        )}
+
+        {/* If a saved layout exists, render it scaled; otherwise fallback to grid */}
+        {!isLoading && !isError && hasLayout ? (
+          <div ref={containerRef} className="w-full overflow-auto">
+            <div
+              className="relative"
+              style={{ width: designW * scale, height: designH * scale }}
+            >
+              <div
+                className="absolute left-0 top-0"
+                style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: designW, height: designH }}
+              >
+                {layout!.map((it) => {
+                  const img = imagesById[it.id];
+                  if (!img) return null;
+                  return (
+                    <div key={it.id} className="absolute rounded-lg overflow-hidden shadow card-divine"
+                      style={{ left: it.x, top: it.y, width: it.w, height: it.h, zIndex: it.z ?? 1 }}
+                    >
+                      <img
+                        src={resolveImageUrl(img.src)}
+                        alt={img.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                        <div className="p-2 text-white w-full">
+                          <h3 className="font-playfair font-semibold mb-1 text-sm">{img.title}</h3>
+                          <span className="text-xs opacity-80">{img.category}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (!isLoading && !isError) ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {galleryImages?.map((image) => (
+              <Card key={image._id} className="card-divine group overflow-hidden cursor-pointer">
+                <div className="relative overflow-hidden rounded-lg">
+                  <img
+                    src={resolveImageUrl(image.src)}
+                    alt={image.title}
+                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                    <div className="p-4 text-white w-full">
+                      <h3 className="font-playfair font-semibold mb-1">{image.title}</h3>
+                      <span className="text-sm opacity-80">{image.category}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
       </div>
+
+      {/* No configuration modal here; this page is read-only for slideshow config */}
     </div>
   );
 };
