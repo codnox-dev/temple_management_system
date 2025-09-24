@@ -167,13 +167,12 @@ const EditProfile: React.FC = () => {
   }
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-lg rounded-2xl p-8 max-w-4xl mx-auto my-10 border border-purple-800/50 shadow-[0_0_30px_-10px_rgba(192,132,252,0.4)]">
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-8">
-        Edit Profile
-      </h1>
+    <div className="bg-white rounded-xl p-8 max-w-4xl mx-auto my-10 border border-neutral-200 shadow-sm">
+      <h1 className="text-3xl font-bold text-neutral-900 mb-2">Edit Profile</h1>
+      <p className="text-sm text-neutral-500 mb-8">Update your personal details and profile picture.</p>
       
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-md mb-6 text-sm">
           {error}
         </div>
       )}
@@ -181,65 +180,64 @@ const EditProfile: React.FC = () => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Profile Picture Section */}
         <div className="md:col-span-1 flex flex-col items-center">
-          <div className="relative group w-48 h-48">
-            <img 
-              src={imagePreview || 'https://placehold.co/150x150/1E293B/FFFFFF?text=?'} 
-              alt="Profile Preview" 
-              className="w-full h-full rounded-full object-cover border-4 border-purple-500/50"
+          <div className="relative group w-40 h-40">
+            <img
+              src={imagePreview || 'https://placehold.co/160x160/f3f4f6/666?text=?'}
+              alt="Profile Preview"
+              className="w-full h-full rounded-full object-cover border-4 border-orange-200 bg-neutral-100"
             />
             <button
               type="button"
               onClick={preCheckAndOpenPicker}
               aria-label="Upload profile picture"
-              className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             >
-              <Upload className="w-8 h-8" />
+              <Upload className="w-7 h-7" />
             </button>
           </div>
-          {/* Hidden file input lives outside clickable overlay to avoid nested label quirks */}
           <input ref={fileInputRef} type="file" id="profile-upload" className="hidden" accept="image/*" onChange={handleImageChange} />
-          <p className="mt-4 text-center text-gray-400 text-sm">
-            Upload a new photo (JPG/PNG/GIF/WEBP, under 2 MB).<br />
-            You can change your profile picture once every 30 days.
+          <p className="mt-4 text-center text-neutral-500 text-xs leading-relaxed">
+            JPG / PNG / GIF / WEBP &lt; 2 MB.
+            <br />Profile picture can be changed every 30 days.
           </p>
         </div>
 
         {/* User Details Form */}
         <div className="md:col-span-2 space-y-6">
           <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
-            <input 
-              type="text" 
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+            <input
+              type="text"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
+              className="w-full bg-white border border-neutral-300 rounded-md py-3 pl-12 pr-4 text-neutral-800 placeholder:text-neutral-400 focus:ring-2 focus:ring-orange-400/40 focus:border-orange-500 outline-none transition"
               placeholder="Full Name"
             />
           </div>
 
           <div className="relative">
-            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
-            <input 
-              type="tel" 
+            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+            <input
+              type="tel"
               name="mobile_number"
               value={formData.mobile_number}
               onChange={handleInputChange}
-              className="w-full bg-slate-800/50 border border-purple-700/50 rounded-full py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
+              className="w-full bg-white border border-neutral-300 rounded-md py-3 pl-12 pr-4 text-neutral-800 placeholder:text-neutral-400 focus:ring-2 focus:ring-orange-400/40 focus:border-orange-500 outline-none transition"
               placeholder="Phone Number"
             />
           </div>
 
-          <div className="flex items-center gap-4 bg-slate-800/50 border border-purple-700/50 rounded-full p-4">
-            <span className="text-sm font-semibold uppercase tracking-wider text-pink-300">Role:</span>
-            <span className="text-white font-medium">{role}</span>
+          <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 rounded-md p-4 text-sm">
+            <span className="font-semibold text-orange-600 tracking-wide uppercase">Role</span>
+            <span className="text-neutral-700 font-medium">{role}</span>
           </div>
           
           <div className="flex justify-end items-center gap-4 pt-4">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-300 py-2.5 px-6 rounded-full font-semibold hover:bg-slate-700/50 transition-colors"
+              className="flex items-center gap-2 text-neutral-600 py-2 px-5 rounded-md font-medium border border-neutral-300 hover:bg-neutral-100 transition-colors disabled:opacity-50"
               disabled={isSaving}
             >
               <X className="w-4 h-4" />
@@ -247,7 +245,7 @@ const EditProfile: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 w-40 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:from-purple-500 hover:to-pink-500 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-6 rounded-md font-semibold shadow hover:from-orange-600 hover:to-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSaving}
             >
               {isSaving ? (
