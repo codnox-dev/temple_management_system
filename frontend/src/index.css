@@ -371,3 +371,56 @@
 .admin-surface .admin-main h4.text-white,
 .admin-surface .admin-main h5.text-white,
 .admin-surface .admin-main h6.text-white { color:#1f2937 !important; }
+
+/* === Admin Light Theme Form Readability Fixes === */
+.admin-surface input,
+.admin-surface textarea,
+.admin-surface select {
+  color: #111827 !important;          /* Ensure typed text is dark */
+  caret-color: #111827;
+  background-color: #ffffff !important;
+}
+
+.admin-surface input::placeholder,
+.admin-surface textarea::placeholder {
+  color: #6b7280 !important;          /* Muted gray placeholder */
+  opacity: 1;
+}
+
+.admin-surface .text-white,
+.admin-surface .placeholder-white,
+.admin-surface .text-slate-50 {
+  color: #111827 !important;
+}
+
+.admin-surface .text-white::placeholder,
+.admin-surface .placeholder-white::placeholder {
+  color: #6b7280 !important;
+}
+
+.admin-surface .input-inverted {      /* If any custom inverted class existed */
+  background:#ffffff !important;
+  color:#111827 !important;
+}
+
+.admin-surface .form-label {
+  color:#374151 !important;
+  font-weight:500;
+}
+
+/* Ensure disabled still readable */
+.admin-surface input:disabled,
+.admin-surface textarea:disabled,
+.admin-surface select:disabled {
+  background:#f3f4f6 !important;
+  color:#6b7280 !important;
+}
+
+/* High contrast on focus */
+.admin-surface input:focus,
+.admin-surface textarea:focus,
+.admin-surface select:focus {
+  outline: 2px solid rgba(249,115,22,0.55);
+  outline-offset:2px;
+  box-shadow:0 0 0 1px rgba(249,115,22,0.4);
+}
