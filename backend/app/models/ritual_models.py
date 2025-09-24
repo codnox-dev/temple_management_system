@@ -19,6 +19,10 @@ class AvailableRitualBase(BaseModel):
     popular: Optional[bool] = Field(default=False, example=True)
     icon_name: str = Field(..., example="Flame")
     required_stock: Optional[List[RequiredStockItem]] = Field([], example=[{"stock_item_id": "60c72b2f9b1d8e001f8b4567", "quantity_required": 1}])
+    # New booking window (24h HH:MM) and visibility flag
+    booking_start_time: Optional[str] = Field(None, example="08:00")
+    booking_end_time: Optional[str] = Field(None, example="18:30")
+    employee_only: Optional[bool] = Field(False, example=False)
 
 # Used when creating a new available ritual.
 class AvailableRitualCreate(AvailableRitualBase):

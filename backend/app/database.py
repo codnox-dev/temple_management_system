@@ -31,6 +31,7 @@ roles_collection = database.get_collection("roles")
 activities_collection = database.get_collection("activities") 
 gallery_layouts_collection = database.get_collection("gallery_layouts")
 gallery_slideshow_collection = database.get_collection("gallery_slideshow")
+events_featured_collection = database.get_collection("events_featured")
 
 # Ensure unique index on username for admins collection
 async def ensure_indexes():

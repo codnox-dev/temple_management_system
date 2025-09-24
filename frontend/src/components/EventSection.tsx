@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import api, { get } from '../api/api';
+import api, { get, API_BASE_URL } from '../api/api';
 import { resolveImageUrl } from '../lib/utils';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 
@@ -15,6 +15,7 @@ interface Event {
   description: string;
   image: string;
 }
+interface FeaturedEvent { event_id: string | null }
 
 // Fetch events from the API
 const fetchEvents = () => get<Event[]>('/events/');
@@ -23,13 +24,32 @@ const EventSection = () => {
   const { data: events, isLoading, isError } = useQuery<Event[]>({
     queryKey: ['events'],
     queryFn: fetchEvents,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+  const { data: featured } = useQuery<FeaturedEvent>({
+    queryKey: ['featuredEvent'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/featured-event/`);
+      if (!res.ok) return { event_id: null };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
   if (isLoading) return <div>Loading events...</div>;
   if (isError) return <div>Error fetching events.</div>;
 
   // Show only the first 3 events
-  const displayedEvents = events?.slice(0, 3);
+  // Featured first if present
+  const featuredId = featured?.event_id || null;
+  const sorted = (events || []).slice().sort((a, b) => (a._id === featuredId ? -1 : b._id === featuredId ? 1 : 0));
+  const displayedEvents = sorted.slice(0, 3);
 
   return (
     <section className="py-20 bg-background">
@@ -45,46 +65,56 @@ const EventSection = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {displayedEvents?.map((event) => (
-            <div key={event._id} className="card-divine group overflow-hidden flex flex-col">
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={resolveImageUrl(event.image)}
-                  alt={event.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-playfair font-semibold text-foreground group-hover:text-primary transition-colors mb-4">
-                    {event.title}
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed mb-4">
-                    {event.description}
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center text-muted-foreground">
-                      <Calendar className="h-4 w-4 mr-2 text-primary" />
-                      {new Date(event.date).toLocaleDateString()}
+          {displayedEvents?.map((event) => {
+            const isFeatured = event._id === featuredId;
+            return (
+              <div key={event._id} className={`${isFeatured ? 'lg:col-span-2' : ''}`}>
+                <div className={`relative group overflow-hidden flex flex-col rounded-xl border ${isFeatured ? 'border-orange-500 ring-2 ring-orange-400/70 shadow-xl shadow-orange-200' : 'border-transparent card-divine'} bg-white`}>
+                  <div className={`relative overflow-hidden ${isFeatured ? 'h-64' : 'h-48'}`}>
+                    <img
+                      src={resolveImageUrl(event.image)}
+                      alt={event.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    {isFeatured && (
+                      <span className="absolute top-3 left-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
+                        Featured
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex-grow">
+                      <h3 className={`${isFeatured ? 'text-3xl text-orange-700' : 'text-2xl text-foreground'} font-playfair font-semibold group-hover:text-primary transition-colors mb-4`}>
+                        {event.title}
+                      </h3>
+                      <p className={`${isFeatured ? 'text-orange-800' : 'text-muted-foreground'} leading-relaxed mb-4`}>
+                        {event.description}
+                      </p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className={`${isFeatured ? 'text-gray-700' : 'text-muted-foreground'} flex items-center`}>
+                          <Calendar className="h-4 w-4 mr-2 text-primary" />
+                          {new Date(event.date).toLocaleDateString()}
+                        </div>
+                        <div className={`${isFeatured ? 'text-gray-700' : 'text-muted-foreground'} flex items-center`}>
+                          <Clock className="h-4 w-4 mr-2 text-primary" />
+                          {event.time}
+                        </div>
+                        <div className={`${isFeatured ? 'text-gray-700' : 'text-muted-foreground'} flex items-center`}>
+                          <MapPin className="h-4 w-4 mr-2 text-primary" />
+                          {event.location}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center text-muted-foreground">
-                      <Clock className="h-4 w-4 mr-2 text-primary" />
-                      {event.time}
-                    </div>
-                    <div className="flex items-center text-muted-foreground">
-                      <MapPin className="h-4 w-4 mr-2 text-primary" />
-                      {event.location}
+                    <div className="mt-auto pt-6">
+                      <Link to={`/events/${event._id}`} className={`w-full inline-flex items-center justify-center rounded-md px-4 py-2 ${isFeatured ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'btn-golden'}`}>
+                        Event Details
+                      </Link>
                     </div>
                   </div>
                 </div>
-                <div className="mt-auto pt-6">
-                  <Link to={`/events/${event._id}`} className="w-full btn-golden">
-                    Event Details
-                  </Link>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="text-center mt-12">

@@ -18,6 +18,9 @@ interface ApiRitual {
   price: number;
   duration: string;
   icon: string;
+  booking_start_time?: string; // NEW
+  booking_end_time?: string;   // NEW
+  employee_only?: boolean;     // NEW
 }
 interface Ritual extends ApiRitual {
   id: string; 
@@ -80,10 +83,13 @@ const RitualBooking = () => {
 		return rituals.filter(r => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
 	}, [search, rituals]);
 
+	// PUBLIC should not see employee_only rituals
+	const publicRituals = useMemo(() => filteredRituals.filter(r => !r.employee_only), [filteredRituals]);
+
 	const visibleRituals = useMemo(() => {
-		const max = showAllRituals ? filteredRituals.length : gridCols * 2;
-		return filteredRituals.slice(0, max);
-	}, [filteredRituals, showAllRituals, gridCols]);
+		const max = showAllRituals ? publicRituals.length : gridCols * 2;
+		return publicRituals.slice(0, max);
+	}, [publicRituals, showAllRituals, gridCols]);
 
 	const addInstance = (ritualId: string) => {
 		const uniqueId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
@@ -148,6 +154,23 @@ const RitualBooking = () => {
 	const allInstancesValid = instances.every(i => i.devoteeName.trim() && i.naal.trim() && i.dob.trim());
 	const canCheckout = instances.length > 0 && allInstancesValid && formData.name && formData.email && formData.phone && formData.address;
 
+	const getBookingStatus = (ritual: ApiRitual) => {
+		const start = ritual.booking_start_time;
+		const end = ritual.booking_end_time;
+		if (!start || !end) return 'open';
+		const now = new Date();
+		const toMinutes = (t: string) => {
+			const [h, m] = t.split(':').map(Number);
+			return h * 60 + m;
+		};
+		const nowM = now.getHours() * 60 + now.getMinutes();
+		const sM = toMinutes(start);
+		const eM = toMinutes(end);
+		if (nowM < sM) return 'upcoming';
+		if (nowM >= eM) return 'ended';
+		return 'open';
+	};
+
 	return (
 		<div className="min-h-screen bg-gradient-sacred py-20">
 			<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -174,22 +197,61 @@ const RitualBooking = () => {
 						{isLoading ? Array.from({ length: 3 }).map((_, i) => (
 							<div key={`skeleton-${i}`} className="rounded-lg border border-primary/20 p-4 h-40 bg-slate-200 animate-pulse"></div>
 						))
-                        : visibleRituals.map((ritual) => (
-								<div key={ritual.id} role="button" tabIndex={0} onClick={() => addInstance(ritual.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') addInstance(ritual.id);}} className="rounded-lg border border-primary/20 p-4 hover:bg-card/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40">
-									<div className="flex items-center gap-2 mb-2">
-										<RitualIcon name={ritual.icon} className="h-5 w-5 text-primary" />
-										<div className="text-lg font-medium text-foreground">{ritual.name}</div>
-									</div>
-									<p className="text-sm text-muted-foreground mb-3">{ritual.description}</p>
-									<div className="flex items-center justify-between text-sm">
-										<span className="text-muted-foreground">Duration: {ritual.duration}</span>
-										<span className="font-semibold text-primary">₹{ritual.price}</span>
-									</div>
-								</div>
-						))}
+                        : visibleRituals.map((ritual) => {
+                            const status = getBookingStatus(ritual);
+                            const disabled = status !== 'open';
+                            return (
+                                <div
+                                    key={ritual.id}
+                                    role="button"
+                                    tabIndex={disabled ? -1 : 0}
+                                    onClick={() => !disabled && addInstance(ritual.id)}
+                                    onKeyDown={e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) addInstance(ritual.id);}}
+                                    className={`rounded-lg border border-primary/20 p-4 transition-colors relative
+                                        ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-card/50 cursor-pointer'}
+                                        focus:outline-none focus:ring-2 focus:ring-primary/40`}
+                                >
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <RitualIcon name={ritual.icon} className="h-5 w-5 text-primary" />
+                                        <div className="text-lg font-medium text-foreground">{ritual.name}</div>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mb-3">{ritual.description}</p>
+                                    <div className="flex items-center justify-between text-sm mb-2">
+                                        <span className="text-muted-foreground">Duration: {ritual.duration}</span>
+                                        <span className="font-semibold text-primary">₹{ritual.price}</span>
+                                    </div>
+                                    {ritual.booking_start_time && ritual.booking_end_time && (
+                                        <div className="text-xs text-muted-foreground">
+                                            Window: {ritual.booking_start_time} - {ritual.booking_end_time}
+                                        </div>
+                                    )}
+                                    {status === 'ended' && (
+                                        <div className="mt-2 text-xs font-medium text-destructive">
+                                            Booking time ended for today
+                                        </div>
+                                    )}
+                                    {status === 'upcoming' && (
+                                        <div className="mt-2 text-xs font-medium text-amber-500">
+                                            Opens at {ritual.booking_start_time}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
 					</div>
-					{filteredRituals.length > visibleRituals.length ? (<div className="flex justify-center mt-4"><Button variant="ghost" size="icon" onClick={() => setShowAllRituals(true)} aria-label="Show more rituals"><ChevronDown className="h-5 w-5" /></Button></div>)
-                     : filteredRituals.length > gridCols * 2 && showAllRituals ? (<div className="flex justify-center mt-4"><Button variant="ghost" size="icon" onClick={() => setShowAllRituals(false)} aria-label="Show fewer rituals"><ChevronUp className="h-5 w-5" /></Button></div>) : null}
+					{publicRituals.length > visibleRituals.length ? (
+                        <div className="flex justify-center mt-4">
+                            <Button variant="ghost" size="icon" onClick={() => setShowAllRituals(true)} aria-label="Show more rituals">
+                                <ChevronDown className="h-5 w-5" />
+                            </Button>
+                        </div>
+                    ) : publicRituals.length > gridCols * 2 && showAllRituals ? (
+                        <div className="flex justify-center mt-4">
+                            <Button variant="ghost" size="icon" onClick={() => setShowAllRituals(false)} aria-label="Show fewer rituals">
+                                <ChevronUp className="h-5 w-5" />
+                            </Button>
+                        </div>
+                    ) : null}
 				</Card>
 
 				<Card className="card-divine p-6 mb-8">

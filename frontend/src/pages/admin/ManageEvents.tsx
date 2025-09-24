@@ -23,6 +23,7 @@ interface Event {
     description: string;
     image: string;
 }
+interface FeaturedEvent { event_id: string | null }
 
 // Fetch all events
 const fetchEvents = async (): Promise<Event[]> => {
@@ -62,7 +63,26 @@ const ManageEvents = () => {
         }
     }, [isEditing]);
 
-    const { data: events, isLoading } = useQuery<Event[]>({ queryKey: ['adminEvents'], queryFn: fetchEvents });
+    const { data: events, isLoading } = useQuery<Event[]>({
+        queryKey: ['adminEvents'],
+        queryFn: fetchEvents,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: false,
+    });
+    const { data: featured, refetch: refetchFeatured } = useQuery<FeaturedEvent>({
+        queryKey: ['featuredEvent'],
+        queryFn: async () => {
+            const res = await fetch(`${API_BASE_URL}/api/featured-event/`);
+            if (!res.ok) return { event_id: null };
+            return res.json();
+        },
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: false,
+    });
 
     const mutation = useMutation({
         mutationFn: (eventPayload: Omit<Event, '_id'>) => {
@@ -100,6 +120,25 @@ const ManageEvents = () => {
             toast.success('Event deleted successfully!');
         },
         onError: () => toast.error('Failed to delete event.'),
+    });
+
+    const setFeaturedMutation = useMutation({
+        mutationFn: async (event_id: string | null) => {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/featured-event/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
+                body: JSON.stringify({ event_id }),
+            });
+            if (!res.ok) throw new Error('Failed to set featured');
+            return res.json();
+        },
+        onSuccess: () => {
+            toast.success('Featured event updated');
+            queryClient.invalidateQueries({ queryKey: ['featuredEvent'] });
+            refetchFeatured();
+        },
+        onError: () => toast.error('Failed to update featured event'),
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -293,11 +332,11 @@ const ManageEvents = () => {
             {isLoading ? <p className="text-purple-300">Loading...</p> : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {events?.map(event => (
-                        <Card key={event._id} className="p-4 bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                        <Card key={event._id} className={`p-4 backdrop-blur-sm shadow-lg ${featured?.event_id === event._id ? 'bg-amber-50 border-amber-300 shadow-amber-200' : 'bg-slate-900/80 border-purple-500/30 shadow-purple-500/10'} border`}>
                            <img src={resolveImageUrl(event.image)} alt={event.title} className="w-full h-32 object-cover rounded-md mb-4"/>
-                           <h3 className="font-semibold text-white">{event.title}</h3>
-                           <p className="text-sm text-purple-300">{new Date(event.date).toLocaleDateString()}</p>
-                           <div className="flex gap-2 mt-4">
+                           <h3 className={`font-semibold ${featured?.event_id === event._id ? 'text-amber-900' : 'text-white'}`}>{event.title}</h3>
+                           <p className={`${featured?.event_id === event._id ? 'text-amber-700' : 'text-purple-300'} text-sm`}>{new Date(event.date).toLocaleDateString()}</p>
+                           <div className="flex flex-wrap gap-2 mt-4">
                                 <Button 
                                     variant="outline" 
                                     size="sm" 
@@ -316,6 +355,26 @@ const ManageEvents = () => {
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />Delete
                                 </Button>
+                                <Button
+                                    variant={featured?.event_id === event._id ? 'default' : 'outline'}
+                                    size="sm"
+                                    disabled={isReadOnly}
+                                    onClick={() => setFeaturedMutation.mutate(event._id)}
+                                    className={`${featured?.event_id === event._id ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}`}
+                                >
+                                    {featured?.event_id === event._id ? 'Featured' : 'Set as Featured'}
+                                </Button>
+                                {featured?.event_id === event._id && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isReadOnly}
+                                    onClick={() => setFeaturedMutation.mutate(null)}
+                                    className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                                  >
+                                    Clear
+                                  </Button>
+                                )}
                             </div>
                         </Card>
                     ))}

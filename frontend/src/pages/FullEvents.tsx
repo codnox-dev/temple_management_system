@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { get } from '../api/api';
+import { get, API_BASE_URL } from '../api/api';
 import { resolveImageUrl } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
@@ -16,6 +16,7 @@ interface Event {
   description: string;
   image: string;
 }
+interface FeaturedEvent { event_id: string | null }
 
 // Fetch all events
 const fetchEvents = () => get<Event[]>('/events/');
@@ -24,6 +25,22 @@ const FullEvents = () => {
   const { data: events, isLoading, isError } = useQuery<Event[]>({
     queryKey: ['events'],
     queryFn: fetchEvents,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+  const { data: featured } = useQuery<FeaturedEvent>({
+    queryKey: ['featuredEvent'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/featured-event/`);
+      if (!res.ok) return { event_id: null };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
   if (isLoading) return <div className="text-center py-20">Loading events...</div>;
@@ -45,8 +62,39 @@ const FullEvents = () => {
             </p>
         </div>
 
+        {/* Featured event centered */}
+        {featured?.event_id && (events || []).some(e => e._id === featured.event_id) && (
+          <div className="mb-16">
+            {(() => {
+              const ev = (events || []).find(e => e._id === featured.event_id)!;
+              return (
+                <Link to={`/events/${ev._id}`} className="block group">
+                  <Card className="relative overflow-hidden rounded-2xl border-2 border-orange-500 shadow-xl shadow-orange-200">
+                    <div className="relative h-[420px]">
+                      <img src={resolveImageUrl(ev.image)} alt={ev.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                      <span className="absolute top-4 left-4 bg-orange-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">Featured</span>
+                      <div className="absolute bottom-0 left-0 right-0 p-6">
+                        <h3 className="text-4xl font-playfair font-bold text-white drop-shadow mb-2">{ev.title}</h3>
+                        <p className="text-slate-100/90 mb-4 max-w-3xl">{ev.description}</p>
+                        <div className="flex flex-wrap gap-4 text-sm text-slate-100/90">
+                          <div className="flex items-center"><Calendar className="h-4 w-4 mr-2 text-orange-300" /><span>{new Date(ev.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></div>
+                          <div className="flex items-center"><Clock className="h-4 w-4 mr-2 text-orange-300" /><span>{ev.time}</span></div>
+                          <div className="flex items-center"><MapPin className="h-4 w-4 mr-2 text-orange-300" /><span>{ev.location}</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })()}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events?.map((event) => (
+          {(events || [])
+            .filter(e => e._id !== (featured?.event_id || ''))
+            .map((event) => (
             <Link to={`/events/${event._id}`} key={event._id} className="block group">
               <Card className="card-divine h-full flex flex-col overflow-hidden transform transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
                 <div className="relative h-56">
