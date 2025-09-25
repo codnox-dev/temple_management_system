@@ -21,7 +21,7 @@ const Navigation = () => {
     { label: 'About', path: '#about' },
     { label: 'Rituals', path: '#rituals' },
     { label: 'Events', path: '#events' },
-    { label: 'Gallery', path: '/gallery' }, // This will navigate to a new page
+    { label: 'Gallery', path: '#gallery' }, // This will now scroll to the gallery preview section
     { label: 'Contact', path: '#contact' },
   ];
 
@@ -160,4 +160,3 @@ const Navigation = () => {
 };
 
 export default Navigation;
-

@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Package, Image, TrendingUp, Flame, Star, DollarSign, Clock } from "lucide-react"
+import { Calendar, Package, Image, TrendingUp, Flame, Star, DollarSign, Clock, MapPin } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import api, { get } from "../../api/api"
 import { toast } from "sonner"
+import { useAuth } from "../../contexts/AuthContext"
 
 // Define interfaces for the data we'll fetch
 interface Booking {
@@ -36,6 +37,15 @@ interface Ritual {
   icon_name: string;
 }
 
+interface EventRec {
+  _id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  image: string;
+}
 
 interface ActivityRec {
   id: string;
@@ -52,22 +62,20 @@ const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
 
 const AdminDashboard = () => {
+  const { user } = (useAuth() as any) || {};
+  const roleId: number = user?.role_id ?? 99;
+  const showRecentActivities = roleId <= 1; // Super Admin (0) and Admin (1)
+  const showRecentEvents = roleId > 1; // Everyone else that can access dashboard
   // Fetch bookings data
   const { data: bookings, isLoading: isLoadingBookings } = useQuery<Booking[]>({
     queryKey: ['adminBookings'],
     queryFn: fetchBookings,
-    onError: () => {
-      toast.error("Failed to fetch bookings data.");
-    }
   });
 
   // Fetch rituals data
   const { data: rituals, isLoading: isLoadingRituals } = useQuery<Ritual[]>({
     queryKey: ['adminRituals'],
     queryFn: fetchRituals,
-    onError: () => {
-      toast.error("Failed to fetch rituals data.");
-    }
   });
 
   // Calculate stats from real data
@@ -126,18 +134,21 @@ const AdminDashboard = () => {
     queryKey: ['adminActivities'],
     queryFn: () => get<ActivityRec[]>('/activity/activities'),
     staleTime: 60_000,
+    enabled: showRecentActivities,
     retry: (failureCount, error: any) => {
       const status = error?.response?.status;
       // Don't retry unauthorized/forbidden repeatedly
       if (status === 401 || status === 403) return false;
       return failureCount < 2;
     },
-    onError: (err: any) => {
-      const status = err?.response?.status;
-      if (status !== 403) {
-        toast.error('Failed to load recent activities');
-      }
-    }
+  });
+
+  // Recent events for non-admin roles (role_id > 1)
+  const { data: events, isLoading: loadingEvents, isError: eventsError } = useQuery<EventRec[]>({
+    queryKey: ['adminRecentEvents'],
+    queryFn: () => get<EventRec[]>('/events/'),
+    staleTime: 60_000,
+    enabled: showRecentEvents,
   });
 
   // Helper to format relative time (simple, no external deps)
@@ -164,6 +175,14 @@ const AdminDashboard = () => {
   };
 
   const recentActivities: ActivityRec[] = (activities || []).slice(0, 4);
+  const recentEvents: EventRec[] = (events || [])
+    .slice()
+    .sort((a, b) => {
+      const ad = new Date(a.date || 0).getTime();
+      const bd = new Date(b.date || 0).getTime();
+      return bd - ad;
+    })
+    .slice(0, 4);
 
   // Infer a destination route for an activity string
   const routeForActivity = (a: ActivityRec): string => {
@@ -233,42 +252,86 @@ const AdminDashboard = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activities */}
-        <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-purple-400">
-              <Clock className="h-5 w-5" />
-              Recent Activities
-            </CardTitle>
-            <CardDescription className="text-purple-300">
-              Latest updates from your temple management
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {loadingActivities && (
-                <div className="text-sm text-purple-300">Loading recent activities...</div>
-              )}
-              {activitiesError && !loadingActivities && (
-                <div className="text-sm text-red-400">Unable to load activities.</div>
-              )}
-              {!loadingActivities && !activitiesError && recentActivities.length === 0 && (
-                <div className="text-sm text-purple-300/80">No recent activity.</div>
-              )}
-              {!loadingActivities && !activitiesError && recentActivities.map((activity) => (
-                <Link to={routeForActivity(activity)} key={activity.id} className="block group">
-                  <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-900/30 transition-colors">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-white group-hover:text-purple-200">{activity.activity}</p>
-                      <p className="text-xs text-purple-300">{relativeTime(activity.timestamp)} • {activity.username}</p>
+        {/* Left card: Recent Activities for admins; Recent Events for others */}
+        {showRecentActivities ? (
+          <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-400">
+                <Clock className="h-5 w-5" />
+                Recent Activities
+              </CardTitle>
+              <CardDescription className="text-purple-300">
+                Latest updates from your temple management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loadingActivities && (
+                  <div className="text-sm text-purple-300">Loading recent activities...</div>
+                )}
+                {activitiesError && !loadingActivities && (
+                  <div className="text-sm text-red-400">Unable to load activities.</div>
+                )}
+                {!loadingActivities && !activitiesError && recentActivities.length === 0 && (
+                  <div className="text-sm text-purple-300/80">No recent activity.</div>
+                )}
+                {!loadingActivities && !activitiesError && recentActivities.map((activity) => (
+                  <Link to={routeForActivity(activity)} key={activity.id} className="block group">
+                    <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-900/30 transition-colors">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-white group-hover:text-purple-200">{activity.activity}</p>
+                        <p className="text-xs text-purple-300">{relativeTime(activity.timestamp)} • {activity.username}</p>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-400">
+                <Calendar className="h-5 w-5" />
+                Recent Events
+              </CardTitle>
+              <CardDescription className="text-purple-300">
+                Latest events happening at the temple
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loadingEvents && (
+                  <div className="text-sm text-purple-300">Loading recent events...</div>
+                )}
+                {eventsError && !loadingEvents && (
+                  <div className="text-sm text-red-400">Unable to load events.</div>
+                )}
+                {!loadingEvents && !eventsError && recentEvents.length === 0 && (
+                  <div className="text-sm text-purple-300/80">No events found.</div>
+                )}
+                {!loadingEvents && !eventsError && recentEvents.map((ev) => (
+                  <Link to={"/admin/events"} key={ev._id} className="block group">
+                    <div className="p-3 rounded-lg hover:bg-purple-900/30 transition-colors">
+                      <p className="text-sm font-medium truncate text-white group-hover:text-purple-200">{ev.title}</p>
+                      <div className="text-xs text-purple-300 flex flex-wrap gap-4 mt-1">
+                        <span className="flex items-center"><Calendar className="h-3 w-3 mr-1 text-primary" />{new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        {ev.time && <span className="flex items-center"><Clock className="h-3 w-3 mr-1 text-primary" />{ev.time}</span>}
+                        {ev.location && <span className="flex items-center"><MapPin className="h-3 w-3 mr-1 text-primary" />{ev.location}</span>}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-purple-500/30">
+                <Link to="/admin/events" className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                  View all events <span>→</span>
                 </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Upcoming Rituals (Derived from actual rituals) */}
         <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">

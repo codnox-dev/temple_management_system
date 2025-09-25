@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+// removed dialog import as we are using inline sections for forms
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Trash2, Edit, Plus } from 'lucide-react';
@@ -49,8 +49,8 @@ const ManageCommittee = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [selectedFileName, setSelectedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [showOrder, setShowOrder] = useState(false);
 
     const { data: members, isLoading } = useQuery<CommitteeMember[]>({
         queryKey: ['committeeMembers'],
@@ -73,7 +73,7 @@ const ManageCommittee = () => {
             queryClient.invalidateQueries({ queryKey: ['committeeMembers'] });
             toast.success(`Committee member ${isEditing ? 'updated' : 'added'} successfully!`);
             resetForm();
-            setIsDialogOpen(false);
+            setShowForm(false);
         },
         onError: () => toast.error('Failed to save committee member.'),
     });
@@ -107,7 +107,7 @@ const ManageCommittee = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['committeeMembers'] });
             toast.success('Display order updated');
-            setIsOrderDialogOpen(false);
+            setShowOrder(false);
         },
         onError: () => toast.error('Failed to update display order'),
     });
@@ -188,7 +188,7 @@ const ManageCommittee = () => {
             phone_number: member.phone_number,
             image: member.image
         });
-        setIsDialogOpen(true);
+        setShowForm(true);
     };
 
     const handleDelete = (id: string) => {
@@ -205,92 +205,123 @@ const ManageCommittee = () => {
                 <h1 className="text-2xl font-bold">Manage Committee Members</h1>
                 {!isReadOnly && (
                     <div className="flex gap-2">
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button onClick={resetForm}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Member
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>{isEditing ? 'Edit' : 'Add'} Committee Member</DialogTitle>
-                            </DialogHeader>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <Input
-                                    placeholder="Name"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    required
-                                />
-                                <Input
-                                    placeholder="Designation"
-                                    value={formData.designation}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
-                                    required
-                                />
-                                <Textarea
-                                    placeholder="Profile Description"
-                                    value={formData.profile_description}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, profile_description: e.target.value }))}
-                                    required
-                                />
-                                <div className="grid grid-cols-3 gap-2">
-                                    <Input
-                                        placeholder="Prefix"
-                                        value={formData.mobile_prefix}
-                                        onChange={(e) => {
-                                            let value = e.target.value;
-                                            // If the value is empty or doesn't start with '+', ensure it does.
-                                            if (!value || value[0] !== '+') {
-                                                // This handles backspacing over the '+' or pasting a number without it.
-                                                const digits = value.replace(/\D/g, '');
-                                                value = `+${digits}`;
-                                            }
-                                            setFormData(prev => ({ ...prev, mobile_prefix: value }));
-                                        }}
-                                        required
-                                    />
-                                    <div className="col-span-2">
-                                        <Input
-                                            placeholder="Phone Number"
-                                            value={formData.phone_number}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <Input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        ref={fileInputRef}
-                                        disabled={false}
-                                    />
-                                    {uploading && <p>Uploading...</p>}
-                                    {uploadError && <p className="text-red-500">{uploadError}</p>}
-                                    {(formData.image || selectedFile) && (
-                                        <div className="mt-2">
-                                            <img
-                                                src={selectedFile ? URL.createObjectURL(selectedFile) : resolveImageUrl(formData.image)}
-                                                alt="Preview"
-                                                className="w-full h-32 object-cover rounded-md"
-                                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                                <Button type="submit" disabled={mutation.isPending || uploading}>
-                                    {mutation.isPending || uploading ? 'Saving...' : 'Save'}
-                                </Button>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                    <Button variant="outline" onClick={() => setIsOrderDialogOpen(true)}>Configure Order</Button>
+                        <Button onClick={() => { resetForm(); setShowForm(true); }}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Member
+                        </Button>
+                        <Button variant="outline" onClick={() => setShowOrder(true)}>Configure Order</Button>
                     </div>
                 )}
             </div>
+
+            {/* Inline Add/Edit Form */}
+            {!isReadOnly && showForm && (
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle>{isEditing ? 'Edit' : 'Add'} Committee Member</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <Input
+                                placeholder="Name"
+                                value={formData.name}
+                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                required
+                            />
+                            <Input
+                                placeholder="Designation"
+                                value={formData.designation}
+                                onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+                                required
+                            />
+                            <Textarea
+                                placeholder="Profile Description"
+                                value={formData.profile_description}
+                                onChange={(e) => setFormData(prev => ({ ...prev, profile_description: e.target.value }))}
+                                required
+                            />
+                            <div className="grid grid-cols-3 gap-2">
+                                <Input
+                                    placeholder="Prefix"
+                                    value={formData.mobile_prefix}
+                                    onChange={(e) => {
+                                        let value = e.target.value;
+                                        if (!value || value[0] !== '+') {
+                                            const digits = value.replace(/\D/g, '');
+                                            value = `+${digits}`;
+                                        }
+                                        setFormData(prev => ({ ...prev, mobile_prefix: value }));
+                                    }}
+                                    required
+                                />
+                                <div className="col-span-2">
+                                    <Input
+                                        placeholder="Phone Number"
+                                        value={formData.phone_number}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    ref={fileInputRef}
+                                    disabled={false}
+                                />
+                                {uploading && <p>Uploading...</p>}
+                                {uploadError && <p className="text-red-500">{uploadError}</p>}
+                                {(formData.image || selectedFile) && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={selectedFile ? URL.createObjectURL(selectedFile) : resolveImageUrl(formData.image)}
+                                            alt="Preview"
+                                            className="w-full h-32 object-cover rounded-md"
+                                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <Button type="button" variant="outline" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</Button>
+                                <Button type="submit" disabled={mutation.isPending || uploading}>
+                                    {mutation.isPending || uploading ? 'Saving...' : (isEditing ? 'Update' : 'Save')}
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Inline Configure Order Section */}
+            {!isReadOnly && showOrder && (
+                <Card className="mb-6">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Configure Display Order</CardTitle>
+                        <Button variant="ghost" onClick={() => setShowOrder(false)}>Close</Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs defaultValue="preview">
+                            <TabsList>
+                                <TabsTrigger value="preview">Preview Order (Homepage Section)</TabsTrigger>
+                                <TabsTrigger value="view">View Order (Members Page)</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="preview">
+                                <OrderConfigurator type="preview" members={members ?? []} onSave={(payload) => {
+                                    orderMutation.mutate(payload);
+                                }} />
+                            </TabsContent>
+                            <TabsContent value="view">
+                                <OrderConfigurator type="view" members={members ?? []} onSave={(payload) => {
+                                    orderMutation.mutate(payload);
+                                }} />
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {members?.map((member) => (
@@ -325,32 +356,7 @@ const ManageCommittee = () => {
                     </Card>
                 ))}
             </div>
-            {!isReadOnly && (
-                <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-                    <DialogContent className="max-w-4xl">
-                        <DialogHeader>
-                            <DialogTitle>Configure Display Order</DialogTitle>
-                        </DialogHeader>
-                        <Tabs defaultValue="preview">
-                            <TabsList>
-                                <TabsTrigger value="preview">Preview Order (Homepage Section)</TabsTrigger>
-                                <TabsTrigger value="view">View Order (Members Page)</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="preview">
-                                <OrderConfigurator type="preview" members={members ?? []} onSave={(payload) => {
-                                    // pass through to mutation
-                                    orderMutation.mutate(payload);
-                                }} />
-                            </TabsContent>
-                            <TabsContent value="view">
-                                <OrderConfigurator type="view" members={members ?? []} onSave={(payload) => {
-                                    orderMutation.mutate(payload);
-                                }} />
-                            </TabsContent>
-                        </Tabs>
-                    </DialogContent>
-                </Dialog>
-            )}
+            {/* removed modal-based order dialog; using inline section above */}
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { get } from '../../api/api';
 import { toast } from 'sonner';
@@ -33,7 +33,9 @@ const ManageGallery = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [selectedFileName, setSelectedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [designerMode, setDesignerMode] = useState<null | 'full' | 'preview'>(null);
+    const [designerMode, setDesignerMode] = useState<null | 'full'>(null);
+    const [homePreviewOpen, setHomePreviewOpen] = useState(false);
+    const [homeSlots, setHomeSlots] = useState<(string | null)[]>([null, null, null, null, null, null]);
 
     useEffect(() => {
         if (isEditing) {
@@ -48,6 +50,90 @@ const ManageGallery = () => {
     }, [isEditing]);
 
     const { data: images, isLoading } = useQuery<GalleryImage[]>({ queryKey: ['adminGallery'], queryFn: fetchGalleryImages });
+    const imagesById = useMemo(() => Object.fromEntries((images || []).map(i => [i._id, i])), [images]);
+
+    // Load existing Home Preview config on mount
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const slots = (data.slots || [null, null, null, null, null, null]) as (string | null)[];
+                    setHomeSlots(slots);
+                }
+            } catch {
+                // ignore
+            }
+        })();
+    }, []);
+
+    // DnD helpers for Home Preview config
+    const onDragStartImage = (e: React.DragEvent, id: string, source: 'palette' | 'slot', slotIndex?: number) => {
+        if (isReadOnly) return;
+        try {
+            e.dataTransfer.setData('text/gallery-image-id', id);
+            e.dataTransfer.setData('text/source', source);
+            if (source === 'slot') e.dataTransfer.setData('text/slot-index', String(slotIndex ?? -1));
+        } catch {}
+        e.dataTransfer.effectAllowed = 'move';
+    };
+    const onSlotDragOver = (e: React.DragEvent) => {
+        if (isReadOnly) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+    const onDropToSlot = (targetIdx: number) => (e: React.DragEvent) => {
+        if (isReadOnly) return;
+        e.preventDefault();
+        let id = '';
+        try {
+            id = e.dataTransfer.getData('text/gallery-image-id');
+        } catch {}
+        if (!id) return;
+        setHomeSlots(prev => {
+            const next = [...prev];
+            const existingIdx = next.findIndex(x => x === id);
+            if (existingIdx >= 0 && existingIdx !== targetIdx) {
+                const tmp = next[targetIdx];
+                next[targetIdx] = id;
+                next[existingIdx] = tmp;
+                return next;
+            }
+            next[targetIdx] = id;
+            return next;
+        });
+    };
+
+    const Slot: React.FC<{ idx: number; size: 'lg' | 'md' | 'sm' }> = ({ idx, size }) => {
+        const id = homeSlots[idx];
+        const img = id ? imagesById[id] : null;
+        const base = size === 'lg' ? 'h-72 md:h-[420px]' : size === 'md' ? 'h-48 md:h-52' : 'h-40';
+        return (
+            <div
+                className={`relative rounded-lg overflow-hidden border-2 ${img ? 'border-purple-400/40' : 'border-dashed border-purple-400/40'} bg-slate-900/20 ${base}`}
+                onDragOver={onSlotDragOver}
+                onDrop={onDropToSlot(idx)}
+            >
+                {img ? (
+                    <img
+                        src={resolveImageUrl(img.src)}
+                        alt={img.title}
+                        className="w-full h-full object-cover"
+                        draggable={!isReadOnly}
+                        onDragStart={(e) => onDragStartImage(e, img._id, 'slot', idx)}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm text-purple-700/80">
+                        Drag an image here
+                    </div>
+                )}
+                <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-0.5 rounded-full text-[10px] font-medium">
+                    {size === 'lg' ? 'Featured' : size === 'md' ? 'Highlighted' : 'Gallery'}
+                </div>
+            </div>
+        );
+    };
     const [slideConfigOpen, setSlideConfigOpen] = useState(false);
     const [slides, setSlides] = useState<string[]>([]);
     const [intervalMs, setIntervalMs] = useState(4000);
@@ -197,10 +283,10 @@ const ManageGallery = () => {
                 <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
-                        onClick={() => setDesignerMode('preview')}
+                        onClick={() => setHomePreviewOpen(true)}
                         className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
                     >
-                        Preview Home Gallery
+                        Configure Home Preview
                     </Button>
                     <Button
                         onClick={() => setDesignerMode('full')}
@@ -344,6 +430,76 @@ const ManageGallery = () => {
                     onClose={() => setDesignerMode(null)}
                 />)
             }
+
+            {homePreviewOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/70" onClick={() => setHomePreviewOpen(false)} />
+                    <div className="relative bg-white border border-orange-200 rounded-lg shadow-2xl w-[95vw] max-w-[1100px] max-h-[90vh] flex flex-col overflow-hidden text-gray-900">
+                        <div className="flex items-center justify-between p-4 border-b border-orange-200">
+                            <h3 className="text-lg font-semibold">Configure Home Gallery Preview (6 Slots)</h3>
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" onClick={() => setHomePreviewOpen(false)} className="text-gray-700 hover:bg-orange-50">Close</Button>
+                                <Button onClick={async () => {
+                                    if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
+                                    try {
+                                        const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                                            },
+                                            body: JSON.stringify({ slots: homeSlots }),
+                                        });
+                                        if (!res.ok) throw new Error('Failed');
+                                        toast.success('Home preview updated');
+                                        queryClient.invalidateQueries({ queryKey: ['galleryHomePreview'] });
+                                        setHomePreviewOpen(false);
+                                    } catch (e) {
+                                        console.error(e);
+                                        toast.error('Failed to update home preview');
+                                    }
+                                }} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
+                            </div>
+                        </div>
+                        <div className="p-4 overflow-auto space-y-6">
+                            <p className="text-sm text-gray-700">Drag images from the palette into the fixed slots below. Reorder by dragging between slots.</p>
+
+                            {/* Slots layout */}
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="md:col-span-2">
+                                        <Slot idx={0} size="lg" />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <Slot idx={1} size="md" />
+                                        <Slot idx={2} size="md" />
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-stretch justify-center gap-4">
+                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={3} size="sm" /></div>
+                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={4} size="sm" /></div>
+                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={5} size="sm" /></div>
+                                </div>
+                            </div>
+
+                            {/* Draggable palette */}
+                            <div>
+                                <div className="text-sm text-gray-800 mb-2">Available Images</div>
+                                <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {(images || []).map(img => (
+                                        <div key={img._id} className={`w-28 h-20 rounded-md overflow-hidden border ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-move'} border-orange-300/60 flex-shrink-0`}
+                                            draggable={!isReadOnly}
+                                            onDragStart={(e) => onDragStartImage(e, img._id, 'palette')}
+                                        >
+                                            <img src={resolveImageUrl(img.src)} alt={img.title} className="w-full h-full object-cover" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Slideshow Config Modal */}
             {slideConfigOpen && (

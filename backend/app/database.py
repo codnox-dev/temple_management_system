@@ -32,6 +32,7 @@ roles_collection = database.get_collection("roles")
 activities_collection = database.get_collection("activities") 
 gallery_layouts_collection = database.get_collection("gallery_layouts")
 gallery_slideshow_collection = database.get_collection("gallery_slideshow")
+gallery_home_preview_collection = database.get_collection("gallery_home_preview")
 events_featured_collection = database.get_collection("events_featured")
 
 # Ensure unique index on username for admins collection
