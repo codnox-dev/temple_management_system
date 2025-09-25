@@ -117,6 +117,12 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
                     <span>Gallery Management</span>
                 </NavLink>
                 )}
+                {roleId <= 1 && (
+                <NavLink to="/admin/committee" className={subNavLinkClass}>
+                    <Users className="h-4 w-4" />
+                    <span>Committee Members</span>
+                </NavLink>
+                )}
                 {(
                   roleId === 3 || roleId === 4 || roleId < 3 || roleId >= 5
                 ) && (

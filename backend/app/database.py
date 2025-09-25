@@ -26,6 +26,7 @@ employee_bookings_collection = database.get_collection("employee_bookings")
 events_collection = database.get_collection("events")
 admins_collection = database.get_collection("admins")
 gallery_collection = database.get_collection("gallery_images")
+committee_collection = database.get_collection("committee_members")
 stock_collection = database.get_collection("stock")
 roles_collection = database.get_collection("roles")
 activities_collection = database.get_collection("activities") 
@@ -40,4 +41,3 @@ async def ensure_indexes():
 
 # Note: The index creation is now within an async function.
 # This should be called during your application's startup event in main.py.
-
