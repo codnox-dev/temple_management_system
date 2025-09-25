@@ -4,6 +4,7 @@ import TempleOverview from '@/components/TempleOverview';
 import RitualSection from '@/components/RitualSection';
 import EventSection from '@/components/EventSection';
 import GalleryPreview from '@/components/GalleryPreview';
+import CommitteeSection from '@/components/CommitteeSection';
 import Footer from '@/components/Footer';
 import ContactSection from '@/components/ContactSection';
 
@@ -28,6 +29,7 @@ const Index = () => {
         <div id="gallery">
           <GalleryPreview />
         </div>
+        <CommitteeSection />
         
         {/* ContactSection already contains the id="contact", so it doesn't need a wrapper */}
         <ContactSection />

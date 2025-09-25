@@ -24,6 +24,7 @@ import CreateAdmin from "./pages/admin/AdminManagement";
 import EditProfile from "./pages/admin/EditProfile";
 import Activity from "./pages/admin/Activity";
 import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
+import ManageCommittee from "./pages/admin/ManageCommittee";
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,13 @@ const App = () => (
               <Route path="activity" element={
                 <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
                   <Activity />
+                </RoleGuard>
+              } />
+
+              {/* Committee Management visible only to role_id <= 1 (Super/Admin) */}
+              <Route path="committee" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
+                  <ManageCommittee />
                 </RoleGuard>
               } />
 
