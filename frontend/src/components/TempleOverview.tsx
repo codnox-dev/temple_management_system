@@ -1,4 +1,5 @@
 import { Clock, Users, Award, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const features = [
   {
@@ -24,6 +25,7 @@ const features = [
 ];
 
 const TempleOverview = () => {
+  const navigate = useNavigate();
   return (
     <section className="py-20 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -63,7 +65,7 @@ const TempleOverview = () => {
               })}
             </div>
 
-            <button className="btn-divine">
+            <button className="btn-divine" onClick={() => navigate('/about')}>
               Learn More About Our Temple
             </button>
           </div>

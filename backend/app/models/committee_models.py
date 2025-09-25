@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 from bson import ObjectId
 from .main_models import PyObjectId
 
@@ -7,7 +8,13 @@ class CommitteeMemberBase(BaseModel):
     name: str = Field(..., example="John Doe")
     designation: str = Field(..., example="President")
     profile_description: str = Field(..., example="Experienced leader with 10 years in temple management.")
-    phone_number: str = Field(..., example="+1234567890")
+    mobile_prefix: str = Field(default="+91", example="+91")
+    phone_number: str = Field(..., example="1234567890")
+    # Ordering fields for public previews and full view listings
+    # preview_order limits to top 7 entries, 1 is the featured member in CommitteeSection
+    preview_order: Optional[int] = Field(default=None, ge=1, le=7)
+    # view_order controls ordering on CommitteeMembers page; nulls go last
+    view_order: Optional[int] = Field(default=None, ge=1)
     # Image will be a backend-served URL (e.g., /api/committee/files/<object_path>)
     image: str = Field(default="", example="/api/committee/files/2025-01-01_12-00-00_000000/photo.jpg")
 

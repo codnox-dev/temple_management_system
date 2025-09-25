@@ -3,6 +3,8 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
+import AboutTemple from "./pages/AboutTemple";
+import CommitteeMembers from "./pages/CommitteeMembers";
 import NotFound from "./pages/NotFound";
 import RitualBooking from "./pages/RitualBooking";
 import EventDetails from "./pages/EventDetails";
@@ -57,6 +59,8 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/ritual-booking" element={<RitualBooking />} />
+            <Route path="/about" element={<AboutTemple />} />
+            <Route path="/committee" element={<CommitteeMembers />} />
             <Route path="/events" element={<FullEvents />} />
             <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/gallery" element={<FullGallery />} />

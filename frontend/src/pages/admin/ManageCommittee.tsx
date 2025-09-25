@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post, put, del } from '@/api/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Trash2, Edit, Plus } from 'lucide-react';
 import { resolveImageUrl } from '@/lib/utils';
 
@@ -16,8 +18,11 @@ interface CommitteeMember {
     name: string;
     designation: string;
     profile_description: string;
+    mobile_prefix?: string;
     phone_number: string;
     image: string;
+    preview_order?: number | null;
+    view_order?: number | null;
 }
 
 const fetchCommitteeMembers = async (): Promise<CommitteeMember[]> => {
@@ -35,6 +40,7 @@ const ManageCommittee = () => {
         name: '',
         designation: '',
         profile_description: '',
+        mobile_prefix: '+91',
         phone_number: '',
         image: ''
     });
@@ -44,6 +50,7 @@ const ManageCommittee = () => {
     const [selectedFileName, setSelectedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
 
     const { data: members, isLoading } = useQuery<CommitteeMember[]>({
         queryKey: ['committeeMembers'],
@@ -80,6 +87,31 @@ const ManageCommittee = () => {
         onError: () => toast.error('Failed to delete committee member.'),
     });
 
+    const orderMutation = useMutation({
+        mutationFn: async (ordered: Array<{ _id: string; preview_order: number | null; view_order: number | null }>) => {
+            for (const entry of ordered) {
+                const original = (members ?? []).find(m => m._id === entry._id);
+                if (!original) continue;
+                await put(`/committee/${entry._id}`, {
+                    name: original.name,
+                    designation: original.designation,
+                    profile_description: original.profile_description,
+                    mobile_prefix: original.mobile_prefix ?? '+91',
+                    phone_number: original.phone_number,
+                    image: original.image,
+                    preview_order: entry.preview_order,
+                    view_order: entry.view_order,
+                });
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['committeeMembers'] });
+            toast.success('Display order updated');
+            setIsOrderDialogOpen(false);
+        },
+        onError: () => toast.error('Failed to update display order'),
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.designation || !formData.profile_description || !formData.phone_number) {
@@ -97,7 +129,7 @@ const ManageCommittee = () => {
                 const formDataUpload = new FormData();
                 formDataUpload.append('file', selectedFile);
 
-                const response = await post('/committee/upload', formDataUpload, {
+                const response = await post<{ path: string; url: string }, FormData>('/committee/upload', formDataUpload, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
 
@@ -138,7 +170,7 @@ const ManageCommittee = () => {
     };
 
     const resetForm = () => {
-        setFormData({ name: '', designation: '', profile_description: '', phone_number: '', image: '' });
+        setFormData({ name: '', designation: '', profile_description: '', mobile_prefix: '+91', phone_number: '', image: '' });
         setSelectedFile(null);
         setSelectedFileName('');
         setIsEditing(null);
@@ -152,6 +184,7 @@ const ManageCommittee = () => {
             name: member.name,
             designation: member.designation,
             profile_description: member.profile_description,
+            mobile_prefix: member.mobile_prefix ?? '+91',
             phone_number: member.phone_number,
             image: member.image
         });
@@ -171,6 +204,7 @@ const ManageCommittee = () => {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Manage Committee Members</h1>
                 {!isReadOnly && (
+                    <div className="flex gap-2">
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button onClick={resetForm}>
@@ -201,12 +235,31 @@ const ManageCommittee = () => {
                                     onChange={(e) => setFormData(prev => ({ ...prev, profile_description: e.target.value }))}
                                     required
                                 />
-                                <Input
-                                    placeholder="Phone Number"
-                                    value={formData.phone_number}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                                    required
-                                />
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Input
+                                        placeholder="Prefix"
+                                        value={formData.mobile_prefix}
+                                        onChange={(e) => {
+                                            let value = e.target.value;
+                                            // If the value is empty or doesn't start with '+', ensure it does.
+                                            if (!value || value[0] !== '+') {
+                                                // This handles backspacing over the '+' or pasting a number without it.
+                                                const digits = value.replace(/\D/g, '');
+                                                value = `+${digits}`;
+                                            }
+                                            setFormData(prev => ({ ...prev, mobile_prefix: value }));
+                                        }}
+                                        required
+                                    />
+                                    <div className="col-span-2">
+                                        <Input
+                                            placeholder="Phone Number"
+                                            value={formData.phone_number}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                                            required
+                                        />
+                                    </div>
+                                </div>
                                 <div>
                                     <Input
                                         type="file"
@@ -234,6 +287,8 @@ const ManageCommittee = () => {
                             </form>
                         </DialogContent>
                     </Dialog>
+                    <Button variant="outline" onClick={() => setIsOrderDialogOpen(true)}>Configure Order</Button>
+                    </div>
                 )}
             </div>
 
@@ -265,13 +320,344 @@ const ManageCommittee = () => {
                                 </div>
                             )}
                             <p className="text-sm mb-2">{member.profile_description}</p>
-                            <p className="text-sm text-gray-600">{member.phone_number}</p>
+                            <p className="text-sm text-gray-600">{(member.mobile_prefix ?? '+91') + ' ' + member.phone_number}</p>
                         </CardContent>
                     </Card>
                 ))}
             </div>
+            {!isReadOnly && (
+                <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>Configure Display Order</DialogTitle>
+                        </DialogHeader>
+                        <Tabs defaultValue="preview">
+                            <TabsList>
+                                <TabsTrigger value="preview">Preview Order (Homepage Section)</TabsTrigger>
+                                <TabsTrigger value="view">View Order (Members Page)</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="preview">
+                                <OrderConfigurator type="preview" members={members ?? []} onSave={(payload) => {
+                                    // pass through to mutation
+                                    orderMutation.mutate(payload);
+                                }} />
+                            </TabsContent>
+                            <TabsContent value="view">
+                                <OrderConfigurator type="view" members={members ?? []} onSave={(payload) => {
+                                    orderMutation.mutate(payload);
+                                }} />
+                            </TabsContent>
+                        </Tabs>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };
 
 export default ManageCommittee;
+
+// --- Ordering UI below ---
+type OrderType = 'preview' | 'view';
+
+const OrderConfigurator = ({ type, members, onSave }: {
+    type: OrderType;
+    members: CommitteeMember[];
+    onSave: (payload: Array<{ _id: string; preview_order: number | null; view_order: number | null }>) => void;
+}) => {
+    const [local, setLocal] = useState(members.map(m => ({ ...m })));
+    const isPreview = type === 'preview';
+    const maxPreview = 7;
+    const [dragId, setDragId] = useState<string | null>(null);
+
+    const sorted = useMemo(() => {
+        return local.slice().sort((a, b) => {
+            const ao = isPreview ? (a.preview_order ?? Number.POSITIVE_INFINITY) : (a.view_order ?? Number.POSITIVE_INFINITY);
+            const bo = isPreview ? (b.preview_order ?? Number.POSITIVE_INFINITY) : (b.view_order ?? Number.POSITIVE_INFINITY);
+            if (ao !== bo) return ao - bo;
+            return a.name.localeCompare(b.name);
+        });
+    }, [local, isPreview]);
+
+    const handleChange = (id: string, value: string) => {
+        const raw = value ? parseInt(value, 10) : NaN;
+        setLocal(prev => {
+            const key: 'preview_order' | 'view_order' = isPreview ? 'preview_order' : 'view_order';
+            const maxPreview = 7;
+            const nextList = prev.map(m => ({ ...m }));
+            const idx = nextList.findIndex(m => m._id === id);
+            if (idx === -1) return prev;
+
+            if (isPreview) {
+                // Preview: block duplicates instead of auto-resolving.
+                if (isNaN(raw)) {
+                    (nextList[idx] as any)[key] = null; // None selected
+                    return nextList;
+                }
+                const n = Math.min(Math.max(raw, 1), maxPreview);
+                const duplicateOwner = nextList.find(m => m._id !== id && (m as any)[key] === n);
+                if (duplicateOwner) {
+                    toast.error(`Position ${n} is already assigned to ${duplicateOwner.name}.`);
+                    return prev; // do not change
+                }
+                (nextList[idx] as any)[key] = n;
+                return nextList;
+            }
+
+            // View: interpret value as a command for reordering (up/down/top/bottom/clear)
+            const cmd = value;
+            const sortedByView = nextList.slice().sort((a, b) => {
+                const ao = a.view_order ?? Number.POSITIVE_INFINITY;
+                const bo = b.view_order ?? Number.POSITIVE_INFINITY;
+                if (ao !== bo) return ao - bo;
+                return a.name.localeCompare(b.name);
+            });
+            const iInSorted = sortedByView.findIndex(m => m._id === id);
+            if (iInSorted === -1) return prev;
+            const move = (from: number, to: number) => {
+                const arr = sortedByView;
+                const [item] = arr.splice(from, 1);
+                arr.splice(to, 0, item);
+            };
+            if (cmd === 'up' && iInSorted > 0) move(iInSorted, iInSorted - 1);
+            if (cmd === 'down' && iInSorted < sortedByView.length - 1) move(iInSorted, iInSorted + 1);
+            if (cmd === 'top') move(iInSorted, 0);
+            if (cmd === 'bottom') move(iInSorted, sortedByView.length - 1);
+            if (cmd === 'clear') {
+                // send to end (null for view_order)
+                (nextList[idx] as any)[key] = null;
+                return nextList;
+            }
+            // write back new sequential view_order based on new order
+            sortedByView.forEach((m, i) => {
+                const target = nextList.find(n => n._id === m._id)!;
+                (target as any)[key] = i + 1;
+            });
+            return nextList;
+        });
+    };
+
+    const handleSave = () => {
+        if (isPreview) {
+            const count = local.filter(m => typeof m.preview_order === 'number').length;
+            if (count > maxPreview) {
+                toast.error(`Preview can include at most ${maxPreview} members.`);
+                return;
+            }
+        }
+        // Ensure view_order is sequential based on current order for 'view'
+        let payload = local.map(m => ({ ...m }));
+        if (!isPreview) {
+            const ordered = payload.slice().sort((a, b) => {
+                const ao = a.view_order ?? Number.POSITIVE_INFINITY;
+                const bo = b.view_order ?? Number.POSITIVE_INFINITY;
+                if (ao !== bo) return ao - bo;
+                return a.name.localeCompare(b.name);
+            });
+            ordered.forEach((m, i) => {
+                const found = payload.find(x => x._id === m._id)!;
+                found.view_order = i + 1;
+            });
+        }
+        onSave(payload.map(m => ({ _id: m._id, preview_order: m.preview_order ?? null, view_order: m.view_order ?? null })));
+    };
+
+    const swapByDrag = (sourceId: string, targetId: string) => {
+        if (sourceId === targetId) return;
+        setLocal(prev => {
+            const next = prev.map(m => ({ ...m }));
+            // Build ordered list by current view order
+            const ordered = next.slice().sort((a, b) => {
+                const ao = a.view_order ?? Number.POSITIVE_INFINITY;
+                const bo = b.view_order ?? Number.POSITIVE_INFINITY;
+                if (ao !== bo) return ao - bo;
+                return a.name.localeCompare(b.name);
+            });
+            const si = ordered.findIndex(m => m._id === sourceId);
+            const ti = ordered.findIndex(m => m._id === targetId);
+            if (si === -1 || ti === -1) return prev;
+            const [item] = ordered.splice(si, 1);
+            ordered.splice(ti, 0, item);
+            // Re-sequence 1..N for view_order
+            ordered.forEach((m, i) => {
+                const ref = next.find(x => x._id === m._id)!;
+                ref.view_order = i + 1;
+            });
+            return next;
+        });
+    };
+
+    const onDragStartCard = (id: string) => (e: React.DragEvent) => {
+        setDragId(id);
+        try { e.dataTransfer.setData('text/plain', id); } catch {}
+        e.dataTransfer.effectAllowed = 'move';
+    };
+    const onDragOverCard = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+    const onDropOnCard = (id: string) => (e: React.DragEvent) => {
+        e.preventDefault();
+        const src = dragId || (() => { try { return e.dataTransfer.getData('text/plain'); } catch { return ''; } })();
+        if (!src || src === id) return;
+        swapByDrag(src, id);
+        setDragId(null);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="text-sm text-muted-foreground">
+                {isPreview ? 'Assign 1-7 for homepage preview. Leave blank to exclude (null).' : 'Assign numbers for full members page. Leave blank to send to the end (null).'}
+            </div>
+            {isPreview ? (
+                <div>
+                    <div className="mb-6 text-center">
+                        {sorted.find(m => m.preview_order === 1) ? (
+                            <PreviewAvatar member={sorted.find(m => m.preview_order === 1)!} size="lg" />
+                        ) : (
+                            <div className="text-muted-foreground">No member assigned to position 1</div>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-10 md:gap-x-20">
+                        {sorted.filter(m => typeof m.preview_order === 'number' && m.preview_order! >= 2 && m.preview_order! <= 7)
+                            .sort((a, b) => (a.preview_order! - b.preview_order!))
+                            .map(m => (<PreviewAvatar key={m._id} member={m} />))}
+                    </div>
+                </div>
+            ) : (
+                (() => {
+                    const featured = sorted[0];
+                    const rest = sorted.slice(1);
+                    const rows: typeof rest[] = [];
+                    for (let i = 0; i < rest.length; i += 5) rows.push(rest.slice(i, i + 5));
+                    return (
+                        <div className="space-y-8">
+                            {featured && (
+                                <div className="flex justify-center mb-4">
+                                    <div
+                                        draggable
+                                        onDragStart={onDragStartCard(featured._id)}
+                                        onDragOver={onDragOverCard}
+                                        onDrop={onDropOnCard(featured._id)}
+                                        className="cursor-move"
+                                    >
+                                        <Card className="overflow-hidden card-divine w-full max-w-md">
+                                            {featured.image && (
+                                                <div className="flex justify-center mt-6">
+                                                    <img src={resolveImageUrl(featured.image)} alt={featured.name} className="w-28 h-28 object-cover rounded-full border-4 border-primary/20" />
+                                                </div>
+                                            )}
+                                            <CardHeader className="pb-2 text-center">
+                                                <CardTitle className="text-2xl">{featured.name}</CardTitle>
+                                                <p className="text-sm text-muted-foreground font-medium">{featured.designation}</p>
+                                            </CardHeader>
+                                            <CardContent className="text-center">
+                                                <p className="text-sm text-muted-foreground"><strong>Phone:</strong> {(featured.mobile_prefix ?? '+91') + ' ' + featured.phone_number}</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </div>
+                            )}
+                            {rows.map((row, idx) => (
+                                <div key={idx} className="flex justify-center gap-6 flex-wrap">
+                                    {row.map(m => (
+                                        <div
+                                            key={m._id}
+                                            draggable
+                                            onDragStart={onDragStartCard(m._id)}
+                                            onDragOver={onDragOverCard}
+                                            onDrop={onDropOnCard(m._id)}
+                                            className="cursor-move"
+                                        >
+                                            <Card className="overflow-hidden card-divine w-64">
+                                                {m.image && (
+                                                    <div className="flex justify-center mt-6">
+                                                        <img src={resolveImageUrl(m.image)} alt={m.name} className="w-24 h-24 object-cover rounded-full border-4 border-primary/20" />
+                                                    </div>
+                                                )}
+                                                <CardHeader className="pb-2 text-center">
+                                                    <CardTitle className="text-xl">{m.name}</CardTitle>
+                                                    <p className="text-sm text-muted-foreground font-medium">{m.designation}</p>
+                                                </CardHeader>
+                                                <CardContent className="text-center">
+                                                    <p className="text-sm text-muted-foreground"><strong>Phone:</strong> {(m.mobile_prefix ?? '+91') + ' ' + m.phone_number}</p>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })()
+            )}
+
+                <div className="border rounded-md p-4">
+                <div className="grid grid-cols-12 text-xs font-semibold text-muted-foreground mb-2">
+                    <div className="col-span-5">Member</div>
+                    <div className="col-span-5">Designation</div>
+                    <div className="col-span-2 text-right">{isPreview ? 'Preview Pos' : 'Drag above'}</div>
+                </div>
+                <div className="space-y-2 max-h-80 overflow-auto pr-2">
+                    {local.map(m => (
+                        <div key={m._id} className="grid grid-cols-12 items-center gap-2">
+                            <div className="col-span-5 truncate">{m.name}</div>
+                            <div className="col-span-5 truncate text-muted-foreground">{m.designation}</div>
+                            <div className="col-span-2">
+                                {isPreview ? (
+                                    <Select
+                                        value={m.preview_order ? String(m.preview_order) : '__none__'}
+                                        onValueChange={(v) => handleChange(m._id, v)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="None" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {/* Use a non-empty sentinel value for None to satisfy Radix requirement */}
+                                            <SelectItem value="__none__">None</SelectItem>
+                                            {[1,2,3,4,5,6,7].map(n => {
+                                                const usedByOther = local.some(o => o._id !== m._id && o.preview_order === n);
+                                                const label = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+                                                return (
+                                                    <SelectItem key={n} value={String(n)} disabled={usedByOther}>
+                                                        {label}
+                                                    </SelectItem>
+                                                );
+                                            })}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="text-right text-xs text-muted-foreground">Drag cards above</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setLocal(members.map(m => ({ ...m })))}>Reset</Button>
+                <Button onClick={handleSave}>Save Order</Button>
+            </div>
+        </div>
+    );
+};
+
+const PreviewAvatar = ({ member, size = 'md' }: { member: CommitteeMember; size?: 'md' | 'lg' }) => {
+    const dim = size === 'lg' ? 'w-40 h-40' : 'w-32 h-32';
+    return (
+        <div className="text-center flex-shrink-0">
+            <div className={`${dim} mx-auto rounded-full overflow-hidden border-4 border-primary/20 shadow-sm`}>
+                {member.image ? (
+                    <img src={resolveImageUrl(member.image)} alt={member.name} className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full bg-muted" />
+                )}
+            </div>
+            <div className="mt-2">
+                <div className="text-sm font-semibold">{member.name}</div>
+                <div className="text-xs text-muted-foreground">{member.designation}</div>
+            </div>
+        </div>
+    );
+};

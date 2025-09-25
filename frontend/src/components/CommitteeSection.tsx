@@ -1,34 +1,92 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/api/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { resolveImageUrl } from '@/lib/utils';
 
+// Defines the structure for a committee member object.
 interface CommitteeMember {
     _id: string;
     name: string;
     designation: string;
     profile_description: string;
+    mobile_prefix: string;
     phone_number: string;
     image: string;
+    preview_order?: number | null;
+    view_order?: number | null;
 }
 
+/**
+ * Fetches the list of committee members from the API.
+ * @returns A promise that resolves to an array of CommitteeMember objects.
+ */
 const fetchCommitteeMembers = async (): Promise<CommitteeMember[]> => {
     const data = await get<CommitteeMember[]>('/committee/');
     return data;
 };
 
+/**
+ * Renders a reusable card for a single committee member.
+ * This component ensures consistent styling for each member's display.
+ */
+const MemberCard = ({ member }: { member: CommitteeMember }) => (
+    <div className="text-center flex-shrink-0">
+        <div className="w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-primary/20 shadow-sm">
+            {member.image ? (
+                <img
+                    src={resolveImageUrl(member.image)}
+                    alt={member.name}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <div className="w-full h-full bg-muted" />
+            )}
+        </div>
+        <div className="mt-3">
+            <div className="text-lg font-semibold">{member.name}</div>
+            <div className="text-sm text-muted-foreground">{member.designation}</div>
+        </div>
+    </div>
+);
+
+
 const CommitteeSection = () => {
+    const navigate = useNavigate();
     const { data: members, isLoading } = useQuery<CommitteeMember[]>({
         queryKey: ['committeeMembers'],
         queryFn: fetchCommitteeMembers,
-        staleTime: 5 * 60 * 1000,
+        staleTime: 5 * 60 * 1000, // Stale time set to 5 minutes
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         refetchOnMount: false,
     });
 
     if (isLoading) return <div>Loading committee members...</div>;
+
+    // Sort by preview_order (non-null ascending) and take top 7
+    const orderedPreview = (members ?? [])
+        .slice()
+        .sort((a, b) => {
+            const ao = a.preview_order ?? Number.POSITIVE_INFINITY;
+            const bo = b.preview_order ?? Number.POSITIVE_INFINITY;
+            if (ao !== bo) return ao - bo;
+            // stable fallback by name to avoid flicker
+            return a.name.localeCompare(b.name);
+        })
+        .filter((m) => (m.preview_order ?? Infinity) !== Infinity)
+        .slice(0, 7);
+
+    // If no explicit preview ordering, fallback to first 7 natural order
+    const previewList = orderedPreview.length > 0 ? orderedPreview : (members ?? []).slice(0, 7);
+
+    // Featured is the one with preview_order 1 if present, else the first
+    const idxFeatured = previewList.findIndex(m => (m.preview_order ?? 0) === 1);
+    const mainMember = idxFeatured >= 0 ? previewList[idxFeatured] : previewList[0];
+    const otherMembers = (mainMember
+        ? previewList.filter(m => m._id !== mainMember._id)
+        : previewList).sort((a, b) => (a.preview_order ?? Number.POSITIVE_INFINITY) - (b.preview_order ?? Number.POSITIVE_INFINITY));
 
     return (
         <section className="py-20 bg-background">
@@ -41,30 +99,43 @@ const CommitteeSection = () => {
                         Meet the dedicated individuals who guide and support our temple community with wisdom and devotion.
                     </p>
                 </div>
-                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                    {members?.map((member) => (
-                        <Card key={member._id} className="overflow-hidden card-divine text-center">
-                            {member.image && (
-                                <div className="flex justify-center mb-4">
+
+                {/* Row 1: The main, centered committee member */}
+                {mainMember && (
+                    <div className="flex justify-center mb-16">
+                        <div className="text-center">
+                            <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-primary shadow-lg">
+                                {mainMember.image ? (
                                     <img
-                                        src={resolveImageUrl(member.image)}
-                                        alt={member.name}
-                                        className="w-32 h-32 object-cover rounded-full border-4 border-primary/20"
+                                        src={resolveImageUrl(mainMember.image)}
+                                        alt={mainMember.name}
+                                        className="w-full h-full object-cover"
                                     />
-                                </div>
-                            )}
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-xl">{member.name}</CardTitle>
-                                <p className="text-sm text-muted-foreground font-medium">{member.designation}</p>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm mb-4">{member.profile_description}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    <strong>Phone:</strong> {member.phone_number}
-                                </p>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                ) : (
+                                    <div className="w-full h-full bg-muted" />
+                                )}
+                            </div>
+                            <div className="mt-4">
+                                <div className="text-2xl font-bold">{mainMember.name}</div>
+                                <div className="text-md text-primary font-semibold">{mainMember.designation}</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Row 2: A responsive, centered grid for all other members */}
+                {otherMembers && otherMembers.length > 0 && (
+                     <div className="flex flex-wrap justify-center gap-10 md:gap-x-20">
+                        {otherMembers.map((member) => (
+                            <MemberCard key={member._id} member={member} />
+                        ))}
+                    </div>
+                )}
+
+                <div className="mt-16 text-center">
+                    <Button className="btn-divine" onClick={() => navigate('/committee')}>
+                        View All Committee Members
+                    </Button>
                 </div>
             </div>
         </section>
