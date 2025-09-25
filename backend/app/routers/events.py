@@ -8,6 +8,7 @@ from ..models.activity_models import ActivityCreate
 from datetime import datetime
 from urllib.parse import unquote
 from ..services.storage_service import storage_service
+from ..database import events_featured_collection
 
 router = APIRouter()
 
@@ -136,6 +137,11 @@ async def delete_event(
     deleted = await event_service.delete_event_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Event with ID {id} not found")
+    # If this was the featured event, clear it
+    try:
+        await events_featured_collection.update_one({"event_id": id}, {"$unset": {"event_id": ""}})
+    except Exception:
+        pass
     
     # Log activity
     activity = ActivityCreate(

@@ -60,7 +60,7 @@ const ManageGallery = () => {
                 const res = await fetch(`${API_BASE_URL}/api/slideshow/`);
                 if (res.ok) {
                     const data = await res.json();
-                    setSlides(data.image_ids || []);
+                    setSlides((data.image_ids || []).filter((id: string) => (images || []).some(i => i._id === id)));
                     setIntervalMs(data.interval_ms || 4000);
                     setTransitionMs(data.transition_ms || 600);
                     setAspectRatio((data.aspect_ratio || '16:9'));
@@ -69,7 +69,7 @@ const ManageGallery = () => {
                 // ignore
             }
         })();
-    }, []);
+    }, [images]);
 
     const mutation = useMutation({
         mutationFn: (imagePayload: Omit<GalleryImage, '_id'>) => {
@@ -387,9 +387,8 @@ const ManageGallery = () => {
                                     <div className="text-sm text-gray-700">No images selected yet. Click images above to add them.</div>
                                 ) : (
                                     <div className="flex flex-wrap gap-3">
-                                        {slides.map((id, idx) => {
-                                            const img = (images || []).find(i => i._id === id);
-                                            if (!img) return null;
+                                        {slides.filter(id => (images || []).some(i => i._id === id)).map((id, idx) => {
+                                            const img = (images || []).find(i => i._id === id)!;
                                             const move = (from: number, to: number) => {
                                                 if (to < 0 || to >= slides.length) return;
                                                 setSlides(prev => {

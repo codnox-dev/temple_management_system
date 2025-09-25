@@ -59,7 +59,13 @@ const GalleryPreview = () => {
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
-	const hasLayout = layout && layout.length > 0 && galleryImages && galleryImages.length > 0;
+	// Only consider layout items whose images still exist
+	const filteredLayout = useMemo(() => {
+		if (!layout) return [] as LayoutItem[];
+		return layout.filter((it) => !!imagesById[it.id]);
+	}, [layout, imagesById]);
+
+	const hasLayout = filteredLayout.length > 0 && galleryImages && galleryImages.length > 0;
 
 
 	return (
@@ -83,7 +89,7 @@ const GalleryPreview = () => {
 						<div ref={containerRef} className="w-full overflow-auto">
 							<div className="relative" style={{ width: designW * scale, height: designH * scale }}>
 								<div className="absolute left-0 top-0" style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: designW, height: designH }}>
-									{layout!.map((it) => {
+									{filteredLayout.map((it) => {
 										const image = imagesById[it.id];
 										if (!image) return null;
 										return (

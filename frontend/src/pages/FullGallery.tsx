@@ -49,6 +49,10 @@ const FullGallery = () => {
   }, []);
 
   const imagesById = useMemo(() => Object.fromEntries((galleryImages || []).map(i => [i._id, i])), [galleryImages]);
+  const filteredLayout = useMemo(() => {
+    if (!layout) return [] as LayoutItem[];
+    return layout.filter((it) => !!imagesById[it.id]);
+  }, [layout, imagesById]);
 
   // Slideshow state
   const [slides, setSlides] = useState<string[]>([]);
@@ -62,7 +66,9 @@ const FullGallery = () => {
     (async () => {
       try {
         const cfg = await get<SlideConfig>('/slideshow/');
-        setSlides(cfg.image_ids || []);
+        // Only keep slides that still exist
+        const ids = (cfg.image_ids || []).filter((id) => !!imagesById[id]);
+        setSlides(ids);
         setIntervalMs(cfg.interval_ms || 4000);
         setTransitionMs(cfg.transition_ms || 600);
         const ar = (cfg.aspect_ratio || '16:9') as any;
@@ -71,7 +77,7 @@ const FullGallery = () => {
         // no config yet, ignore
       }
     })();
-  }, []);
+  }, [imagesById]);
 
   useEffect(() => {
     if (!slides.length) return;
@@ -107,7 +113,7 @@ const FullGallery = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const hasLayout = layout && layout.length > 0 && galleryImages && galleryImages.length > 0;
+  const hasLayout = filteredLayout.length > 0 && galleryImages && galleryImages.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-sacred py-20">
@@ -184,7 +190,7 @@ const FullGallery = () => {
                 className="absolute left-0 top-0"
                 style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: designW, height: designH }}
               >
-                {layout!.map((it) => {
+                {filteredLayout.map((it) => {
                   const img = imagesById[it.id];
                   if (!img) return null;
                   return (
