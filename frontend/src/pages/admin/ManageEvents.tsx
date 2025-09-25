@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react';
+import { Trash2, Edit, Calendar, MapPin, Clock, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { get, API_BASE_URL } from '@/api/api';
 import api from '@/api/api';
@@ -216,7 +217,14 @@ const ManageEvents = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Events</h1>
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Events</h1>
+                            <Link to={{ pathname: '/events' }} state={{ fromAdmin: '/admin/events' }} className="inline-flex">
+                                <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+                                    View Public Events <ExternalLink className="ml-2 h-4 w-4" />
+                                </Button>
+                            </Link>
+                        </div>
             
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

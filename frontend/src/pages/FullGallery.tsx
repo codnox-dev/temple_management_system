@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
@@ -24,6 +24,8 @@ interface GalleryImage {
 const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 
 const FullGallery = () => {
+  const location = useLocation() as any;
+  const fromAdmin: string | undefined = location.state?.fromAdmin;
   const { data: galleryImages, isLoading, isError } = useQuery<GalleryImage[]>({
       queryKey: ['gallery'],
       queryFn: fetchGalleryImages,
@@ -119,9 +121,9 @@ const FullGallery = () => {
     <div className="min-h-screen bg-gradient-sacred py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-12">
-          <Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-4">
+          <Link to={fromAdmin || "/"} state={undefined} className="inline-flex items-center text-primary hover:text-primary/80 mb-4">
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Home
+            {fromAdmin ? 'Back to Admin' : 'Back to Home'}
           </Link>
           <h1 className="text-4xl md:text-5xl font-playfair font-bold text-center text-foreground">
             Our <span className="text-primary">Gallery</span>

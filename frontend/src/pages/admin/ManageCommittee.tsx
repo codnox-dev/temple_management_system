@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // removed dialog import as we are using inline sections for forms
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit, Plus } from 'lucide-react';
+import { Trash2, Edit, Plus, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { resolveImageUrl } from '@/lib/utils';
 
 interface CommitteeMember {
@@ -201,15 +202,25 @@ const ManageCommittee = () => {
 
     return (
         <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Manage Committee Members</h1>
+                        <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
+                                <h1 className="text-2xl font-bold">Manage Committee Members</h1>
                 {!isReadOnly && (
-                    <div className="flex gap-2">
+                                        <div className="flex gap-2 flex-wrap">
                         <Button onClick={() => { resetForm(); setShowForm(true); }}>
                             <Plus className="mr-2 h-4 w-4" />
                             Add Member
                         </Button>
                         <Button variant="outline" onClick={() => setShowOrder(true)}>Configure Order</Button>
+                                                <Link to={{ pathname: '/committee' }} state={{ fromAdmin: '/admin/committee' }} className="inline-flex">
+                                                    <Button variant="outline">
+                                                        View Public Members <ExternalLink className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </Link>
+                                                <Link to={{ pathname: '/' }} state={{ fromAdmin: '/admin/committee', scrollTo: 'committee' }} className="inline-flex">
+                                                    <Button variant="outline">
+                                                        View Home Section <ExternalLink className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </Link>
                     </div>
                 )}
             </div>

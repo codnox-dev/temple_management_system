@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit, ImageIcon, Folder, Hash } from 'lucide-react';
+import { Trash2, Edit, ImageIcon, Folder, Hash, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveImageUrl } from '@/lib/utils';
 import GalleryLayoutDesigner from '@/pages/admin/GalleryLayoutDesigner';
@@ -34,6 +35,7 @@ const ManageGallery = () => {
     const [selectedFileName, setSelectedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [designerMode, setDesignerMode] = useState<null | 'full'>(null);
+    const [designerInlineOpen, setDesignerInlineOpen] = useState(false);
     const [homePreviewOpen, setHomePreviewOpen] = useState(false);
     const [homeSlots, setHomeSlots] = useState<(string | null)[]>([null, null, null, null, null, null]);
 
@@ -289,11 +291,21 @@ const ManageGallery = () => {
                         Configure Home Preview
                     </Button>
                     <Button
-                        onClick={() => setDesignerMode('full')}
+                        onClick={() => { setDesignerMode('full'); setDesignerInlineOpen(true); }}
                         className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                     >
                         Preview Full Gallery
                     </Button>
+                    <Link to={{ pathname: '/gallery' }} state={{ fromAdmin: '/admin/gallery' }} className="inline-flex">
+                        <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+                            View Public Gallery <ExternalLink className="ml-2 h-4 w-4" />
+                        </Button>
+                    </Link>
+                    <Link to={{ pathname: '/' }} state={{ fromAdmin: '/admin/gallery', scrollTo: 'gallery' }} className="inline-flex">
+                        <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+                            View Home Section <ExternalLink className="ml-2 h-4 w-4" />
+                        </Button>
+                    </Link>
                 </div>
             </div>
             
@@ -342,6 +354,224 @@ const ManageGallery = () => {
             <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setSlideConfigOpen(true)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Configure Slideshow</Button>
             </div>
+
+            {/* Inline Home Preview Config Section */}
+            {homePreviewOpen && (
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold text-purple-300">Configure Home Gallery Preview (6 Slots)</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => setHomePreviewOpen(false)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
+                            <Button onClick={async () => {
+                                if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
+                                try {
+                                    const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                                        },
+                                        body: JSON.stringify({ slots: homeSlots }),
+                                    });
+                                    if (!res.ok) throw new Error('Failed');
+                                    toast.success('Home preview updated');
+                                    queryClient.invalidateQueries({ queryKey: ['galleryHomePreview'] });
+                                    setHomePreviewOpen(false);
+                                } catch (e) {
+                                    console.error(e);
+                                    toast.error('Failed to update home preview');
+                                }
+                            }} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">Save</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <p className="text-sm text-slate-800">Drag images from the palette into the fixed slots below. Reorder by dragging between slots.</p>
+
+                        {/* Slots layout */}
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="md:col-span-2">
+                                    <Slot idx={0} size="lg" />
+                                </div>
+                                <div className="space-y-4">
+                                    <Slot idx={1} size="md" />
+                                    <Slot idx={2} size="md" />
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-stretch justify-center gap-4">
+                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={3} size="sm" /></div>
+                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={4} size="sm" /></div>
+                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={5} size="sm" /></div>
+                            </div>
+                        </div>
+
+                        {/* Draggable palette */}
+                        <div>
+                            <div className="text-sm text-slate-800 mb-2">Available Images</div>
+                            <div className="flex gap-3 overflow-x-auto pb-2">
+                                {(images || []).map(img => (
+                                    <div key={img._id} className={`w-28 h-20 rounded-md overflow-hidden border ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-move'} border-purple-500/40 flex-shrink-0`}
+                                        draggable={!isReadOnly}
+                                        onDragStart={(e) => onDragStartImage(e, img._id, 'palette')}
+                                    >
+                                        <img src={resolveImageUrl(img.src)} alt={img.title} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Inline Slideshow Config Section */}
+            {slideConfigOpen && (
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold text-purple-300">Configure Slideshow</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
+                            <Button onClick={async () => {
+                                if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
+                                try {
+                                    const res = await fetch(`${API_BASE_URL}/api/slideshow/`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                                        },
+                                        body: JSON.stringify({ image_ids: slides, interval_ms: intervalMs, transition_ms: transitionMs, aspect_ratio: aspectRatio }),
+                                    });
+                                    if (!res.ok) throw new Error('Failed');
+                                    toast.success('Slideshow updated');
+                                    setSlideConfigOpen(false);
+                                } catch (e) {
+                                    console.error(e);
+                                    toast.error('Failed to update slideshow');
+                                }
+                            }} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">Save</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Image picker grid */}
+                        <div className="flex flex-wrap gap-2">
+                            {(images || []).map((img) => {
+                                const selected = slides.includes(img._id);
+                                return (
+                                    <div
+                                        key={img._id}
+                                        className={`relative border rounded overflow-hidden ${selected ? 'border-purple-500' : 'border-purple-500/30'} ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-move'}`}
+                                        draggable={!isReadOnly}
+                                        onDragStart={(e) => {
+                                            if (isReadOnly) return;
+                                            e.dataTransfer.setData('text/slide-id', img._id);
+                                            e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        onClick={() => {
+                                            if (isReadOnly) return;
+                                            setSlides((prev) => selected ? prev.filter((x) => x !== img._id) : [...prev, img._id]);
+                                        }}
+                                    >
+                                        <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
+                                        {selected && <span className="absolute top-1 right-1 bg-purple-600 text-white text-xs px-1 rounded">Selected</span>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {/* Selected order list */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold text-slate-800">Selected Slides Order</h4>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Clear</Button>
+                                </div>
+                            </div>
+                            {slides.length === 0 ? (
+                                <div className="text-sm text-slate-800">No images selected yet. Click images above to add them or drag to the list.</div>
+                            ) : (
+                                <div className="flex flex-wrap gap-3">
+                                    {slides.filter(id => (images || []).some(i => i._id === id)).map((id, idx) => {
+                                        const img = (images || []).find(i => i._id === id)!;
+                                        return (
+                                            <div
+                                                key={id}
+                                                className="relative border border-purple-500/30 rounded-md overflow-hidden"
+                                                draggable={!isReadOnly}
+                                                onDragStart={(e) => {
+                                                    if (isReadOnly) return;
+                                                    e.dataTransfer.setData('text/slide-id', id);
+                                                    e.dataTransfer.effectAllowed = 'move';
+                                                }}
+                                                onDragOver={(e) => { if (isReadOnly) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                                                onDrop={(e) => {
+                                                    if (isReadOnly) return;
+                                                    e.preventDefault();
+                                                    const draggedId = e.dataTransfer.getData('text/slide-id');
+                                                    if (!draggedId) return;
+                                                    setSlides(prev => {
+                                                        const current = [...prev];
+                                                        // if dragging from palette and not in list yet, insert at idx
+                                                        const fromIndex = current.indexOf(draggedId);
+                                                        if (fromIndex === -1) {
+                                                            current.splice(idx, 0, draggedId);
+                                                            return current;
+                                                        }
+                                                        // reordering within list
+                                                        if (fromIndex === idx) return current;
+                                                        const [item] = current.splice(fromIndex, 1);
+                                                        current.splice(idx, 0, item);
+                                                        return current;
+                                                    });
+                                                }}
+                                            >
+                                                <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
+                                                <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs flex items-center justify-between px-1 py-0.5">
+                                                    <span className="opacity-80">#{idx + 1}</span>
+                                                    <div className="flex gap-1">
+                                                        <button type="button" disabled={isReadOnly} title="Remove" onClick={() => !isReadOnly && setSlides(prev => prev.filter(x => x !== id))} className={`px-1 rounded ${isReadOnly?'opacity-40 cursor-not-allowed':'hover:bg-white/20'}`}>✕</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <label className="text-sm text-slate-800">Interval (ms)</label>
+                            <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
+                            <label className="text-sm text-slate-800">Transition (ms)</label>
+                            <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
+                            <label className="text-sm text-slate-800">Aspect Ratio</label>
+                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white rounded px-2 py-2">
+                                <option value="16:9">16:9</option>
+                                <option value="4:3">4:3</option>
+                                <option value="1:1">1:1</option>
+                                <option value="21:9">21:9</option>
+                            </select>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Inline Full Gallery Designer */}
+            {designerMode && designerInlineOpen && (
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold text-purple-300">Full Gallery Designer</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => { setDesignerInlineOpen(false); setDesignerMode(null); }} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <GalleryLayoutDesigner
+                            mode={designerMode}
+                            images={images || []}
+                            onClose={() => { setDesignerInlineOpen(false); setDesignerMode(null); }}
+                            inline
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             <Card className="mb-8 bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
                 <CardHeader><CardTitle className="text-purple-400">{isEditing ? 'Edit Image' : 'Add New Image'}</CardTitle></CardHeader>
@@ -423,193 +653,8 @@ const ManageGallery = () => {
                 </div>
             )}
 
-            {designerMode && (
-                <GalleryLayoutDesigner
-                    mode={designerMode}
-                    images={images || []}
-                    onClose={() => setDesignerMode(null)}
-                />)
-            }
-
-            {homePreviewOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/70" onClick={() => setHomePreviewOpen(false)} />
-                    <div className="relative bg-white border border-orange-200 rounded-lg shadow-2xl w-[95vw] max-w-[1100px] max-h-[90vh] flex flex-col overflow-hidden text-gray-900">
-                        <div className="flex items-center justify-between p-4 border-b border-orange-200">
-                            <h3 className="text-lg font-semibold">Configure Home Gallery Preview (6 Slots)</h3>
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" onClick={() => setHomePreviewOpen(false)} className="text-gray-700 hover:bg-orange-50">Close</Button>
-                                <Button onClick={async () => {
-                                    if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
-                                    try {
-                                        const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-                                            },
-                                            body: JSON.stringify({ slots: homeSlots }),
-                                        });
-                                        if (!res.ok) throw new Error('Failed');
-                                        toast.success('Home preview updated');
-                                        queryClient.invalidateQueries({ queryKey: ['galleryHomePreview'] });
-                                        setHomePreviewOpen(false);
-                                    } catch (e) {
-                                        console.error(e);
-                                        toast.error('Failed to update home preview');
-                                    }
-                                }} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
-                            </div>
-                        </div>
-                        <div className="p-4 overflow-auto space-y-6">
-                            <p className="text-sm text-gray-700">Drag images from the palette into the fixed slots below. Reorder by dragging between slots.</p>
-
-                            {/* Slots layout */}
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2">
-                                        <Slot idx={0} size="lg" />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <Slot idx={1} size="md" />
-                                        <Slot idx={2} size="md" />
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap items-stretch justify-center gap-4">
-                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={3} size="sm" /></div>
-                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={4} size="sm" /></div>
-                                    <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={5} size="sm" /></div>
-                                </div>
-                            </div>
-
-                            {/* Draggable palette */}
-                            <div>
-                                <div className="text-sm text-gray-800 mb-2">Available Images</div>
-                                <div className="flex gap-3 overflow-x-auto pb-2">
-                                    {(images || []).map(img => (
-                                        <div key={img._id} className={`w-28 h-20 rounded-md overflow-hidden border ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-move'} border-orange-300/60 flex-shrink-0`}
-                                            draggable={!isReadOnly}
-                                            onDragStart={(e) => onDragStartImage(e, img._id, 'palette')}
-                                        >
-                                            <img src={resolveImageUrl(img.src)} alt={img.title} className="w-full h-full object-cover" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Slideshow Config Modal */}
-            {slideConfigOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/70" onClick={() => setSlideConfigOpen(false)} />
-                    <div className="relative bg-white border border-orange-200 rounded-lg shadow-xl w-[95vw] max-w-3xl max-h-[85vh] flex flex-col text-gray-900">
-                        <div className="p-4 border-b border-orange-200 flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900">Configure Slideshow</h3>
-                            <Button variant="ghost" onClick={() => setSlideConfigOpen(false)} className="text-gray-700 hover:bg-orange-50">Close</Button>
-                        </div>
-                        <div className="p-4 overflow-auto space-y-4">
-                            {/* Image picker grid */}
-                            <div className="flex flex-wrap gap-2">
-                                {(images || []).map((img) => {
-                                    const selected = slides.includes(img._id);
-                                    return (
-                                        <button
-                                            key={img._id}
-                                            onClick={() => {
-                                                if (isReadOnly) return;
-                                                setSlides((prev) => selected ? prev.filter((x) => x !== img._id) : [...prev, img._id]);
-                                            }}
-                                            disabled={isReadOnly}
-                                            className={`relative border rounded overflow-hidden ${selected ? 'border-orange-500' : 'border-gray-300'} ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        >
-                                            <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
-                                            {selected && <span className="absolute top-1 right-1 bg-orange-600 text-white text-xs px-1 rounded">Selected</span>}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {/* Selected order list */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-semibold text-gray-800">Selected Slides Order</h4>
-                                    <div className="flex gap-2">
-                                        <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-orange-300 text-orange-700 hover:bg-orange-50">Clear</Button>
-                                    </div>
-                                </div>
-                                {slides.length === 0 ? (
-                                    <div className="text-sm text-gray-700">No images selected yet. Click images above to add them.</div>
-                                ) : (
-                                    <div className="flex flex-wrap gap-3">
-                                        {slides.filter(id => (images || []).some(i => i._id === id)).map((id, idx) => {
-                                            const img = (images || []).find(i => i._id === id)!;
-                                            const move = (from: number, to: number) => {
-                                                if (to < 0 || to >= slides.length) return;
-                                                setSlides(prev => {
-                                                    const arr = [...prev];
-                                                    const [item] = arr.splice(from, 1);
-                                                    arr.splice(to, 0, item);
-                                                    return arr;
-                                                });
-                                            };
-                                            return (
-                                                <div key={id} className="relative border border-orange-200 rounded-md overflow-hidden">
-                                                    <img src={resolveImageUrl(img.src)} alt={img.title} className="w-32 h-20 object-cover" />
-                                                    <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs flex items-center justify-between px-1 py-0.5">
-                                                        <span className="opacity-80">#{idx + 1}</span>
-                                                        <div className="flex gap-1">
-                                                            <button type="button" disabled={isReadOnly || idx === 0} title="Move left" onClick={() => move(idx, idx - 1)} className={`px-1 rounded ${idx===0||isReadOnly?'opacity-40 cursor-not-allowed':'hover:bg-white/20'}`}>◀</button>
-                                                            <button type="button" disabled={isReadOnly || idx === slides.length - 1} title="Move right" onClick={() => move(idx, idx + 1)} className={`px-1 rounded ${idx===slides.length-1||isReadOnly?'opacity-40 cursor-not-allowed':'hover:bg-white/20'}`}>▶</button>
-                                                            <button type="button" disabled={isReadOnly} title="Remove" onClick={() => !isReadOnly && setSlides(prev => prev.filter(x => x !== id))} className={`px-1 rounded ${isReadOnly?'opacity-40 cursor-not-allowed':'hover:bg-white/20'}`}>✕</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3">
-                                <label className="text-sm text-gray-800">Interval (ms)</label>
-                                <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 w-28" />
-                                <label className="text-sm text-gray-800">Transition (ms)</label>
-                                <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 w-28" />
-                                <label className="text-sm text-gray-800">Aspect Ratio</label>
-                                <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-white border-gray-300 text-gray-900 rounded px-2 py-2">
-                                    <option value="16:9">16:9</option>
-                                    <option value="4:3">4:3</option>
-                                    <option value="1:1">1:1</option>
-                                    <option value="21:9">21:9</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-orange-200 flex items-center justify-end gap-2">
-                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-orange-300 text-orange-700 hover:bg-orange-50">Cancel</Button>
-                            <Button onClick={async () => {
-                                if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
-                                try {
-                                    const res = await fetch(`${API_BASE_URL}/api/slideshow/`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-                                        },
-                                        body: JSON.stringify({ image_ids: slides, interval_ms: intervalMs, transition_ms: transitionMs, aspect_ratio: aspectRatio }),
-                                    });
-                                    if (!res.ok) throw new Error('Failed');
-                                    toast.success('Slideshow updated');
-                                    setSlideConfigOpen(false);
-                                } catch (e) {
-                                    console.error(e);
-                                    toast.error('Failed to update slideshow');
-                                }
-                            }} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Removed modal popup for designer in favor of inline section above */}
+            
         </div>
     );
 };

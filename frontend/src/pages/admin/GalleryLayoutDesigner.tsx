@@ -161,7 +161,8 @@ const GalleryLayoutDesigner: React.FC<{
   mode: Mode;
   images: GalleryImage[];
   onClose: () => void;
-}> = ({ mode, images, onClose }) => {
+  inline?: boolean;
+}> = ({ mode, images, onClose, inline = false }) => {
   const canvas = DEFAULT_CANVAS[mode];
   const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [designW, setDesignW] = useState<number>(canvas.width);
@@ -219,7 +220,7 @@ const GalleryLayoutDesigner: React.FC<{
         if (!cancelled) setLoading(false);
       }
     })();
-  return () => { cancelled = true; };
+    return () => { cancelled = true; };
   }, [mode, images, canvas.width, canvas.height]);
 
   // ensure layout includes only current images
@@ -234,10 +235,8 @@ const GalleryLayoutDesigner: React.FC<{
     setLayout((prev) => prev.map((it) => (it.id === id ? { ...it, ...next, z: (it.z ?? 1) + 1 } : it)));
   };
 
-  // Auto-append any new images (not yet in layout) to the bottom in a simple grid,
-  // and ensure deleted ones are not rendered (handled by `merged`).
+  // Auto-append any new images and adjust height
   useEffect(() => {
-    // Determine which images are missing from the current layout
     const present = new Set(layout.map((l) => l.id));
     const missing = images.filter((img) => !present.has(img._id));
     if (missing.length === 0) return;
@@ -247,18 +246,15 @@ const GalleryLayoutDesigner: React.FC<{
     const tileW = Math.floor((designW - padding * (col + 1)) / col);
     const tileH = mode === 'preview' ? 140 : 160;
 
-    // Find the current bottom Y of existing tiles
     const bottomY = layout.length > 0 ? Math.max(...layout.map((l) => l.y + l.h)) : padding;
-    let cursorRow = 0;
     const newItems: LayoutItem[] = missing.map((img, idx) => {
       const c = idx % col;
       const r = Math.floor(idx / col);
       const x = padding + c * (tileW + padding);
-      const y = bottomY + padding + (cursorRow + r) * (tileH + padding);
+      const y = bottomY + padding + r * (tileH + padding);
       return { id: img._id, x, y, w: tileW, h: tileH, z: 1 };
     });
 
-    // Compute required height to fit new rows
     const totalNewRows = Math.ceil(missing.length / col);
     const requiredHeight = bottomY + padding + totalNewRows * (tileH + padding);
     if (requiredHeight > designH) {
@@ -266,7 +262,6 @@ const GalleryLayoutDesigner: React.FC<{
       setDesignHInput(String(requiredHeight));
     }
 
-    // Append new items to layout state
     setLayout((prev) => [...prev, ...newItems]);
   }, [images, layout, designW, designH, mode]);
 
@@ -286,107 +281,117 @@ const GalleryLayoutDesigner: React.FC<{
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-
-      {/* modal */}
-      <div className="relative bg-white border border-orange-200 rounded-lg shadow-2xl w-[95vw] max-w-[1280px] max-h-[92vh] flex flex-col overflow-hidden text-gray-900">
-        <div className="flex items-center justify-between p-4 border-b border-orange-200">
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold">Layout Designer - {mode === 'full' ? 'Full Gallery' : 'Home Preview'}</h3>
-            <p className="text-xs text-gray-600">Drag to move, use corner handles to resize. Your layout is saved to your browser.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleReset} className="border-orange-300 text-orange-700 hover:bg-orange-50">
-              <RotateCcw className="w-4 h-4 mr-2" /> Reset
-            </Button>
-            <Button onClick={handleSave} className="bg-orange-600 hover:bg-orange-700 text-white">
-              <Save className="w-4 h-4 mr-2" /> Save
-            </Button>
-            <Button variant="ghost" onClick={onClose} className="text-gray-700 hover:bg-orange-50">
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
+  const content = (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-orange-200">
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold">Layout Designer - {mode === 'full' ? 'Full Gallery' : 'Home Preview'}</h3>
+          <p className="text-xs text-gray-600">Drag to move, use corner handles to resize. Your layout is saved to your browser.</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleReset} className="border-orange-300 text-orange-700 hover:bg-orange-50">
+            <RotateCcw className="w-4 h-4 mr-2" /> Reset
+          </Button>
+          <Button onClick={handleSave} className="bg-orange-600 hover:bg-orange-700 text-white">
+            <Save className="w-4 h-4 mr-2" /> Save
+          </Button>
+          <Button variant="ghost" onClick={onClose} className="text-gray-700 hover:bg-orange-50">
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
 
-        {/* canvas wrapper with scroll */}
-        <div className="p-4 overflow-auto">
-          <div className="flex items-center gap-3 mb-3">
-            <label className="text-sm text-gray-800">Canvas Width</label>
-            <input
-              type="number"
-              className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
-              value={designWInput}
-              inputMode="numeric"
-              min={400}
-              onChange={(e) => setDesignWInput(e.target.value)}
-              onBlur={() => {
+      <div className="p-4 overflow-auto">
+        <div className="flex items-center gap-3 mb-3">
+          <label className="text-sm text-gray-800">Canvas Width</label>
+          <input
+            type="number"
+            className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
+            value={designWInput}
+            inputMode="numeric"
+            min={400}
+            onChange={(e) => setDesignWInput(e.target.value)}
+            onBlur={() => {
+              const val = clamp(parseInt(designWInput || '0', 10) || 0, 400, 4000);
+              setDesignW(val);
+              setDesignWInput(String(val));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
                 const val = clamp(parseInt(designWInput || '0', 10) || 0, 400, 4000);
                 setDesignW(val);
                 setDesignWInput(String(val));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = clamp(parseInt(designWInput || '0', 10) || 0, 400, 4000);
-                  setDesignW(val);
-                  setDesignWInput(String(val));
-                }
-              }}
-            />
-            <label className="text-sm text-gray-800">Canvas Height</label>
-            <input
-              type="number"
-              className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
-              value={designHInput}
-              inputMode="numeric"
-              min={300}
-              onChange={(e) => setDesignHInput(e.target.value)}
-              onBlur={() => {
+              }
+            }}
+          />
+          <label className="text-sm text-gray-800">Canvas Height</label>
+          <input
+            type="number"
+            className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 w-28"
+            value={designHInput}
+            inputMode="numeric"
+            min={300}
+            onChange={(e) => setDesignHInput(e.target.value)}
+            onBlur={() => {
+              const val = clamp(parseInt(designHInput || '0', 10) || 0, 300, 6000);
+              setDesignH(val);
+              setDesignHInput(String(val));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
                 const val = clamp(parseInt(designHInput || '0', 10) || 0, 300, 6000);
                 setDesignH(val);
                 setDesignHInput(String(val));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = clamp(parseInt(designHInput || '0', 10) || 0, 300, 6000);
-                  setDesignH(val);
-                  setDesignHInput(String(val));
-                }
-              }}
-            />
-            <span className="text-xs text-gray-600">(Make the canvas taller to accommodate more rows; scroll to view)</span>
-          </div>
-          <div
-            className={`relative rounded-md inline-block ${canvas.className}`}
-            style={{ width: designW, height: designH, backgroundImage: 'linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.05) 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}
-          >
-            {merged.map((it) => {
-              const img = byId[it.id];
-              if (!img) return null;
-              return (
-                <DraggableResizableTile
-                  key={it.id}
-                  item={it}
-                  onChange={(n) => updateItem(it.id, n)}
-                  canvasWidth={designW}
-                  canvasHeight={designH}
-                >
-                  <img
-                    src={resolveImageUrl(img.src)}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
-                    alt={img.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs p-1 truncate">
-                    {img.title} • {img.category}
-                  </div>
-                </DraggableResizableTile>
-              );
-            })}
-          </div>
+              }
+            }}
+          />
+          <span className="text-xs text-gray-600">(Make the canvas taller to accommodate more rows; scroll to view)</span>
         </div>
+        <div
+          className={`relative rounded-md inline-block ${canvas.className}`}
+          style={{ width: designW, height: designH, backgroundImage: 'linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.05) 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}
+        >
+          {merged.map((it) => {
+            const img = byId[it.id];
+            if (!img) return null;
+            return (
+              <DraggableResizableTile
+                key={it.id}
+                item={it}
+                onChange={(n) => updateItem(it.id, n)}
+                canvasWidth={designW}
+                canvasHeight={designH}
+              >
+                <img
+                  src={resolveImageUrl(img.src)}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
+                  alt={img.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs p-1 truncate">
+                  {img.title} • {img.category}
+                </div>
+              </DraggableResizableTile>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="bg-white border border-orange-200 rounded-lg shadow-xl w-full text-gray-900">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative bg-white border border-orange-200 rounded-lg shadow-2xl w-[95vw] max-w-[1280px] max-h-[92vh] flex flex-col overflow-hidden text-gray-900">
+        {content}
       </div>
     </div>
   );
