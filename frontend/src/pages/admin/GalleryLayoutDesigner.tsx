@@ -234,6 +234,42 @@ const GalleryLayoutDesigner: React.FC<{
     setLayout((prev) => prev.map((it) => (it.id === id ? { ...it, ...next, z: (it.z ?? 1) + 1 } : it)));
   };
 
+  // Auto-append any new images (not yet in layout) to the bottom in a simple grid,
+  // and ensure deleted ones are not rendered (handled by `merged`).
+  useEffect(() => {
+    // Determine which images are missing from the current layout
+    const present = new Set(layout.map((l) => l.id));
+    const missing = images.filter((img) => !present.has(img._id));
+    if (missing.length === 0) return;
+
+    const padding = 12;
+    const col = mode === 'preview' ? 3 : 4;
+    const tileW = Math.floor((designW - padding * (col + 1)) / col);
+    const tileH = mode === 'preview' ? 140 : 160;
+
+    // Find the current bottom Y of existing tiles
+    const bottomY = layout.length > 0 ? Math.max(...layout.map((l) => l.y + l.h)) : padding;
+    let cursorRow = 0;
+    const newItems: LayoutItem[] = missing.map((img, idx) => {
+      const c = idx % col;
+      const r = Math.floor(idx / col);
+      const x = padding + c * (tileW + padding);
+      const y = bottomY + padding + (cursorRow + r) * (tileH + padding);
+      return { id: img._id, x, y, w: tileW, h: tileH, z: 1 };
+    });
+
+    // Compute required height to fit new rows
+    const totalNewRows = Math.ceil(missing.length / col);
+    const requiredHeight = bottomY + padding + totalNewRows * (tileH + padding);
+    if (requiredHeight > designH) {
+      setDesignH(requiredHeight);
+      setDesignHInput(String(requiredHeight));
+    }
+
+    // Append new items to layout state
+    setLayout((prev) => [...prev, ...newItems]);
+  }, [images, layout, designW, designH, mode]);
+
   const handleSave = async () => {
     await post(`/gallery-layout/${mode}`, { mode, design_width: designW, design_height: designH, items: merged });
     setLastSaved({ items: merged, designW, designH });

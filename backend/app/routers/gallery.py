@@ -8,6 +8,7 @@ from ..models.activity_models import ActivityCreate
 from datetime import datetime
 from urllib.parse import unquote
 from ..services.storage_service import storage_service
+from ..database import gallery_layouts_collection, gallery_slideshow_collection
 
 router = APIRouter()
 
@@ -128,6 +129,19 @@ async def delete_gallery_image(
     deleted = await gallery_service.delete_gallery_image_by_id(id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Image with ID {id} not found")
+
+    # Prune this image from any saved gallery layouts (both modes) and slideshow config
+    try:
+        # Remove any layout items referencing this image id
+        await gallery_layouts_collection.update_many({}, {"$pull": {"items": {"id": id}}})
+    except Exception:
+        # Non-fatal; logging can be added here if a logger exists
+        pass
+    try:
+        # Remove from slideshow order if present
+        await gallery_slideshow_collection.update_one({}, {"$pull": {"image_ids": id}})
+    except Exception:
+        pass
     
     # Log activity
     activity = ActivityCreate(
