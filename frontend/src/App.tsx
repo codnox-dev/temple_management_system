@@ -18,6 +18,7 @@ import AdminLayout from "./components/AdminLayout";
 import ManageRituals from "./pages/admin/ManageRituals";
 import ManageEvents from "./pages/admin/ManageEvents";
 import ManageGallery from "./pages/admin/ManageGallery";
+import CalendarManagement from "./pages/admin/CalendarManagement";
 import ManageBookings from "./pages/admin/ManageBookings";
 import AdminDashboard from "./pages/admin/Admin";
 import AddStock from "./pages/admin/AddStock";
@@ -91,6 +92,13 @@ const App = () => (
               <Route path="gallery" element={
                 <RoleGuard allow={(rid) => (rid ?? 99) !== 4}>
                   <ManageGallery />
+                </RoleGuard>
+              } />
+
+              {/* Calendar Management visible only to Admin/Super (role_id <= 1) */}
+              <Route path="calendar" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
+                  <CalendarManagement />
                 </RoleGuard>
               } />
 
