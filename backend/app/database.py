@@ -1,7 +1,7 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
-from pymongo import ASCENDING
+from pymongo import ASCENDING, IndexModel
 
 # Load environment variables from .env file
 load_dotenv()
@@ -34,11 +34,25 @@ gallery_layouts_collection = database.get_collection("gallery_layouts")
 gallery_slideshow_collection = database.get_collection("gallery_slideshow")
 gallery_home_preview_collection = database.get_collection("gallery_home_preview")
 events_featured_collection = database.get_collection("events_featured")
+calendar_collection = database.get_collection("calendar")
+calendar_audit_collection = database.get_collection("calendar_audit")
 
 # Ensure unique index on username for admins collection
 async def ensure_indexes():
     """Creates required indexes on startup if they don't exist."""
+    # Admins
     await admins_collection.create_index([("username", ASCENDING)], unique=True)
+
+    # Calendar indexes
+    # Unique date key
+    await calendar_collection.create_index([("dateISO", ASCENDING)], unique=True, name="uniq_dateISO")
+    # Query patterns
+    await calendar_collection.create_index([("naal", ASCENDING), ("dateISO", ASCENDING)], name="naal_dateISO")
+    await calendar_collection.create_index([("malayalam_year", ASCENDING), ("dateISO", ASCENDING)], name="malayalamYear_dateISO")
+    await calendar_collection.create_index([("year", ASCENDING), ("month", ASCENDING), ("day", ASCENDING)], name="ymd")
+
+    # Audit indexes
+    await calendar_audit_collection.create_index([("dateISO", ASCENDING), ("timestamp", ASCENDING)], name="audit_date_time")
 
 # Note: The index creation is now within an async function.
 # This should be called during your application's startup event in main.py.

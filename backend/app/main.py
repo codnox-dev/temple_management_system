@@ -2,8 +2,8 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview  # changed: employee_bookings -> employee_booking
-from .database import available_rituals_collection, admins_collection, roles_collection
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar  # changed: employee_bookings -> employee_booking
+from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
 from .models.role_models import RoleBase
 from .services import auth_service
 from .models.admin_models import AdminCreate
@@ -39,11 +39,11 @@ app.add_middleware(
 async def startup_db_client():
     # --- Ensure Unique Indexes ---
     try:
-        await admins_collection.create_index([("username", ASCENDING)], unique=True)
-        print("Ensured unique index on admins.username")
+        await ensure_indexes()
+        print("Ensured required indexes (admins, calendar)")
     except Exception as e:
         # Will fail if duplicates exist; surface a warning so it can be resolved
-        print(f"Warning: Could not ensure unique index on admins.username: {e}")
+        print(f"Warning: Could not ensure indexes: {e}")
 
     # --- Populate Rituals ---
     if await available_rituals_collection.count_documents({}) == 0:
@@ -129,6 +129,7 @@ app.include_router(profile.router, tags=["Profile"], prefix="/api/profile")
 app.include_router(activity.router, tags=["Activity"], prefix="/api/activity")
 app.include_router(slideshow.router, tags=["Slideshow"], prefix="/api/slideshow")
 app.include_router(featured_event.router, tags=["Featured Event"], prefix="/api/featured-event")
+app.include_router(calendar.router, tags=["Calendar"], prefix="/api")
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

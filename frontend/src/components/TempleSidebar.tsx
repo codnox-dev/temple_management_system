@@ -117,6 +117,12 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
                     <span>Gallery Management</span>
                 </NavLink>
                 )}
+        {roleId <= 1 && (
+        <NavLink to="/admin/calendar" className={subNavLinkClass}>
+          <Calendar className="h-4 w-4" />
+          <span>Calendar Management</span>
+        </NavLink>
+        )}
                 {roleId <= 1 && (
                 <NavLink to="/admin/committee" className={subNavLinkClass}>
                     <Users className="h-4 w-4" />
