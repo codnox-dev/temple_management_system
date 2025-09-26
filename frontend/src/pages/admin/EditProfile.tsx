@@ -260,6 +260,13 @@ const EditProfile: React.FC = () => {
                   const digits = e.target.value.replace(/[^0-9]/g, '');
                   setFormData(prev => ({ ...prev, mobile_prefix: '+' + digits }));
                 }}
+                onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+                onPaste={(e) => {
+                  const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                  e.preventDefault();
+                  setFormData(prev => ({ ...prev, mobile_prefix: '+' + text }));
+                }}
+                onDrop={(e) => e.preventDefault()}
                 placeholder="+91"
                 className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
                 disabled={!isEditing}
@@ -271,9 +278,23 @@ const EditProfile: React.FC = () => {
                 type="tel"
                 name="mobile_number"
                 value={formData.mobile_number}
-                onChange={handleInputChange}
+                onChange={(e) => setFormData(prev => ({ ...prev, mobile_number: (e.target.value || '').replace(/\D/g, '') }))}
                 inputMode="numeric"
                 pattern="[0-9]*"
+                onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+                onKeyDown={(e) => {
+                  if (e.ctrlKey || e.metaKey) return;
+                  const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
+                  if (allowed.includes(e.key)) return;
+                  if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                }}
+                onPaste={(e) => {
+                  const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                  e.preventDefault();
+                  setFormData(prev => ({ ...prev, mobile_number: String(prev.mobile_number || '').concat(text).slice(0, 15) }));
+                }}
+                onDrop={(e) => e.preventDefault()}
+                maxLength={15}
                 className={`w-full bg-white border border-orange-300 rounded-full py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all`}
                 placeholder="Phone Number"
                 disabled={!isEditing}

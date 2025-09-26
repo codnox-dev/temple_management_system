@@ -267,9 +267,40 @@ const ManageCommittee = () => {
                                 />
                                 <div className="col-span-2">
                                     <Input
+                                        type="tel"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         placeholder="Phone Number"
                                         value={formData.phone_number}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                                        onChange={(e) => {
+                                            const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                                            setFormData(prev => ({ ...prev, phone_number: onlyDigits }));
+                                        }}
+                                        onBeforeInput={(e: any) => {
+                                            // Block non-digit characters before they get inserted
+                                            if (e?.data && /\D/.test(e.data)) {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.ctrlKey || e.metaKey) return; // allow shortcuts
+                                            const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
+                                            if (allowed.includes(e.key)) return;
+                                            if (!/^[0-9]$/.test(e.key)) {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        onPaste={(e) => {
+                                            // Ensure pasted content is digits only
+                                            const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                                            e.preventDefault();
+                                            setFormData(prev => ({ ...prev, phone_number: (prev.phone_number + text).slice(0, 15) }));
+                                        }}
+                                        onDrop={(e) => {
+                                            // Prevent dropping arbitrary text into the field
+                                            e.preventDefault();
+                                        }}
+                                        maxLength={15}
                                         required
                                     />
                                 </div>
