@@ -409,6 +409,15 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                             const digits = e.target.value.replace(/[^0-9]/g, '');
                             setPrefixValue('+' + digits);
                           }}
+                          onBeforeInput={(e: any) => {
+                            if (e?.data && /\D/.test(e.data)) e.preventDefault();
+                          }}
+                          onPaste={(e) => {
+                            const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                            e.preventDefault();
+                            setPrefixValue('+' + text);
+                          }}
+                          onDrop={(e) => e.preventDefault()}
                           className="bg-white border-orange-300 w-24"
                         />
                         <Input
@@ -417,6 +426,20 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                           pattern="[0-9]*"
                           value={mobileValue}
                           onChange={(e) => setMobileValue(e.target.value.replace(/\D/g, ''))}
+                          onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+                          onKeyDown={(e) => {
+                            if (e.ctrlKey || e.metaKey) return;
+                            const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
+                            if (allowed.includes(e.key)) return;
+                            if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                          }}
+                          onPaste={(e) => {
+                            const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                            e.preventDefault();
+                            setMobileValue((prev) => (prev + text).slice(0, 15));
+                          }}
+                          onDrop={(e) => e.preventDefault()}
+                          maxLength={15}
                           className="bg-white border-orange-300 flex-1"
                         />
                       </div>
@@ -622,14 +645,41 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         <div className="flex gap-2">
           <div className="w-1/3">
             <Label htmlFor="mobile_prefix" className="text-purple-300">Prefix</Label>
-            <Input id="mobile_prefix" value={formData.mobile_prefix} onChange={(e) => {
-              const digits = e.target.value.replace(/[^0-9]/g, '');
-              setFormData({ ...formData, mobile_prefix: '+' + digits });
-            }} className="bg-slate-800/50 border-purple-500/30 mt-1 h-10" />
+            <Input id="mobile_prefix" value={formData.mobile_prefix}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/[^0-9]/g, '');
+                setFormData({ ...formData, mobile_prefix: '+' + digits });
+              }}
+              onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+              onPaste={(e) => {
+                const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                e.preventDefault();
+                setFormData({ ...formData, mobile_prefix: '+' + text });
+              }}
+              onDrop={(e) => e.preventDefault()}
+              className="bg-slate-800/50 border-purple-500/30 mt-1 h-10" />
           </div>
           <div className="w-2/3">
             <Label htmlFor="mobile_number" className="text-purple-300">Mobile</Label>
-            <Input id="mobile_number" inputMode="numeric" pattern="[0-9]*" type="tel" className="bg-slate-800/50 border-purple-500/30 mt-1 h-10" value={formData.mobile_number} onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value as unknown as number })} />
+            <Input id="mobile_number" inputMode="numeric" pattern="[0-9]*" type="tel"
+              className="bg-slate-800/50 border-purple-500/30 mt-1 h-10"
+              value={formData.mobile_number}
+              onChange={(e) => setFormData({ ...formData, mobile_number: (e.target.value || '').replace(/\D/g, '') })}
+              onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+              onKeyDown={(e) => {
+                if (e.ctrlKey || e.metaKey) return;
+                const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
+                if (allowed.includes(e.key)) return;
+                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+              }}
+              onPaste={(e) => {
+                const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                e.preventDefault();
+                setFormData((prev) => ({ ...prev, mobile_number: String(prev.mobile_number || '').concat(text).slice(0, 15) }));
+              }}
+              onDrop={(e) => e.preventDefault()}
+              maxLength={15}
+            />
           </div>
         </div>
         {!adminToEdit && (

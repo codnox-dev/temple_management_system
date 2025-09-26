@@ -54,48 +54,52 @@ const RitualSection = () => {
           </p>
         </div>
 
-        {/* Rituals Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Rituals - Centered layout */}
+        <div className="flex flex-wrap justify-center gap-6">
           {isLoading && Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="card-ritual group relative animate-pulse">
-               <div className="h-24 bg-slate-200 rounded-full w-24 mx-auto mb-4"></div>
-               <div className="h-6 bg-slate-200 rounded w-3/4 mx-auto mb-2"></div>
-               <div className="h-4 bg-slate-200 rounded w-full mx-auto mb-4"></div>
-               <div className="h-4 bg-slate-200 rounded w-full mx-auto mb-4"></div>
-               <div className="flex justify-between">
-                <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-                <div className="h-6 bg-slate-200 rounded w-1/4"></div>
-               </div>
+            <div key={i} className="w-full md:w-1/2 lg:w-1/4 max-w-sm">
+              <div className="card-ritual group relative animate-pulse">
+                 <div className="h-24 bg-slate-200 rounded-full w-24 mx-auto mb-4"></div>
+                 <div className="h-6 bg-slate-200 rounded w-3/4 mx-auto mb-2"></div>
+                 <div className="h-4 bg-slate-200 rounded w-full mx-auto mb-4"></div>
+                 <div className="h-4 bg-slate-200 rounded w-full mx-auto mb-4"></div>
+                 <div className="flex justify-between">
+                  <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+                  <div className="h-6 bg-slate-200 rounded w-1/4"></div>
+                 </div>
+              </div>
             </div>
           ))}
 
           {isError && <p className="text-red-500 col-span-full text-center">Failed to load rituals. Please try again later.</p>}
 
           {rituals?.map((ritual) => (
-            <div key={ritual._id} className="card-ritual group relative flex flex-col">
-              {ritual.popular && (
-                <div className="absolute -top-3 -right-3 bg-gradient-golden text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium z-10">
-                  Popular
+            <div key={ritual._id} className="w-full md:w-1/2 lg:w-1/4 max-w-sm">
+              <div className="card-ritual group relative flex flex-col">
+                {ritual.popular && (
+                  <div className="absolute -top-3 -right-3 bg-gradient-golden text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium z-10">
+                    Popular
+                  </div>
+                )}
+                
+                <div className="text-center mb-4 flex-grow">
+                  <div className="inline-flex p-4 bg-gradient-divine rounded-full mb-4 group-hover:scale-110 transition-transform duration-300">
+                    <RitualIcon name={ritual.icon} className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-playfair font-semibold mb-2 text-foreground">
+                    {ritual.name}
+                  </h3>
+                  <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
+                    {ritual.description}
+                  </p>
                 </div>
-              )}
-              
-              <div className="text-center mb-4 flex-grow">
-                <div className="inline-flex p-4 bg-gradient-divine rounded-full mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <RitualIcon name={ritual.icon} className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="text-xl font-playfair font-semibold mb-2 text-foreground">
-                  {ritual.name}
-                </h3>
-                <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
-                  {ritual.description}
-                </p>
-              </div>
 
-              <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto">
-                <span>Duration: {ritual.duration}</span>
-                <span className="text-xl font-playfair font-bold text-primary">
-                  ₹{ritual.price}
-                </span>
+                <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto">
+                  <span>Duration: {ritual.duration}</span>
+                  <span className="text-xl font-playfair font-bold text-primary">
+                    ₹{ritual.price}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

@@ -22,6 +22,7 @@ const Navigation = () => {
     { label: 'Rituals', path: '#rituals' },
     { label: 'Events', path: '#events' },
     { label: 'Gallery', path: '#gallery' }, // This will now scroll to the gallery preview section
+    { label: 'Committee', path: '#committee' },
     { label: 'Contact', path: '#contact' },
   ];
 
@@ -57,8 +58,13 @@ const Navigation = () => {
   const handleNavClick = (e, path) => {
     e.preventDefault();
     if (path.startsWith('#')) {
-      // Smooth scroll for internal links
-      document.querySelector(path)?.scrollIntoView({ behavior: 'smooth' });
+      const targetId = path.substring(1);
+      // If we're already on the homepage, smooth scroll; otherwise navigate to home and then scroll there.
+      if (window.location.pathname === '/') {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        navigate('/', { state: { scrollTo: targetId } });
+      }
     } else {
       // Use react-router for external links
       navigate(path);
