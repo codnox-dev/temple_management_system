@@ -191,8 +191,8 @@ const RitualBooking = () => {
 				</Card>
 
 				<Card className="p-6 mb-8 border-primary/30 ring-1 ring-primary/10 card-matrix">
-					<h2 className="text-2xl font-playfair font-semibold mb-6 text-foreground">Select Rituals</h2>
-					<div className="mb-6"><Label htmlFor="search">Search Ritual</Label><Input id="search" placeholder="Search by name or description..." value={search} onChange={e => setSearch(e.target.value)} className="mt-1" /></div>
+					<h2 className="text-2xl font-playfair font-semibold mb-8 py-6 text-foreground">Select Rituals</h2>
+					<div className="mb-6 p-6"><Label htmlFor="search">Search Ritual</Label><Input id="search" placeholder="Search by name or description..." value={search} onChange={e => setSearch(e.target.value)} className="mt-1" /></div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 						{isLoading ? Array.from({ length: 3 }).map((_, i) => (
 							<div key={`skeleton-${i}`} className="rounded-lg border border-primary/20 p-4 h-40 bg-slate-200 animate-pulse"></div>
@@ -215,7 +215,9 @@ const RitualBooking = () => {
                                         <RitualIcon name={ritual.icon} className="h-5 w-5 text-primary" />
                                         <div className="text-lg font-medium text-foreground">{ritual.name}</div>
                                     </div>
-                                    <p className="text-sm text-muted-foreground mb-3">{ritual.description}</p>
+                                    <p className="text-sm text-muted-foreground mb-3 overflow-hidden line-clamp-3">
+                                        {ritual.description}
+                                    </p>
                                     <div className="flex items-center justify-between text-sm mb-2">
                                         <span className="text-muted-foreground">Duration: {ritual.duration}</span>
                                         <span className="font-semibold text-primary">₹{ritual.price}</span>

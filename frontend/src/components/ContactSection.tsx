@@ -1,11 +1,15 @@
 import { Phone, Mail, MapPin } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 const ContactSection = () => {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: formRef, isVisible: formVisible } = useScrollAnimation();
+  const { ref: detailsRef, isVisible: detailsVisible } = useScrollAnimation();
   return (
     <section id="contact" className="py-20 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
           <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
             Contact <span className="text-primary">Us</span>
           </h2>
@@ -16,7 +20,7 @@ const ContactSection = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           {/* Contact Form */}
-          <div className="card-divine">
+          <div ref={formRef} className={`card-divine ${formVisible ? 'animate-slide-in-left' : ''}`}>
             <h3 className="text-2xl font-playfair font-semibold mb-6">Send us a Message</h3>
             <form className="space-y-6">
               <div>
@@ -40,7 +44,7 @@ const ContactSection = () => {
           </div>
 
           {/* Contact Details */}
-          <div className="space-y-8">
+      <div ref={detailsRef} className={`space-y-8 ${detailsVisible ? 'animate-slide-in-right' : ''}`}>
              <div className="flex items-start space-x-4 group">
                 <div className="p-3 bg-gradient-divine rounded-lg group-hover:scale-110 transition-transform duration-300">
                     <MapPin className="h-6 w-6 text-white" />

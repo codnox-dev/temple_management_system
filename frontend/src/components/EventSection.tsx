@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import api, { get, API_BASE_URL } from '../api/api';
 import { resolveImageUrl } from '../lib/utils';
 import { Calendar, Clock, MapPin } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import ImageWithBlur from '@/components/ImageWithBlur';
 
 // Define the shape of an event object
 interface Event {
@@ -41,6 +43,8 @@ const EventSection = () => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: eventsRef, isVisible: eventsVisible } = useScrollAnimation();
 
   if (isLoading) return <div>Loading events...</div>;
   if (isError) return <div>Error fetching events.</div>;
@@ -54,7 +58,7 @@ const EventSection = () => {
   return (
     <section className="py-20 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
           <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
             Upcoming <span className="text-primary">Events</span>
           </h2>
@@ -64,17 +68,17 @@ const EventSection = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {displayedEvents?.map((event) => {
+        <div ref={eventsRef} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {displayedEvents?.map((event, index) => {
             const isFeatured = event._id === featuredId;
             return (
-              <div key={event._id} className={`${isFeatured ? 'lg:col-span-2' : ''}`}>
+              <div key={event._id} className={`${isFeatured ? 'lg:col-span-2' : ''} ${eventsVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: `${index * 0.2}s`}}>
                 <div className={`relative group overflow-hidden flex flex-col rounded-xl border ${isFeatured ? 'border-orange-500 ring-2 ring-orange-400/70 shadow-xl shadow-orange-200' : 'border-transparent card-divine'} bg-white`}>
                   <div className={`relative overflow-hidden ${isFeatured ? 'h-64' : 'h-48'}`}>
-                    <img
+                    <ImageWithBlur
                       src={resolveImageUrl(event.image)}
                       alt={event.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full"
                     />
                     {isFeatured && (
                       <span className="absolute top-3 left-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">

@@ -328,7 +328,9 @@ const ManageRituals = () => {
                                             ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
                                         {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
                                     </p>
-                                    <p className="text-sm text-purple-300">{ritual.description}</p>
+                                    <p className="text-sm text-purple-300 overflow-hidden line-clamp-3">
+                                        {ritual.description}
+                                    </p>
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
