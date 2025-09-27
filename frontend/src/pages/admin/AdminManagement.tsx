@@ -127,13 +127,13 @@ const AdminManagement = () => {
   const permissionCount = new Set(admins.flatMap(a => a.permissions)).size;
 
   return (
-    <div className="space-y-6 text-white w-full">
-      <div className="flex items-center justify-between">
+  <div className="space-y-6 w-full">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">
             Admin Management
           </h1>
-          <p className="text-purple-300 mt-2">
+          <p className="text-purple-100/90 mt-2">
             Create and manage temple administrators and users
           </p>
         </div>
@@ -174,14 +174,14 @@ const AdminManagement = () => {
           </h2>
         </div>
         <div className="overflow-x-auto w-full">
-          <Table className="w-full min-w-full table-fixed text-sm text-left text-gray-400">
+          <Table className="w-full min-w-full table-fixed text-sm text-left text-gray-300">
             <TableHeader>
               <TableRow className="border-b border-purple-500/30">
-                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Admin</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Contact</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300 w-1/6">Status</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300 w-1/6">Role</TableHead>
-                <TableHead className="px-6 py-3 text-purple-300 w-1/4">Profile</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/2 sm:w-1/4">Admin</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/4 hidden sm:table-cell">Contact</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/6 hidden md:table-cell">Status</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/6 hidden md:table-cell">Role</TableHead>
+                <TableHead className="px-6 py-3 text-purple-300 w-1/2 sm:w-1/4">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -319,21 +319,21 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
             />
           </button>
           <div>
-            <div className="font-semibold text-white">{admin.name}</div>
-            <div className="text-xs text-gray-400">{admin.username}</div>
+            <div className="font-semibold text-white break-words max-w-xs hidden sm:block">{admin.name}</div>
+            <div className="text-xs text-gray-300 break-words max-w-xs">{admin.username}</div>
           </div>
         </div>
       </TableCell>
-      <TableCell className="px-6 py-4">
-        <div>{admin.email}</div>
-        <div>{`${admin.mobile_prefix} ${admin.mobile_number}`}</div>
+      <TableCell className="px-6 py-4 hidden sm:table-cell">
+        <div className="break-words max-w-xs">{admin.email}</div>
+        <div className="break-words max-w-xs">{`${admin.mobile_prefix} ${admin.mobile_number}`}</div>
       </TableCell>
-      <TableCell className="px-6 py-4">
+      <TableCell className="px-6 py-4 hidden md:table-cell">
         <Badge variant={admin.isRestricted ? 'destructive' : 'secondary'} className={admin.isRestricted ? 'bg-red-600/20 text-red-300 border-red-500/30' : 'bg-green-600/20 text-green-300 border-green-500/30'}>
           {admin.isRestricted ? 'Restricted' : 'Active'}
         </Badge>
       </TableCell>
-      <TableCell className="px-6 py-4">{admin.role}</TableCell>
+      <TableCell className="px-6 py-4 hidden md:table-cell">{admin.role}</TableCell>
       <TableCell className="px-6 py-4">
         <div className="flex flex-wrap gap-2">
           <Button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white" onClick={() => setIsProfileDialogOpen(true)}>Open Profile</Button>
@@ -343,7 +343,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
           </Button>
         </div>
         <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-          <DialogContent className="max-w-4xl bg-white border border-orange-200 text-slate-800">
+          <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto overscroll-contain bg-white border border-orange-200 text-slate-800">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-orange-600">
                 Admin Profile: {admin.name}
@@ -362,7 +362,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                 </div>
               </div>
               <div className="md:col-span-2 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Email panel */}
                   <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">

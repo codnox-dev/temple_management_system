@@ -299,6 +299,29 @@ body { max-width: 100%; overflow-x: hidden; }
 .admin-surface .admin-main [class*="bg-purple-800"] {
   background: #ffffff !important; backdrop-filter: none !important; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04), 0 1px 3px 1px rgba(0,0,0,0.08);
 }
+.admin-surface .admin-main .text-white { color: #111827 !important; }
+.admin-surface .admin-main .text-gray-300, 
+.admin-surface .admin-main .text-slate-300 { color: #374151 !important; }
+.admin-surface .admin-main .text-purple-100\/90 { color: #374151 !important; }
+.admin-surface .admin-main .text-purple-200 { color: #4b5563 !important; }
+.admin-surface .admin-main .text-purple-300 { color: #dc4a0a !important; }
+.admin-surface .admin-main .text-purple-400 { color: #ea580c !important; }
+.admin-surface .admin-main .text-pink-400 { color: #fb923c !important; }
+.admin-surface .admin-main .border-purple-500\/30, 
+.admin-surface .admin-main .border-purple-500\/20 { border-color:#fdba74 !important; }
+.admin-surface .admin-main .bg-purple-400\/20, 
+.admin-surface .admin-main .bg-pink-400\/20, 
+.admin-surface .admin-main .bg-amber-400\/20 { background: #fff3e6 !important; }
+.admin-surface .admin-main .shadow-purple-500\/10 { box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important; }
+.admin-surface table thead tr { background:#fff3e6; }
+.admin-surface table thead th { color:#475569; }
+.admin-surface table tbody tr { border-color:#e5e7eb; }
+.admin-surface table tbody tr:hover { background:#fff7ed; }
+.admin-surface .text-amber-400 { color: #b45309 !important; }
+.admin-surface .text-green-300 { color: #15803d !important; }
+.admin-surface .text-red-300 { color: #b91c1c !important; }
+.admin-surface .bg-green-600\/20 { background:#dcfce7 !important; }
+.admin-surface .bg-red-600\/20 { background:#fee2e2 !important; }
 .admin-surface h1, .admin-surface h2, .admin-surface h3, .admin-surface h4 { background: none !important; -webkit-background-clip: initial !important; background-clip: initial !important; color:#111827 !important; }
 .admin-surface .text-purple-400, .admin-surface .text-purple-300, .admin-surface .text-pink-400 { color:#ea580c !important; }
 .admin-surface .border-purple-500\/30, .admin-surface .border-purple-500\/20 { border-color:#fdba74 !important; }
@@ -315,4 +338,7 @@ body { max-width: 100%; overflow-x: hidden; }
 .admin-surface :focus-visible { outline: 2px solid rgba(249,115,22,0.4); outline-offset:2px; }
 .admin-surface .bg-amber-500\/20 { background:#ffedd5 !important; color:#9a3412 !important; border-color:#fdba74 !important; }
 .admin-section-title { font-size:0.75rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:rgba(234,88,12,0.8); }
+
+/* Ensure dialogs are usable on mobile */
+.admin-surface [role="dialog"] { max-height: 90vh; overflow-y: auto; }
 

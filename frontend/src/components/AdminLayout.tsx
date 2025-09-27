@@ -14,28 +14,29 @@ const AdminLayout = () => {
   return (
     // admin-surface class will scope white/orange theme overrides (see index.css additions)
     <div className="min-h-screen w-full admin-surface">
-      {/* Overlay for mobile */}
+      {/* Overlay for mobile - sits above header to allow closing sidebar */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           onClick={toggleSidebar}
           aria-hidden="true"
         />
       )}
       <div className="flex">
-        <TempleSidebar isOpen={isSidebarOpen} />
+  <TempleSidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
         
         <div className="flex-1 flex flex-col min-w-0 admin-main">
-          {/* Header */}
-          <header className="relative h-16 admin-header flex items-center justify-between px-6 flex-shrink-0 z-10 border-b">
+          {/* Header - fixed to always stay visible */}
+          <header className="fixed inset-x-0 top-0 h-16 admin-header flex items-center justify-between px-6 flex-shrink-0 z-30 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
             <div className="flex items-center gap-4">
               {/* Sidebar toggle */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-neutral-600 hover:bg-orange-100 hover:text-orange-600 transition-colors"
+                className={`h-9 w-9 text-neutral-600 hover:bg-orange-100 hover:text-orange-600 transition-colors ${isSidebarOpen ? 'hidden' : ''}`}
                 onClick={toggleSidebar}
                 aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                aria-expanded={isSidebarOpen}
               >
                 <Menu className="h-4 w-4" />
               </Button>
@@ -72,7 +73,7 @@ const AdminLayout = () => {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-6 pt-16 overflow-auto">
             <Outlet />
           </main>
         </div>

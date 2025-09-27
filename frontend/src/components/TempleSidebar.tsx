@@ -19,9 +19,9 @@ import {
   ShoppingCart
 } from 'lucide-react';
 
-type SidebarProps = { isOpen?: boolean };
+type SidebarProps = { isOpen?: boolean; onToggle?: () => void };
 
-const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
+const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => {
   const { user } = useAuth() as any;
   const roleId = user?.role_id ?? 99;
 
@@ -45,14 +45,15 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
 
   // Visibility classes: hide by default; show when isOpen.
   // On small screens, it's an absolute overlay. On large screens, it's relative when open, absolute when closed.
-  const baseClasses = "bg-white text-neutral-800 w-72 min-h-screen p-6 shadow-lg border-r border-neutral-200 z-30 transition-transform duration-300 ease-in-out admin-sidebar";
-  const responsiveClasses = `fixed ${isOpen ? 'lg:relative' : 'lg:absolute lg:top-0 lg:left-0'}`;
+  const baseClasses = "bg-white text-neutral-800 w-72 min-h-screen p-6 shadow-lg border-r border-neutral-200 z-50 transition-transform duration-300 ease-in-out admin-sidebar";
+  const responsiveClasses = `fixed top-0 left-0 ${isOpen ? 'lg:relative' : 'lg:absolute lg:top-0 lg:left-0'}`;
   const visibilityClasses = isOpen ? "translate-x-0" : "-translate-x-full";
 
   return (
     <aside className={`${baseClasses} ${responsiveClasses} ${visibilityClasses}`}>
       <div className="mb-6">
-        <div className="flex items-center space-x-3 mb-1">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
@@ -61,6 +62,19 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false }) => {
             </svg>
           </div>
           <h1 className="text-lg font-semibold tracking-tight text-neutral-800">Temple Admin</h1>
+          </div>
+          {/* Toggle button lives inside sidebar and closes it; visible on all sizes */}
+          <button
+            className="inline-flex items-center justify-center h-9 w-9 rounded-md text-neutral-600 hover:bg-orange-50 hover:text-orange-600"
+            aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
+            onClick={() => onToggle?.()}
+          >
+            {/* Same hamburger icon used as a toggle */}
+            <span className="sr-only">Toggle sidebar</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 5h14a1 1 0 110 2H3a1 1 0 110-2zm0 4h14a1 1 0 110 2H3a1 1 0 110-2zm0 4h14a1 1 0 110 2H3a1 1 0 110-2z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
         <p className="text-xs text-neutral-500">Sacred Management System</p>
       </div>

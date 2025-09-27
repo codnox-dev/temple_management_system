@@ -246,7 +246,7 @@ const ManageRituals = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Rituals</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">Manage Rituals</h1>
             
             {/* Statistics Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -283,7 +283,7 @@ const ManageRituals = () => {
                         </div>
                         <div>
                             <Label htmlFor="description" className="text-purple-300">Description</Label>
-                            <Input id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="bg-slate-800/50 border-purple-500/30 text-white" required />
+                            <textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1 w-full rounded-md bg-slate-800/50 border border-purple-500/30 text-white p-2 min-h-24 resize-y" required />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Duration and Icon inputs */}
@@ -454,7 +454,7 @@ const ManageRituals = () => {
                 <div className="space-y-2">
                     {rituals?.map((ritual) => (
                         <Card key={ritual._id} className="p-4 bg-slate-900/80 backdrop-blur-sm border-purple-500/30">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div className="flex-grow">
                                     <div className="font-semibold text-white">{ritual.name} - ₹{ritual.price}</div>
                                     <p className="text-xs text-purple-400">
@@ -469,11 +469,11 @@ const ManageRituals = () => {
                                     ) : (
                                         <p className="text-xs text-purple-400">📅 Available: All time</p>
                                     )}
-                                    <p className="text-sm text-purple-300 overflow-hidden line-clamp-3">
+                                    <p className="text-sm text-purple-100/90 break-words overflow-hidden line-clamp-3 max-h-24 overflow-auto pr-1">
                                         {ritual.description}
                                     </p>
                                 </div>
-                                <div className="flex gap-2 ml-4">
+                                <div className="flex gap-2 ml-auto">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
                                     <Button variant="destructive" size="icon" onClick={() => deleteMutation.mutate(ritual._id)} disabled={roleId > 4 || deleteMutation.isPending} className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"><Trash2 className="h-4 w-4" /></Button>
                                 </div>

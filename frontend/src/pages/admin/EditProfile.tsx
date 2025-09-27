@@ -17,6 +17,7 @@ export interface ProfileUpdatePayload {
 
 const EditProfile: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', email: '', mobile_prefix: '+91', mobile_number: '' });
+  const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -43,8 +44,9 @@ const EditProfile: React.FC = () => {
         setRole(userData.role);
         // cache last_profile_update locally to avoid repeated API calls on every click
         setLastProfileUpdate((userData as any)?.last_profile_update || null);
-        const pic = userData.profile_picture || null;
-        setImagePreview(pic ? (pic.startsWith('/static') || pic.startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
+  const pic = userData.profile_picture || null;
+  setImagePreview(pic ? (pic.startsWith('/static') || pic.startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
+  setSavedProfile(userData);
       } catch (err) {
         console.error("Failed to fetch user data:", err);
         setError("Could not load your profile data. Please try again later.");
@@ -156,8 +158,14 @@ const EditProfile: React.FC = () => {
         setImagePreview(p ? (String(p).startsWith('/static') || String(p).startsWith('/api/') ? `${API_BASE_URL}${p}` : p) : null);
       }
       // Using the 'put' helper directly from api.ts
-      await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);
+      const updated = await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);
       toast.success('Profile updated successfully!');
+      if (updated) {
+        setSavedProfile(updated);
+        const pic = updated.profile_picture || null;
+        setImagePreview(pic ? (String(pic).startsWith('/static') || String(pic).startsWith('/api/') ? `${API_BASE_URL}${pic}` : String(pic)) : imagePreview);
+      }
+      setSelectedFile(null);
       setIsEditing(false); // Exit editing mode after saving
     } catch (err) {
       console.error("Failed to update profile:", err);
@@ -177,12 +185,30 @@ const EditProfile: React.FC = () => {
 
   return (
     <div className="bg-white rounded-2xl p-8 max-w-4xl mx-auto my-10 border border-orange-200 shadow-sm">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
         <h1 className="text-3xl font-bold text-orange-600">Profile</h1>
         <button
           type="button"
-          onClick={() => setIsEditing((v) => !v)}
-          className="flex items-center gap-2 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300"
+          onClick={() => {
+            setIsEditing((v) => {
+              const next = !v;
+              if (!next) {
+                if (savedProfile) {
+                  setFormData({
+                    name: savedProfile.name,
+                    email: savedProfile.email,
+                    mobile_prefix: savedProfile.mobile_prefix || '+91',
+                    mobile_number: String(savedProfile.mobile_number ?? ''),
+                  });
+                  setSelectedFile(null);
+                  const pic = savedProfile.profile_picture || null;
+                  setImagePreview(pic ? (pic.startsWith('/static') || pic.startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
+                }
+              }
+              return next;
+            });
+          }}
+          className="flex items-center gap-2 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300 shrink-0 w-full sm:w-auto self-start sm:self-auto"
         >
           <Pencil className="w-4 h-4" />
           {isEditing ? 'Stop Editing' : 'Edit Profile'}
@@ -250,8 +276,8 @@ const EditProfile: React.FC = () => {
           </div>
 
           {/* Phone split: simple country code + number input */}
-          <div className={`flex gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
-            <div className="relative w-40">
+          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
+            <div className="relative sm:col-span-1">
               <input
                 type="text"
                 name="mobile_prefix"
@@ -272,7 +298,7 @@ const EditProfile: React.FC = () => {
                 disabled={!isEditing}
               />
             </div>
-            <div className="relative flex-1">
+            <div className="relative sm:col-span-2">
               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
               <input
                 type="tel"
@@ -307,10 +333,10 @@ const EditProfile: React.FC = () => {
             <span className="text-slate-900 font-medium">{role}</span>
           </div>
           
-          <div className="flex justify-end items-center gap-4 pt-4">
+          <div className="flex flex-wrap justify-end items-center gap-4 pt-4">
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 w-40 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 w-full sm:w-40 bg-orange-600 text-white py-2.5 px-6 rounded-full font-semibold shadow-md hover:bg-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSaving || !isEditing}
             >
               {isSaving ? (

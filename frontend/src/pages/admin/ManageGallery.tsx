@@ -281,28 +281,28 @@ const ManageGallery = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Gallery</h1>
-                <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">Manage Gallery</h1>
+                <div className="flex items-center gap-2 flex-wrap">
                     <Button
                         variant="outline"
                         onClick={() => setHomePreviewOpen(true)}
-                        className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
+                        className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50"
                     >
                         Configure Home Preview
                     </Button>
                     <Button
                         onClick={() => { setDesignerMode('full'); setDesignerInlineOpen(true); }}
-                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                     >
                         Preview Full Gallery
                     </Button>
                     <Link to={{ pathname: '/gallery' }} state={{ fromAdmin: '/admin/gallery' }} className="inline-flex">
-                        <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+                        <Button variant="outline" className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50">
                             View Public Gallery <ExternalLink className="ml-2 h-4 w-4" />
                         </Button>
                     </Link>
                     <Link to={{ pathname: '/' }} state={{ fromAdmin: '/admin/gallery', scrollTo: 'gallery' }} className="inline-flex">
-                        <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
+                        <Button variant="outline" className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50">
                             View Home Section <ExternalLink className="ml-2 h-4 w-4" />
                         </Button>
                     </Link>
@@ -352,16 +352,16 @@ const ManageGallery = () => {
 
             {/* Slideshow Config Button */}
             <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setSlideConfigOpen(true)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Configure Slideshow</Button>
+                <Button variant="outline" onClick={() => setSlideConfigOpen(true)} className="border-purple-500/40 text-purple-100 hover:bg-purple-900/60">Configure Slideshow</Button>
             </div>
 
             {/* Inline Home Preview Config Section */}
             {homePreviewOpen && (
-                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/40 shadow-lg shadow-purple-500/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-lg font-semibold text-purple-300">Configure Home Gallery Preview (6 Slots)</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-purple-100">Configure Home Gallery Preview (6 Slots)</CardTitle>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => setHomePreviewOpen(false)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
+                            <Button variant="outline" onClick={() => setHomePreviewOpen(false)} className="border-purple-500/40 text-purple-100 hover:bg-purple-900/60">Close</Button>
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
                                 try {
@@ -385,29 +385,29 @@ const ManageGallery = () => {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <p className="text-sm text-slate-800">Drag images from the palette into the fixed slots below. Reorder by dragging between slots.</p>
+                        <p className="text-sm text-purple-100/90">Drag images from the palette into the fixed slots below. Reorder by dragging between slots.</p>
 
                         {/* Slots layout */}
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-2 order-1">
                                     <Slot idx={0} size="lg" />
                                 </div>
-                                <div className="space-y-4">
+                                <div className="space-y-4 order-2">
                                     <Slot idx={1} size="md" />
                                     <Slot idx={2} size="md" />
                                 </div>
                             </div>
-                            <div className="flex flex-wrap items-stretch justify-center gap-4">
-                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={3} size="sm" /></div>
-                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={4} size="sm" /></div>
-                                <div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={5} size="sm" /></div>
+                            <div className="flex flex-col sm:flex-row flex-wrap items-stretch justify-center gap-4">
+                                <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm"><Slot idx={3} size="sm" /></div>
+                                <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm"><Slot idx={4} size="sm" /></div>
+                                <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm"><Slot idx={5} size="sm" /></div>
                             </div>
                         </div>
 
                         {/* Draggable palette */}
                         <div>
-                            <div className="text-sm text-slate-800 mb-2">Available Images</div>
+                            <div className="text-sm text-purple-100/90 mb-2">Available Images</div>
                             <div className="flex gap-3 overflow-x-auto pb-2">
                                 {(images || []).map(img => (
                                     <div key={img._id} className={`w-28 h-20 rounded-md overflow-hidden border ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-move'} border-purple-500/40 flex-shrink-0`}
@@ -425,11 +425,11 @@ const ManageGallery = () => {
 
             {/* Inline Slideshow Config Section */}
             {slideConfigOpen && (
-                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/40 shadow-lg shadow-purple-500/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-lg font-semibold text-purple-300">Configure Slideshow</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-purple-100">Configure Slideshow</CardTitle>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
+                            <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50">Close</Button>
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
                                 try {
@@ -482,7 +482,7 @@ const ManageGallery = () => {
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold text-slate-800">Selected Slides Order</h4>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Clear</Button>
+                                            <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50 disabled:opacity-50">Clear</Button>
                                 </div>
                             </div>
                             {slides.length === 0 ? (
@@ -536,13 +536,13 @@ const ManageGallery = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <label className="text-sm text-slate-800">Interval (ms)</label>
-                            <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
-                            <label className="text-sm text-slate-800">Transition (ms)</label>
-                            <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white w-28" />
-                            <label className="text-sm text-slate-800">Aspect Ratio</label>
-                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-slate-800/50 border-purple-500/30 text-white rounded px-2 py-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 items-center">
+                            <label className="text-sm text-slate-800 col-span-1">Interval (ms)</label>
+                            <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 w-full" />
+                            <label className="text-sm text-slate-800 col-span-1">Transition (ms)</label>
+                            <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 w-full" />
+                            <label className="text-sm text-slate-800 col-span-1">Aspect Ratio</label>
+                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 rounded px-2 py-2 w-full">
                                 <option value="16:9">16:9</option>
                                 <option value="4:3">4:3</option>
                                 <option value="1:1">1:1</option>

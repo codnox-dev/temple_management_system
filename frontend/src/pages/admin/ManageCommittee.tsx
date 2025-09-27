@@ -201,23 +201,23 @@ const ManageCommittee = () => {
     if (isLoading) return <div>Loading...</div>;
 
     return (
-        <div className="p-6">
-                        <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
-                                <h1 className="text-2xl font-bold">Manage Committee Members</h1>
+    <div className="p-6">
+            <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
+                <h1 className="text-2xl font-bold text-slate-900">Manage Committee Members</h1>
                 {!isReadOnly && (
-                                        <div className="flex gap-2 flex-wrap">
-                        <Button onClick={() => { resetForm(); setShowForm(true); }}>
+                    <div className="flex gap-2 flex-wrap">
+                        <Button onClick={() => { resetForm(); setShowForm(true); }} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
                             <Plus className="mr-2 h-4 w-4" />
                             Add Member
                         </Button>
-                        <Button variant="outline" onClick={() => setShowOrder(true)}>Configure Order</Button>
+                        <Button variant="outline" onClick={() => setShowOrder(true)} className="border-orange-300 text-orange-700 bg-white hover:bg-orange-50">Configure Order</Button>
                                                 <Link to={{ pathname: '/committee' }} state={{ fromAdmin: '/admin/committee' }} className="inline-flex">
-                                                    <Button variant="outline">
+                                                    <Button variant="outline" className="border-orange-300 text-orange-700 bg-white hover:bg-orange-50">
                                                         View Public Members <ExternalLink className="ml-2 h-4 w-4" />
                                                     </Button>
                                                 </Link>
                                                 <Link to={{ pathname: '/' }} state={{ fromAdmin: '/admin/committee', scrollTo: 'committee' }} className="inline-flex">
-                                                    <Button variant="outline">
+                                                    <Button variant="outline" className="border-orange-300 text-orange-700 bg-white hover:bg-orange-50">
                                                         View Home Section <ExternalLink className="ml-2 h-4 w-4" />
                                                     </Button>
                                                 </Link>
@@ -227,9 +227,9 @@ const ManageCommittee = () => {
 
             {/* Inline Add/Edit Form */}
             {!isReadOnly && showForm && (
-                <Card className="mb-6">
+                <Card className="mb-6 overflow-hidden">
                     <CardHeader>
-                        <CardTitle>{isEditing ? 'Edit' : 'Add'} Committee Member</CardTitle>
+                        <CardTitle className="text-white">{isEditing ? 'Edit' : 'Add'} Committee Member</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -250,8 +250,9 @@ const ManageCommittee = () => {
                                 value={formData.profile_description}
                                 onChange={(e) => setFormData(prev => ({ ...prev, profile_description: e.target.value }))}
                                 required
+                                className="min-h-24 resize-y"
                             />
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <Input
                                     placeholder="Prefix"
                                     value={formData.mobile_prefix}
@@ -326,7 +327,7 @@ const ManageCommittee = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="flex gap-2 justify-end">
+                            <div className="flex gap-2 justify-end flex-wrap">
                                 <Button type="button" variant="outline" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</Button>
                                 <Button type="submit" disabled={mutation.isPending || uploading}>
                                     {mutation.isPending || uploading ? 'Saving...' : (isEditing ? 'Update' : 'Save')}
@@ -339,14 +340,14 @@ const ManageCommittee = () => {
 
             {/* Inline Configure Order Section */}
             {!isReadOnly && showOrder && (
-                <Card className="mb-6">
-                    <CardHeader className="flex flex-row items-center justify-between">
+                <Card className="mb-6 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
                         <CardTitle>Configure Display Order</CardTitle>
-                        <Button variant="ghost" onClick={() => setShowOrder(false)}>Close</Button>
+                        <Button variant="ghost" onClick={() => setShowOrder(false)} className="text-orange-700 hover:bg-orange-50">Close</Button>
                     </CardHeader>
                     <CardContent>
                         <Tabs defaultValue="preview">
-                            <TabsList>
+                            <TabsList className="flex flex-wrap gap-2">
                                 <TabsTrigger value="preview">Preview Order (Homepage Section)</TabsTrigger>
                                 <TabsTrigger value="view">View Order (Members Page)</TabsTrigger>
                             </TabsList>
