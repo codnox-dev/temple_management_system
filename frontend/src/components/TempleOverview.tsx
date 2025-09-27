@@ -1,4 +1,5 @@
 import { Clock, Users, Award, Sparkles } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { useNavigate } from 'react-router-dom';
 
 const features = [
@@ -26,12 +27,14 @@ const features = [
 
 const TempleOverview = () => {
   const navigate = useNavigate();
+  const { ref: contentRef, isVisible: contentVisible } = useScrollAnimation();
+  const { ref: imageRef, isVisible: imageVisible } = useScrollAnimation();
   return (
     <section className="py-20 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Content */}
-          <div className="space-y-8">
+          <div ref={contentRef} className={`space-y-8 ${contentVisible ? 'animate-slide-in-left' : ''}`}>
             <div>
               <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
                 About Our <span className="text-primary">Sacred Temple</span>
@@ -48,7 +51,7 @@ const TempleOverview = () => {
               {features.map((feature, index) => {
                 const IconComponent = feature.icon;
                 return (
-                  <div key={index} className="flex items-start space-x-4 group">
+                  <div key={index} className={`flex items-start space-x-4 group p-4 rounded-lg bg-card/50 border border-primary/10 hover:border-primary/30 transition-all duration-300 ${contentVisible ? 'animate-fade-in-up' : ''}`} style={{animationDelay: `${0.2 + index * 0.1}s`}}>
                     <div className="p-3 bg-gradient-divine rounded-lg group-hover:scale-110 transition-transform duration-300">
                       <IconComponent className="h-6 w-6 text-white" />
                     </div>
@@ -71,7 +74,7 @@ const TempleOverview = () => {
           </div>
 
           {/* Image Section */}
-          <div className="relative">
+          <div ref={imageRef} className={`relative ${imageVisible ? 'animate-slide-in-right' : ''}`}>
             <div className="relative rounded-2xl overflow-hidden card-divine">
               <img
                 src=""

@@ -462,6 +462,7 @@ const ManageRituals = () => {
                                             ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
                                         {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
                                     </p>
+<<<<<<< HEAD
                                     {ritual.available_from && ritual.available_to ? (
                                         <p className="text-xs text-purple-400">
                                             📅 Available: {new Date(ritual.available_from).toLocaleDateString()} - {new Date(ritual.available_to).toLocaleDateString()}
@@ -470,6 +471,11 @@ const ManageRituals = () => {
                                         <p className="text-xs text-green-400">✓ Available: All Time (No Restrictions)</p>
                                     )}
                                     <p className="text-sm text-purple-300">{ritual.description}</p>
+=======
+                                    <p className="text-sm text-purple-300 overflow-hidden line-clamp-3">
+                                        {ritual.description}
+                                    </p>
+>>>>>>> origin/devan
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>

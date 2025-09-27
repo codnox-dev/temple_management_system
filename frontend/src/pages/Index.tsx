@@ -9,6 +9,8 @@ import GalleryPreview from '@/components/GalleryPreview';
 import CommitteeSection from '@/components/CommitteeSection';
 import Footer from '@/components/Footer';
 import ContactSection from '@/components/ContactSection';
+import ScrollToTop from '@/components/ScrollToTop';
+import ScrollProgress from '@/components/ScrollProgress';
 
 const Index = () => {
   const location = useLocation() as any;
@@ -25,6 +27,7 @@ const Index = () => {
   }, [location.state]);
   return (
     <div className="min-h-screen">
+      <ScrollProgress />
       <Navigation />
       {fromAdmin && (
         <div className="fixed top-24 left-4 z-40">
@@ -37,29 +40,32 @@ const Index = () => {
       )}
       <main>
         {/* Each component is wrapped in a div with an ID that matches the Navigation component's links */}
-        <div id="home">
+        <div id="home" className="scroll-offset">
           <HeroSection />
         </div>
-        <div id="about">
+        <div id="about" className="scroll-offset">
           <TempleOverview />
         </div>
-        <div id="rituals">
+        <div id="rituals" className="scroll-offset">
           <RitualSection />
         </div>
-        <div id="events">
+        <div id="events" className="scroll-offset">
           <EventSection />
         </div>
-        <div id="gallery">
+        <div id="gallery" className="scroll-offset">
           <GalleryPreview />
         </div>
-        <div id="committee">
+        <div id="committee" className="scroll-offset">
           <CommitteeSection />
         </div>
         
-        {/* ContactSection already contains the id="contact", so it doesn't need a wrapper */}
-        <ContactSection />
+        {/* ContactSection already contains the id="contact", add wrapper to ensure scroll offset */}
+        <div id="contact" className="scroll-offset">
+          <ContactSection />
+        </div>
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   );
 };

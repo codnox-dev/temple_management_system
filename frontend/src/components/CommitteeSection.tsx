@@ -4,6 +4,8 @@ import { get } from '@/api/api';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { resolveImageUrl } from '@/lib/utils';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import ImageWithBlur from '@/components/ImageWithBlur';
 
 // Defines the structure for a committee member object.
 interface CommitteeMember {
@@ -32,13 +34,13 @@ const fetchCommitteeMembers = async (): Promise<CommitteeMember[]> => {
  * This component ensures consistent styling for each member's display.
  */
 const MemberCard = ({ member }: { member: CommitteeMember }) => (
-    <div className="text-center flex-shrink-0">
-        <div className="w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-primary/20 shadow-sm">
+    <div className="text-center flex-shrink-0 transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02]">
+        <div className="w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-primary/20 shadow-sm ring-0 hover:ring-2 hover:ring-primary/40 transition">
             {member.image ? (
-                <img
+                <ImageWithBlur
                     src={resolveImageUrl(member.image)}
                     alt={member.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
                 />
             ) : (
                 <div className="w-full h-full bg-muted" />
@@ -63,7 +65,40 @@ const CommitteeSection = () => {
         refetchOnMount: false,
     });
 
-    if (isLoading) return <div>Loading committee members...</div>;
+    // Always call hooks before any conditional returns to keep hook order stable
+    const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+    const { ref: featuredRef, isVisible: featuredVisible } = useScrollAnimation();
+    const { ref: gridRef, isVisible: gridVisible } = useScrollAnimation();
+
+    if (isLoading) {
+        // Polished skeleton loader while fetching members
+        return (
+            <section className="py-20 bg-background">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <div className="h-8 w-80 mx-auto bg-muted animate-pulse rounded" />
+                        <div className="h-4 w-[36rem] max-w-full mx-auto mt-4 bg-muted animate-pulse rounded" />
+                    </div>
+                    <div className="flex justify-center mb-16">
+                        <div className="text-center">
+                            <div className="w-40 h-40 mx-auto rounded-full bg-muted animate-pulse" />
+                            <div className="mt-4 h-6 w-48 mx-auto bg-muted animate-pulse rounded" />
+                            <div className="mt-2 h-4 w-40 mx-auto bg-muted animate-pulse rounded" />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-10 md:gap-x-20">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="text-center">
+                                <div className="w-32 h-32 rounded-full bg-muted animate-pulse" />
+                                <div className="mt-3 h-5 w-24 mx-auto bg-muted animate-pulse rounded" />
+                                <div className="mt-2 h-4 w-20 mx-auto bg-muted animate-pulse rounded" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
+    }
 
     // Sort by preview_order (non-null ascending) and take top 7
     const orderedPreview = (members ?? [])
@@ -91,7 +126,7 @@ const CommitteeSection = () => {
     return (
         <section className="py-20 bg-background">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-16">
+                <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
                     <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
                         Our <span className="text-primary">Committee</span>
                     </h2>
@@ -102,14 +137,14 @@ const CommitteeSection = () => {
 
                 {/* Row 1: The main, centered committee member */}
                 {mainMember && (
-                    <div className="flex justify-center mb-16">
-                        <div className="text-center">
-                            <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-primary shadow-lg">
+                    <div ref={featuredRef} className={`flex justify-center mb-16 ${featuredVisible ? 'animate-scale-in' : ''}`}>
+                        <div className="text-center transition-transform duration-300 hover:-translate-y-1">
+                            <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-primary shadow-lg ring-0 hover:ring-2 hover:ring-primary/40 transition">
                                 {mainMember.image ? (
-                                    <img
+                                    <ImageWithBlur
                                         src={resolveImageUrl(mainMember.image)}
                                         alt={mainMember.name}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full"
                                     />
                                 ) : (
                                     <div className="w-full h-full bg-muted" />
@@ -125,9 +160,11 @@ const CommitteeSection = () => {
 
                 {/* Row 2: A responsive, centered grid for all other members */}
                 {otherMembers && otherMembers.length > 0 && (
-                     <div className="flex flex-wrap justify-center gap-10 md:gap-x-20">
-                        {otherMembers.map((member) => (
-                            <MemberCard key={member._id} member={member} />
+                     <div ref={gridRef} className="flex flex-wrap justify-center gap-10 md:gap-x-20">
+                        {otherMembers.map((member, idx) => (
+                            <div key={member._id} className={`${gridVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: `${idx * 0.12}s`}}>
+                                <MemberCard member={member} />
+                            </div>
                         ))}
                     </div>
                 )}

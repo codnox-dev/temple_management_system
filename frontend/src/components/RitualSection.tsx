@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../api/api';
 import { Flame, Flower2, Heart, Star, LucideProps } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 // --- Type Definitions ---
 interface Ritual {
@@ -39,23 +40,25 @@ const RitualSection = () => {
       queryKey: ['rituals'], 
       queryFn: fetchRituals 
   });
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: cardsRef, isVisible: cardsVisible } = useScrollAnimation();
 
   return (
     <section className="py-20 bg-gradient-sacred">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
           <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
             Sacred <span className="text-primary">Rituals</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed py-6">
             Connect with the divine through our authentic spiritual ceremonies, 
             each designed to bring peace, prosperity, and divine blessings into your life.
           </p>
         </div>
 
         {/* Rituals - Centered layout */}
-        <div className="flex flex-wrap justify-center gap-6">
+        <div ref={cardsRef} className="flex flex-wrap justify-center gap-6">
           {isLoading && Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="w-full md:w-1/2 lg:w-1/4 max-w-sm">
               <div className="card-ritual group relative animate-pulse">
@@ -73,8 +76,8 @@ const RitualSection = () => {
 
           {isError && <p className="text-red-500 col-span-full text-center">Failed to load rituals. Please try again later.</p>}
 
-          {rituals?.map((ritual) => (
-            <div key={ritual._id} className="w-full md:w-1/2 lg:w-1/4 max-w-sm">
+          {rituals?.map((ritual, index) => (
+            <div key={ritual._id} className={`w-full md:w-1/2 lg:w-1/4 max-w-sm ${cardsVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
               <div className="card-ritual group relative flex flex-col">
                 {ritual.popular && (
                   <div className="absolute -top-3 -right-3 bg-gradient-golden text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium z-10">
@@ -89,7 +92,7 @@ const RitualSection = () => {
                   <h3 className="text-xl font-playfair font-semibold mb-2 text-foreground">
                     {ritual.name}
                   </h3>
-                  <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
+                  <p className="text-muted-foreground text-sm mb-4 leading-relaxed overflow-hidden line-clamp-3">
                     {ritual.description}
                   </p>
                 </div>

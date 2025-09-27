@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { get, API_BASE_URL } from '../api/api';
 import { resolveImageUrl } from '../lib/utils';
 import React, { useEffect, useMemo, useState } from 'react';
+import ImageWithBlur from '@/components/ImageWithBlur';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 interface GalleryImage {
 	_id: string;
@@ -49,10 +51,10 @@ const GalleryPreview = () => {
 		return (
 			<div className={`relative rounded-lg overflow-hidden border-2 border-primary/30 bg-slate-900/20 ${base}`}>
 				{img ? (
-					<img
+					<ImageWithBlur
 						src={resolveImageUrl(img.src)}
 						alt={img.title}
-						className="w-full h-full object-cover"
+						className="w-full h-full"
 					/>
 				) : (
 					<div className="w-full h-full flex items-center justify-center text-sm text-purple-300/80">
@@ -66,12 +68,15 @@ const GalleryPreview = () => {
 		);
 	};
 
+	const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+	const { ref: topRef, isVisible: topVisible } = useScrollAnimation();
+	const { ref: bottomRef, isVisible: bottomVisible } = useScrollAnimation();
 
 	return (
 		<section className="py-20 bg-background">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				{/* Section Header */}
-				<div className="text-center mb-16">
+				<div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
 					<h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
 						Sacred <span className="text-primary">Gallery</span>
 					</h2>
@@ -87,20 +92,24 @@ const GalleryPreview = () => {
 				{!isLoading && !isError && (
 					<div className="space-y-6">
 						{/* Top area: 1 large + 2 medium */}
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-							<div className="md:col-span-2">
+						<div ref={topRef} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+							<div className={`md:col-span-2 ${topVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0s'}}>
 								<Slot idx={0} size="lg" />
 							</div>
 							<div className="space-y-6">
-								<Slot idx={1} size="md" />
-								<Slot idx={2} size="md" />
+								<div className={`${topVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0.15s'}}>
+									<Slot idx={1} size="md" />
+								</div>
+								<div className={`${topVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0.3s'}}>
+									<Slot idx={2} size="md" />
+								</div>
 							</div>
 						</div>
 						{/* Bottom area: 3 small centered */}
-						<div className="flex flex-wrap items-stretch justify-center gap-6">
-							<div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={3} size="sm" /></div>
-							<div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={4} size="sm" /></div>
-							<div className="w-full md:w-auto md:flex-1 md:max-w-sm"><Slot idx={5} size="sm" /></div>
+						<div ref={bottomRef} className="flex flex-wrap items-stretch justify-center gap-6">
+							<div className={`w-full md:w-auto md:flex-1 md:max-w-sm ${bottomVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0s'}}><Slot idx={3} size="sm" /></div>
+							<div className={`w-full md:w-auto md:flex-1 md:max-w-sm ${bottomVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0.15s'}}><Slot idx={4} size="sm" /></div>
+							<div className={`w-full md:w-auto md:flex-1 md:max-w-sm ${bottomVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0.3s'}}><Slot idx={5} size="sm" /></div>
 						</div>
 
 						{/* Read-only: no drag-and-drop palette in public preview */}
