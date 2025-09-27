@@ -223,6 +223,22 @@ const ManageRituals = () => {
         }));
     };
 
+    const handleUpdateStockQuantity = (stockId: string, newQuantity: number) => {
+        if (newQuantity <= 0) {
+            toast.error("Quantity must be greater than 0.");
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            required_stock: prev.required_stock.map(item =>
+                item.stock_item_id === stockId 
+                    ? { ...item, quantity_required: newQuantity }
+                    : item
+            )
+        }));
+        toast.success("Stock quantity updated!");
+    };
+
     // --- Derived State for Dashboard ---
     const totalRituals = rituals?.length || 0;
     const popularRituals = rituals?.filter(r => r.popular).length || 0;
@@ -305,7 +321,25 @@ const ManageRituals = () => {
                             <div className="space-y-2 pt-2">
                                 {formData.required_stock.map(item => (
                                     <div key={item.stock_item_id} className="flex items-center justify-between bg-slate-800/60 p-2 rounded-md">
-                                        <p className="text-sm text-white">{item.stock_item_name} - <span className="text-purple-300">Qty: {item.quantity_required}</span></p>
+                                        <div className="flex items-center gap-3 flex-grow">
+                                            <p className="text-sm text-white">{item.stock_item_name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor={`edit-qty-${item.stock_item_id}`} className="text-xs text-purple-400">Qty:</Label>
+                                                <Input
+                                                    id={`edit-qty-${item.stock_item_id}`}
+                                                    type="number"
+                                                    min="1"
+                                                    value={item.quantity_required}
+                                                    onChange={(e) => {
+                                                        const newQty = parseInt(e.target.value, 10);
+                                                        if (!isNaN(newQty) && newQty > 0) {
+                                                            handleUpdateStockQuantity(item.stock_item_id, newQty);
+                                                        }
+                                                    }}
+                                                    className="bg-slate-700/50 border-purple-500/30 text-white w-20 h-8 text-sm"
+                                                />
+                                            </div>
+                                        </div>
                                         <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveStockItem(item.stock_item_id)} className="text-red-400 hover:text-red-300 h-6 w-6"><XCircle className="h-4 w-4" /></Button>
                                     </div>
                                 ))}

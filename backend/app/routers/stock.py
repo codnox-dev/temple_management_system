@@ -9,7 +9,7 @@ from ..models.activity_models import ActivityCreate
 
 router = APIRouter()
 
-@router.post("", response_model=StockItemInDB, status_code=status.HTTP_201_CREATED) # Changed from "/"
+@router.post("/", response_model=StockItemInDB, status_code=status.HTTP_201_CREATED)
 async def create_stock_item(stock_item: StockItemCreate, current_admin: dict = Depends(auth_service.get_current_admin)):
     """
     Create a new stock item.
@@ -32,7 +32,7 @@ async def create_stock_item(stock_item: StockItemCreate, current_admin: dict = D
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("", response_model=List[StockItemInDB]) # Changed from "/"
+@router.get("/", response_model=List[StockItemInDB])
 async def get_all_stock_items():
     """
     Retrieve all stock items.
@@ -49,20 +49,25 @@ async def update_stock_item(item_id: str, stock_item: StockItemUpdate = Body(...
     if not ObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
 
-    updated_item = await stock_service.update_stock_item_service(item_id, stock_item)
-    if updated_item is None:
-        raise HTTPException(status_code=404, detail="Stock item not found")
-    
-    # Log activity
-    activity = ActivityCreate(
-        username=current_admin["username"],
-        role=current_admin["role"],
-        activity=f"Updated the stock item '{updated_item['name']}'.",
-        timestamp=datetime.utcnow()
-    )
-    await create_activity(activity)
-    
-    return updated_item
+    try:
+        updated_item = await stock_service.update_stock_item_service(item_id, stock_item)
+        if updated_item is None:
+            raise HTTPException(status_code=404, detail="Stock item not found")
+        
+        # Log activity
+        activity = ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Updated the stock item '{updated_item.name}'.",
+            timestamp=datetime.utcnow()
+        )
+        await create_activity(activity)
+        
+        return updated_item
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating stock item: {str(e)}")
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_stock_item(item_id: str, current_admin: dict = Depends(auth_service.get_current_admin)):
