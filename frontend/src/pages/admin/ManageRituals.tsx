@@ -29,6 +29,8 @@ interface Ritual {
     booking_start_time?: string;   // NEW
     booking_end_time?: string;     // NEW
     employee_only?: boolean;       // NEW
+    available_from?: string;       // NEW
+    available_to?: string;         // NEW
 }
 
 interface StockItem {
@@ -39,7 +41,7 @@ interface StockItem {
 }
 
 // --- API Fetching Functions ---
-const fetchRituals = () => get<Ritual[]>('/rituals/');
+const fetchRituals = () => get<Ritual[]>('/rituals/admin');
 const fetchStockItems = () => get<StockItem[]>('/stock/');
 
 
@@ -53,7 +55,8 @@ const ManageRituals = () => {
     const [formData, setFormData] = useState({
         name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
         required_stock: [] as RequiredStock[],
-        booking_start_time: '', booking_end_time: '', employee_only: false  // NEW
+        booking_start_time: '', booking_end_time: '', employee_only: false,
+        available_from: '', available_to: '', date_range_option: 'all_time'
     });
     const [selectedStockId, setSelectedStockId] = useState('');
     const [requiredQuantity, setRequiredQuantity] = useState('1');
@@ -82,11 +85,15 @@ const ManageRituals = () => {
                 required_stock: isEditing.required_stock.map(rs => ({...rs, stock_item_name: stockMap.get(rs.stock_item_id)?.name || 'Unknown'})),
                 booking_start_time: isEditing.booking_start_time || '',
                 booking_end_time: isEditing.booking_end_time || '',
-                employee_only: !!isEditing.employee_only
+                employee_only: !!isEditing.employee_only,
+                available_from: isEditing.available_from || '',
+                available_to: isEditing.available_to || '',
+                date_range_option: (isEditing.available_from || isEditing.available_to) ? 'custom' : 'all_time'
             });
         } else {
             setFormData({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
-                required_stock: [], booking_start_time: '', booking_end_time: '', employee_only: false });
+                required_stock: [], booking_start_time: '', booking_end_time: '', employee_only: false,
+                available_from: '', available_to: '', date_range_option: 'all_time' });
         }
     }, [isEditing, stockMap]);
 
@@ -111,11 +118,18 @@ const ManageRituals = () => {
             
             // Sanitize required_stock before sending
             const payload = {
-                ...ritualPayload,
+                name: ritualPayload.name,
+                description: ritualPayload.description,
                 price: ritualPayload.price,
-                booking_start_time: ritualPayload.booking_start_time || null,   // NEW
-                booking_end_time: ritualPayload.booking_end_time || null,       // NEW
-                employee_only: !!ritualPayload.employee_only,                   // NEW
+                duration: ritualPayload.duration,
+                popular: !!ritualPayload.popular,
+                icon_name: ritualPayload.icon_name,
+                booking_start_time: ritualPayload.booking_start_time || null,
+                booking_end_time: ritualPayload.booking_end_time || null,
+                employee_only: !!ritualPayload.employee_only,
+                // Handle date range properly - null for all_time, actual dates for custom
+                available_from: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_from || null : null,
+                available_to: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_to || null : null,
                 required_stock: ritualPayload.required_stock.map(({ stock_item_id, quantity_required }: RequiredStock) => ({
                     stock_item_id,
                     quantity_required: Number(quantity_required)
@@ -157,6 +171,23 @@ const ManageRituals = () => {
             toast.error("Valid price required.");
             return;
         }
+        
+        // Validate custom date range
+        if (formData.date_range_option === 'custom') {
+            if (!formData.available_from || !formData.available_to) {
+                toast.error("Both start and end dates are required for custom date range.");
+                return;
+            }
+            
+            const fromDate = new Date(formData.available_from);
+            const toDate = new Date(formData.available_to);
+            
+            if (fromDate >= toDate) {
+                toast.error("End date must be after start date.");
+                return;
+            }
+        }
+        
         if (roleId > 4) { toast.error('Not authorized.'); return; }
         mutation.mutate({ ...formData, price });
     };
@@ -306,6 +337,75 @@ const ManageRituals = () => {
                                 className="border-purple-500/30 data-[state=checked]:bg-purple-600" />
                             <Label htmlFor="employee_only" className="ml-2 text-purple-300">Employee Only</Label>
                         </div>
+
+                        {/* Date Range Section */}
+                        <div className="space-y-2 pt-4 border-t border-purple-500/20">
+                            <div>
+                                <Label className="text-purple-300">Availability Date Range</Label>
+                                <p className="text-xs text-purple-400 mt-1">Control when this ritual is available for booking</p>
+                            </div>
+                            <select
+                                value={formData.date_range_option}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setFormData({ 
+                                        ...formData, 
+                                        date_range_option: newValue,
+                                        // Clear dates when switching to all_time
+                                        available_from: newValue === 'all_time' ? '' : formData.available_from,
+                                        available_to: newValue === 'all_time' ? '' : formData.available_to
+                                    });
+                                }}
+                                className="mt-1 w-full h-10 rounded-md border border-purple-500/30 bg-slate-800/50 px-3 text-sm text-white"
+                            >
+                                <option value="all_time">All Time (Always Available)</option>
+                                <option value="custom">Custom Date Range</option>
+                            </select>
+                            
+                            {formData.date_range_option === 'all_time' && (
+                                <div className="bg-purple-900/20 p-3 rounded-md border border-purple-500/30">
+                                    <p className="text-sm text-purple-300">
+                                        ✓ This ritual will be available for booking indefinitely, without any date restrictions.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {formData.date_range_option === 'custom' && (
+                                <div className="space-y-3">
+                                    <div className="bg-blue-900/20 p-3 rounded-md border border-blue-500/30">
+                                        <p className="text-sm text-blue-300">
+                                            📅 Set specific start and end dates for this ritual's availability.
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="available_from" className="text-purple-300">Available From *</Label>
+                                            <Input
+                                                id="available_from"
+                                                type="date"
+                                                value={formData.available_from}
+                                                onChange={(e) => setFormData({ ...formData, available_from: e.target.value })}
+                                                className="bg-slate-800/50 border-purple-500/30 text-white"
+                                                required={formData.date_range_option === 'custom'}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="available_to" className="text-purple-300">Available To *</Label>
+                                            <Input
+                                                id="available_to"
+                                                type="date"
+                                                value={formData.available_to}
+                                                onChange={(e) => setFormData({ ...formData, available_to: e.target.value })}
+                                                className="bg-slate-800/50 border-purple-500/30 text-white"
+                                                min={formData.available_from || undefined}
+                                                required={formData.date_range_option === 'custom'}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex gap-2">
                            <Button type="submit" disabled={mutation.isPending} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">{isEditing ? 'Update Ritual' : 'Add Ritual'}</Button>
                            {isEditing && <Button variant="outline" type="button" onClick={() => setIsEditing(null)} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Cancel</Button>}
@@ -328,6 +428,13 @@ const ManageRituals = () => {
                                             ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
                                         {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
                                     </p>
+                                    {ritual.available_from && ritual.available_to ? (
+                                        <p className="text-xs text-purple-400">
+                                            📅 Available: {new Date(ritual.available_from).toLocaleDateString()} - {new Date(ritual.available_to).toLocaleDateString()}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-green-400">✓ Available: All Time (No Restrictions)</p>
+                                    )}
                                     <p className="text-sm text-purple-300">{ritual.description}</p>
                                 </div>
                                 <div className="flex gap-2 ml-4">
