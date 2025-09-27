@@ -1,0 +1,172 @@
+/* Spiritual Calendar Styles */
+
+.calendar-spiritual {
+  --rdp-cell-size: 100px;
+  --rdp-accent-color: #f59e0b;
+  --rdp-background-color: rgba(0, 0, 0, 0.1);
+}
+
+.calendar-spiritual .rdp-head_cell {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 146, 60, 0.1));
+  border-radius: 12px;
+  margin: 2px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: #fbbf24 !important;
+}
+
+.calendar-spiritual .rdp-day {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1));
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 16px;
+  margin: 3px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-spiritual .rdp-day:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 146, 60, 0.2));
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.15);
+}
+
+.calendar-spiritual .rdp-day:hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 0.8s ease-in-out;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.calendar-spiritual .rdp-day_selected,
+.calendar-spiritual .rdp-day_selected:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(251, 146, 60, 0.4));
+  border-color: rgba(245, 158, 11, 0.8);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.calendar-spiritual .rdp-day_today {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(251, 146, 60, 0.3));
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+}
+
+.calendar-spiritual .rdp-day_outside {
+  opacity: 0.3;
+}
+
+.calendar-spiritual .rdp-day_outside:hover {
+  opacity: 0.6;
+}
+
+/* Sacred animations */
+@keyframes pulse-sacred {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.calendar-spiritual .rdp-day_today::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: #fbbf24;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse-sacred 2s ease-in-out infinite;
+}
+
+/* Naal and Malayalam Year badges */
+.naal-badge {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 146, 60, 0.2));
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.malayalam-year-badge {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(245, 158, 11, 0.15));
+  border: 1px solid rgba(251, 146, 60, 0.25);
+  backdrop-filter: blur(4px);
+}
+
+/* Enhanced glowing effects */
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3), 0 0 40px rgba(245, 158, 11, 0.1);
+}
+
+.glow-orange {
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.3), 0 0 40px rgba(251, 146, 60, 0.1);
+}
+
+/* Spiritual loading animation */
+@keyframes spiritual-spin {
+  0% {
+    transform: rotate(0deg);
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+    filter: hue-rotate(360deg);
+  }
+}
+
+.spiritual-loading {
+  animation: spiritual-spin 3s linear infinite;
+}
+
+/* Sacred text effects */
+.sacred-text {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
+  background-size: 200% 200%;
+  animation: sacred-gradient 3s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes sacred-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Floating particles effect */
+.particles::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(251, 146, 60, 0.1) 0%, transparent 50%);
+  animation: float-particles 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes float-particles {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(10px, -10px) rotate(120deg); }
+  66% { transform: translate(-10px, 10px) rotate(240deg); }
+}
