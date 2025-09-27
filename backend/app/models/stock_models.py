@@ -15,6 +15,28 @@ class StockItemBase(BaseModel):
     description: Optional[str] = None
     addedOn: Union[date, datetime]
 
+    @field_validator('expiryDate', mode='before')
+    @classmethod
+    def validate_expiry_date(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
+
+    @field_validator('addedOn', mode='before')
+    @classmethod
+    def validate_added_on(cls, v):
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
+
 class StockItemCreate(StockItemBase):
     pass
 
@@ -30,13 +52,41 @@ class StockItemUpdate(BaseModel):
     description: Optional[str] = None
     addedOn: Optional[Union[date, datetime]] = None
 
+    @field_validator('expiryDate', mode='before')
+    @classmethod
+    def validate_expiry_date(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
+
+    @field_validator('addedOn', mode='before')
+    @classmethod
+    def validate_added_on(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
+
 class StockItemInDB(StockItemBase):
     id: str = Field(alias="_id")
 
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str},
+        json_encoders={
+            ObjectId: str,
+            date: lambda v: v.isoformat(),
+            datetime: lambda v: v.isoformat(),
+        },
     )
 
     @field_validator("id", mode="before")
@@ -45,3 +95,25 @@ class StockItemInDB(StockItemBase):
         if isinstance(v, ObjectId):
             return str(v)
         return str(v)
+
+    @field_validator('expiryDate', mode='before')
+    @classmethod
+    def validate_expiry_date(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
+
+    @field_validator('addedOn', mode='before')
+    @classmethod
+    def validate_added_on(cls, v):
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
+            except ValueError:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v

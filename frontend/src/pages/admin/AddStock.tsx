@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Package, Calendar, DollarSign, AlertTriangle, Save, Edit, Trash2, X } from 'lucide-react';
 import api from '@/api/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface StockItem {
   _id: string;
@@ -68,38 +69,72 @@ const AddStock = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formState.name || !formState.category || !formState.quantity || !formState.price) {
-      setError("Please fill all required fields.");
+    // Validate required fields
+    if (!formState.name.trim()) {
+      setError("Item name is required.");
+      return;
+    }
+    if (!formState.category) {
+      setError("Category is required.");
+      return;
+    }
+    if (!formState.unit) {
+      setError("Unit is required.");
+      return;
+    }
+    if (!formState.quantity || Number(formState.quantity) <= 0) {
+      setError("Valid quantity is required.");
+      return;
+    }
+    if (!formState.price || Number(formState.price) <= 0) {
+      setError("Valid price is required.");
       return;
     }
 
     try {
         const itemToSend = {
             ...formState,
+            name: formState.name.trim(),
             quantity: Number(formState.quantity),
             price: Number(formState.price),
             minimumStock: Number(formState.minimumStock) || 10,
             expiryDate: formState.expiryDate || undefined,
+            supplier: formState.supplier?.trim() || undefined,
+            description: formState.description?.trim() || undefined,
         };
 
-    if (editingItem) {
+        // Remove addedOn from update requests to avoid conflicts
+        if (editingItem && 'addedOn' in itemToSend) {
+            delete itemToSend.addedOn;
+        }
+
+        if (editingItem) {
             // Update logic
-      if (roleId > 4) throw new Error('Not authorized');
+            if (roleId > 4) throw new Error('Not authorized to update stock items');
             const response = await api.put<StockItem>(`/stock/${editingItem._id}`, itemToSend);
             setStockItems(stockItems.map(item => item._id === editingItem._id ? response.data : item));
             setEditingItem(null);
+            setError(null);
+            toast.success('Stock item updated successfully!');
         } else {
             // Add new logic
-      if (roleId > 4) throw new Error('Not authorized');
-            const response = await api.post<StockItem>('/stock/', { ...itemToSend, addedOn: new Date().toISOString().split('T')[0] });
+            if (roleId > 4) throw new Error('Not authorized to create stock items');
+            const response = await api.post<StockItem>('/stock/', { 
+                ...itemToSend, 
+                addedOn: new Date().toISOString().split('T')[0] 
+            });
             setStockItems([response.data, ...stockItems]);
+            setError(null);
+            toast.success('Stock item added successfully!');
         }
+        
         setFormState(initialFormState);
         setShowAddForm(false);
-        setError(null);
-    } catch (err) {
-        setError(`Failed to ${editingItem ? 'update' : 'add'} stock item.`);
-        console.error(err);
+        
+    } catch (err: any) {
+        const errorMessage = err.response?.data?.detail || err.message || `Failed to ${editingItem ? 'update' : 'add'} stock item.`;
+        setError(errorMessage);
+        console.error('Stock operation error:', err);
     }
   };
   
@@ -114,18 +149,26 @@ const AddStock = () => {
         expiryDate: item.expiryDate ? item.expiryDate.split('T')[0] : '',
     });
     setShowAddForm(true);
+    setError(null); // Clear any previous errors when editing
   };
   
   const handleDelete = async (itemId: string) => {
-    if (window.confirm("Are you sure you want to delete this item?")) {
+    const itemToDelete = stockItems.find(item => item._id === itemId);
+    const confirmMessage = itemToDelete 
+        ? `Are you sure you want to delete "${itemToDelete.name}"? This action cannot be undone.`
+        : "Are you sure you want to delete this item?";
+        
+    if (window.confirm(confirmMessage)) {
         try {
-            if (roleId > 4) throw new Error('Not authorized');
+            if (roleId > 4) throw new Error('Not authorized to delete stock items');
             await api.delete(`/stock/${itemId}`);
             setStockItems(stockItems.filter(item => item._id !== itemId));
             setError(null);
-        } catch (err) {
-            setError("Failed to delete stock item.");
-            console.error(err);
+            toast.success('Stock item deleted successfully!');
+        } catch (err: any) {
+            const errorMessage = err.response?.data?.detail || err.message || "Failed to delete stock item.";
+            setError(errorMessage);
+            console.error('Stock deletion error:', err);
         }
     }
   };
@@ -261,8 +304,19 @@ const AddStock = () => {
                     </div>
                 </div>
                 <div className="flex justify-end space-x-4 mt-6">
-                    <button onClick={closeForm} className="px-6 py-3 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors">Cancel</button>
-          <button onClick={handleSubmit} disabled={roleId > 4} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center space-x-2">
+                    <button 
+                        onClick={closeForm} 
+                        className="px-6 py-3 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+                        type="button"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={handleSubmit} 
+                        disabled={roleId > 4} 
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        type="button"
+                    >
                         <Save className="h-5 w-5" />
                         <span>{editingItem ? 'Update Item' : 'Add Item'}</span>
                     </button>

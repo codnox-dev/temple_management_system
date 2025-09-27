@@ -8,6 +8,13 @@ from ..database import stock_collection
 def _stock_item_helper(item) -> StockItemInDB:
     """Converts a MongoDB document to a Pydantic model, ensuring _id is a string."""
     item["_id"] = str(item["_id"])
+    
+    # Convert datetime objects back to dates for consistency
+    if "expiryDate" in item and isinstance(item["expiryDate"], datetime):
+        item["expiryDate"] = item["expiryDate"].date()
+    if "addedOn" in item and isinstance(item["addedOn"], datetime):
+        item["addedOn"] = item["addedOn"].date()
+    
     return StockItemInDB(**item)
 
 async def create_stock_item_service(data: StockItemCreate) -> StockItemInDB:
@@ -40,6 +47,10 @@ async def update_stock_item_service(item_id: str, data: StockItemUpdate) -> Opti
     # Convert date objects to datetime for BSON compatibility
     if 'expiryDate' in update_data and isinstance(update_data.get('expiryDate'), date):
         update_data['expiryDate'] = datetime.combine(update_data['expiryDate'], datetime.min.time())
+    
+    # Convert addedOn date to datetime if present
+    if 'addedOn' in update_data and isinstance(update_data.get('addedOn'), date):
+        update_data['addedOn'] = datetime.combine(update_data['addedOn'], datetime.min.time())
 
     updated_item = await stock_collection.find_one_and_update(
         {"_id": ObjectId(item_id)},
