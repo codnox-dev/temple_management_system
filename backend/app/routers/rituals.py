@@ -12,8 +12,19 @@ router = APIRouter()
 async def list_available_rituals():
     """
     Used to retrieve all available rituals from the database.
+    Filters rituals based on availability date range.
     """
     rituals = await ritual_service.get_all_available_rituals()
+    return rituals
+
+@router.get("/admin", response_description="List all rituals for admin", response_model=List[AvailableRitualInDB])
+async def list_all_rituals_admin(current_admin: dict = Depends(auth_service.get_current_admin)):
+    """
+    Used to retrieve all rituals for admin without date filtering.
+    """
+    if int(current_admin.get("role_id", 99)) > 4:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view all rituals")
+    rituals = await ritual_service.get_all_available_rituals_admin()
     return rituals
 
 @router.post("", response_description="Add new ritual", response_model=AvailableRitualInDB, status_code=status.HTTP_201_CREATED)
