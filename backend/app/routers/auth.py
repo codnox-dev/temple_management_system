@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+import os
+import re
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
@@ -10,6 +12,31 @@ from ..services.auth_service import authenticate_admin, get_admin_by_username
 
 router = APIRouter()
 logger = logging.getLogger("auth")
+
+
+def _is_allowed_origin(origin: str) -> bool:
+    """Validate Origin header against ALLOWED_ORIGINS and ALLOWED_ORIGIN_REGEX.
+    Falls back to sane defaults if env not set."""
+    if not origin:
+        return False
+    raw_allowed = os.getenv("ALLOWED_ORIGINS", "").strip()
+    allowed_list = [o.strip() for o in raw_allowed.split(",") if o.strip()] or [
+        "https://vamana-temple.netlify.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+    origin_regex_env = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip()
+    default_origin_regex = r"^https:\/\/([a-z0-9-]+\.)*netlify\.app$"
+    allow_origin_regex = origin_regex_env or default_origin_regex
+
+    if origin in allowed_list:
+        return True
+    try:
+        if allow_origin_regex and re.match(allow_origin_regex, origin):
+            return True
+    except re.error:
+        pass
+    return False
 
 # Handle CORS preflight requests for auth endpoints
 @router.options("/get-token")
@@ -58,16 +85,14 @@ async def get_initial_token(request: Request):
             "client_ip": client_info.get("ip", "")
         }
         
-        # Create tokens
+        # Create short-lived access token only (no refresh token for unauthenticated bootstrap)
         access_token = jwt_security.create_access_token(token_data, client_info)
-        refresh_token = jwt_security.create_refresh_token(token_data, client_info)
-        
+
         logger.info(f"Initial token issued to IP {client_info.get('ip', 'unknown')}")
-        
+
         return TokenResponse(
             access_token=access_token,
-            expires_in=jwt_security.access_token_expire_minutes * 60,
-            refresh_token=refresh_token
+            expires_in=jwt_security.access_token_expire_minutes * 60
         )
         
     except Exception as e:
@@ -135,6 +160,11 @@ async def refresh_token(request: Request, refresh_request: RefreshTokenRequest =
     Refresh access token using refresh token
     """
     try:
+        # CSRF mitigation: validate Origin header explicitly
+        origin = request.headers.get("origin", "")
+        if not _is_allowed_origin(origin):
+            raise HTTPException(status_code=403, detail="Invalid origin")
+
         # Get refresh token from request body or HTTP-only cookie
         refresh_token = None
         if refresh_request and refresh_request.refresh_token:
@@ -165,11 +195,23 @@ async def refresh_token(request: Request, refresh_request: RefreshTokenRequest =
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
     """
     Logout endpoint - clears refresh token cookie
     """
-    response.delete_cookie(key="refresh_token", httponly=True, secure=True, samesite="strict")
+    # CSRF mitigation: validate Origin header explicitly
+    origin = request.headers.get("origin", "")
+    if not _is_allowed_origin(origin):
+        raise HTTPException(status_code=403, detail="Invalid origin")
+
+    # Use the same attributes as when the cookie was set to ensure browsers remove it
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/"
+    )
     return {"message": "Logged out successfully"}
 
 @router.get("/verify-token")
@@ -177,10 +219,30 @@ async def verify_token(request: Request):
     """
     Verify current token and return user info
     """
-    # This endpoint is protected by middleware, so if we reach here, token is valid
-    user_info = getattr(request.state, 'user', {})
+    # Extract token from Authorization header
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        # Try to get token from HTTP-only cookie as fallback
+        token = request.cookies.get("access_token")
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Token required")
+    
+    # Get client info
+    client_info = jwt_security.get_client_info(request)
+    
+    # Verify token
+    try:
+        payload = jwt_security.verify_token(token, token_type="access", client_info=client_info)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Return filtered user info
     return {
         "valid": True,
-        "user": {k: v for k, v in user_info.items() 
+        "user": {k: v for k, v in payload.items() 
                 if k not in ["exp", "iat", "aud", "type", "client_hash"]}
     }
