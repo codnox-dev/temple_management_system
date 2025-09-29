@@ -22,14 +22,13 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - MONGODB_URL=mongodb://mongo:27017
-      - DATABASE_NAME=temple_db
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=profile-pics
+      MONGODB_URL: mongodb+srv://codnoxdev_db_user:LRbvzDD2AbLodP0G@cluster0.je8cht0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      DATABASE_NAME: temple_db
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: profile-pics
     depends_on:
-      - mongo
       - minio
       
   minio:
@@ -43,13 +42,7 @@ services:
       - "9001:9001"   # Console
     volumes:
       - minio-data:/data
-  mongo:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
+  # Local MongoDB service removed in favor of MongoDB Atlas
 
 volumes:
-  mongo-data:
   minio-data:
