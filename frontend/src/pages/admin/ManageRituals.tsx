@@ -56,7 +56,7 @@ const ManageRituals = () => {
         name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
         required_stock: [] as RequiredStock[],
         booking_start_time: '', booking_end_time: '', employee_only: false,
-        available_from: '', available_to: '', date_range_option: 'all_time'
+        available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit'
     });
     const [selectedStockId, setSelectedStockId] = useState('');
     const [requiredQuantity, setRequiredQuantity] = useState('1');
@@ -88,12 +88,13 @@ const ManageRituals = () => {
                 employee_only: !!isEditing.employee_only,
                 available_from: isEditing.available_from || '',
                 available_to: isEditing.available_to || '',
-                date_range_option: (isEditing.available_from || isEditing.available_to) ? 'custom' : 'all_time'
+                date_range_option: (isEditing.available_from || isEditing.available_to) ? 'custom' : 'all_time',
+                time_range_option: (isEditing.booking_start_time || isEditing.booking_end_time) ? 'custom' : 'no_limit'
             });
         } else {
             setFormData({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
                 required_stock: [], booking_start_time: '', booking_end_time: '', employee_only: false,
-                available_from: '', available_to: '', date_range_option: 'all_time' });
+                available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit' });
         }
     }, [isEditing, stockMap]);
 
@@ -124,8 +125,8 @@ const ManageRituals = () => {
                 duration: ritualPayload.duration,
                 popular: !!ritualPayload.popular,
                 icon_name: ritualPayload.icon_name,
-                booking_start_time: ritualPayload.booking_start_time || null,
-                booking_end_time: ritualPayload.booking_end_time || null,
+                booking_start_time: ritualPayload.time_range_option === 'custom' ? ritualPayload.booking_start_time || null : null,
+                booking_end_time: ritualPayload.time_range_option === 'custom' ? ritualPayload.booking_end_time || null : null,
                 employee_only: !!ritualPayload.employee_only,
                 // Handle date range properly - null for all_time, actual dates for custom
                 available_from: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_from || null : null,
@@ -188,6 +189,22 @@ const ManageRituals = () => {
             }
         }
         
+        // Validate custom time range
+        if (formData.time_range_option === 'custom') {
+            if (!formData.booking_start_time || !formData.booking_end_time) {
+                toast.error("Both start and end times are required for custom time range.");
+                return;
+            }
+            
+            const startTime = formData.booking_start_time;
+            const endTime = formData.booking_end_time;
+            
+            if (startTime >= endTime) {
+                toast.error("End time must be after start time.");
+                return;
+            }
+        }
+        
         if (roleId > 4) { toast.error('Not authorized.'); return; }
         mutation.mutate({ ...formData, price });
     };
@@ -246,7 +263,7 @@ const ManageRituals = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">Manage Rituals</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Rituals</h1>
             
             {/* Statistics Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -283,13 +300,23 @@ const ManageRituals = () => {
                         </div>
                         <div>
                             <Label htmlFor="description" className="text-purple-300">Description</Label>
-                            <textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1 w-full rounded-md bg-slate-800/50 border border-purple-500/30 text-white p-2 min-h-24 resize-y" required />
+                            <Input id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="bg-slate-800/50 border-purple-500/30 text-white" required />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Duration and Icon inputs */}
                              <div>
-                                <Label htmlFor="duration" className="text-purple-300">Duration</Label>
-                                <Input id="duration" value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: e.target.value })} className="bg-slate-800/50 border-purple-500/30 text-white" required />
+                                <Label htmlFor="duration" className="text-purple-300">Duration (in hours)</Label>
+                                <Input 
+                                    id="duration" 
+                                    type="number" 
+                                    min="0.5" 
+                                    step="0.5" 
+                                    placeholder="e.g., 2"
+                                    value={formData.duration} 
+                                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })} 
+                                    className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70" 
+                                    required 
+                                />
                             </div>
                              <div>
                                 <Label htmlFor="icon_name" className="text-purple-300">Icon</Label>
@@ -350,20 +377,71 @@ const ManageRituals = () => {
                             <Checkbox id="popular" checked={formData.popular} onCheckedChange={(checked) => setFormData({ ...formData, popular: !!checked })} className="border-purple-500/30 data-[state=checked]:bg-purple-600" />
                             <Label htmlFor="popular" className="text-purple-300">Mark as Popular</Label>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Booking Time Inputs */}
+                        {/* Time Range Section */}
+                        <div className="space-y-2 pt-4 border-t border-purple-500/20">
                             <div>
-                                <Label htmlFor="booking_start_time" className="text-purple-300">Booking Start (HH:MM)</Label>
-                                <Input id="booking_start_time" type="time" value={formData.booking_start_time}
-                                    onChange={e => setFormData({ ...formData, booking_start_time: e.target.value }) }
-                                    className="bg-slate-800/50 border-purple-500/30 text-white" />
+                                <Label className="text-purple-300">Booking Time Availability</Label>
+                                <p className="text-xs text-purple-400 mt-1">Control what time of day this ritual can be booked</p>
                             </div>
-                            <div>
-                                <Label htmlFor="booking_end_time" className="text-purple-300">Booking End (HH:MM)</Label>
-                                <Input id="booking_end_time" type="time" value={formData.booking_end_time}
-                                    onChange={e => setFormData({ ...formData, booking_end_time: e.target.value }) }
-                                    className="bg-slate-800/50 border-purple-500/30 text-white" />
-                            </div>
+                            <select
+                                value={formData.time_range_option}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setFormData({ 
+                                        ...formData, 
+                                        time_range_option: newValue,
+                                        // Clear times when switching to no_limit
+                                        booking_start_time: newValue === 'no_limit' ? '' : formData.booking_start_time,
+                                        booking_end_time: newValue === 'no_limit' ? '' : formData.booking_end_time
+                                    });
+                                }}
+                                className="mt-1 w-full h-10 rounded-md border border-purple-500/30 bg-slate-800/50 px-3 text-sm text-white"
+                            >
+                                <option value="no_limit">No Time Limit (24/7 Available)</option>
+                                <option value="custom">Specific Time Range</option>
+                            </select>
+                            
+                            {formData.time_range_option === 'no_limit' && (
+                                <div className="bg-green-900/20 p-3 rounded-md border border-green-500/30">
+                                    <p className="text-sm text-green-300">
+                                        ✓ This ritual can be booked at any time of day (24/7 availability).
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {formData.time_range_option === 'custom' && (
+                                <div className="space-y-3">
+                                    <div className="bg-blue-900/20 p-3 rounded-md border border-blue-500/30">
+                                        <p className="text-sm text-blue-300">
+                                            🕐 Set specific hours when this ritual can be booked.
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="booking_start_time" className="text-purple-300">Available From *</Label>
+                                            <Input
+                                                id="booking_start_time"
+                                                type="time"
+                                                value={formData.booking_start_time}
+                                                onChange={(e) => setFormData({ ...formData, booking_start_time: e.target.value })}
+                                                className="bg-slate-800/50 border-purple-500/30 text-white"
+                                                required={formData.time_range_option === 'custom'}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="booking_end_time" className="text-purple-300">Available To *</Label>
+                                            <Input
+                                                id="booking_end_time"
+                                                type="time"
+                                                value={formData.booking_end_time}
+                                                onChange={(e) => setFormData({ ...formData, booking_end_time: e.target.value })}
+                                                className="bg-slate-800/50 border-purple-500/30 text-white"
+                                                required={formData.time_range_option === 'custom'}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center mt-6">
                             <Checkbox id="employee_only" checked={formData.employee_only}
@@ -454,7 +532,7 @@ const ManageRituals = () => {
                 <div className="space-y-2">
                     {rituals?.map((ritual) => (
                         <Card key={ritual._id} className="p-4 bg-slate-900/80 backdrop-blur-sm border-purple-500/30">
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-center justify-between">
                                 <div className="flex-grow">
                                     <div className="font-semibold text-white">{ritual.name} - ₹{ritual.price}</div>
                                     <p className="text-xs text-purple-400">
@@ -469,11 +547,11 @@ const ManageRituals = () => {
                                     ) : (
                                         <p className="text-xs text-purple-400">📅 Available: All time</p>
                                     )}
-                                    <p className="text-sm text-purple-100/90 break-words overflow-hidden line-clamp-3 max-h-24 overflow-auto pr-1">
+                                    <p className="text-sm text-purple-300 overflow-hidden line-clamp-3">
                                         {ritual.description}
                                     </p>
                                 </div>
-                                <div className="flex gap-2 ml-auto">
+                                <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
                                     <Button variant="destructive" size="icon" onClick={() => deleteMutation.mutate(ritual._id)} disabled={roleId > 4 || deleteMutation.isPending} className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
