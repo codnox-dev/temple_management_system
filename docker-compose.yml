@@ -1,19 +1,6 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    depends_on:
-      - backend
-
   backend:
     build:
       context: ./backend
@@ -24,25 +11,4 @@ services:
     environment:
       MONGODB_URL: mongodb+srv://codnoxdev_db_user:LRbvzDD2AbLodP0G@cluster0.je8cht0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       DATABASE_NAME: temple_db
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET_NAME: profile-pics
-    depends_on:
-      - minio
-      
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Console
-    volumes:
-      - minio-data:/data
-  # Local MongoDB service removed in favor of MongoDB Atlas
-
-volumes:
-  minio-data:
+      USE_MINIO: "false"

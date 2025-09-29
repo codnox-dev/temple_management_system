@@ -95,13 +95,11 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
         </NavLink>
         )}
 
-        {/* Employee Booking visible only to Employees (role_id === 4) */}
-        {roleId === 4 && (
-        <NavLink to="/admin/employee-booking" className={navLinkClass}>
-            <ShoppingCart className="h-5 w-5" />
-            <span className="font-medium">Employee Booking</span>
-        </NavLink>
-        )}
+    {/* Employee Booking: available to all roles; interactivity is handled within the page */}
+    <NavLink to="/admin/employee-booking" className={navLinkClass}>
+      <ShoppingCart className="h-5 w-5" />
+      <span className="font-medium">Employee Booking</span>
+    </NavLink>
 
         {/* Website Management Section */}
         <div>

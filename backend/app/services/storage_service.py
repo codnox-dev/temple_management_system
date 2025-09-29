@@ -14,6 +14,22 @@ load_dotenv()
 
 class MinIOStorageService:
     def __init__(self):
+        # Check if MinIO should be used
+        self.use_minio = os.getenv("USE_MINIO", "true").lower() == "true"
+        
+        if not self.use_minio:
+            self.client = None
+            self.endpoint = None
+            self.access_key = None
+            self.secret_key = None
+            self.bucket_name = None
+            self.events_bucket = None
+            self.gallery_bucket = None
+            self.secure = None
+            self.public_base = None
+            print("MinIO storage disabled via USE_MINIO=false")
+            return
+        
         # Get MinIO configuration from environment
         self.endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000").replace("http://", "").replace("https://", "")
         self.access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
@@ -67,6 +83,8 @@ class MinIOStorageService:
     
     def _ensure_bucket_exists(self, bucket_name: str):
         """Creates a bucket in MinIO if it does not already exist."""
+        if not self.use_minio:
+            return False
         try:
             if not self.client:
                 return False
@@ -142,6 +160,9 @@ class MinIOStorageService:
         Handles the upload of a profile picture to MinIO.
         Returns a tuple containing the object_path and its public_url.
         """
+        if not self.use_minio:
+            return "", ""
+        
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available. Please try again later.")
         
@@ -180,6 +201,9 @@ class MinIOStorageService:
         Uploads a generic image to a specified bucket.
         Returns the object_path and public_url.
         """
+        if not self.use_minio:
+            return "", ""
+        
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available. Please try again later.")
 
@@ -223,6 +247,9 @@ class MinIOStorageService:
         Retrieves a file from the default profile bucket in MinIO.
         Returns a tuple of (file_content, content_type, metadata).
         """
+        if not self.use_minio:
+            raise HTTPException(status_code=404, detail="Storage not available")
+            
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available")
             
@@ -252,6 +279,9 @@ class MinIOStorageService:
 
     def get_file_from_bucket(self, bucket_name: str, object_path: str) -> Tuple[bytes, str, dict]:
         """Retrieves a file from a specified bucket."""
+        if not self.use_minio:
+            raise HTTPException(status_code=404, detail="Storage not available")
+        
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available")
         try:
@@ -277,6 +307,9 @@ class MinIOStorageService:
         Deletes a file from the default profile bucket in MinIO.
         Returns True if successful, False otherwise.
         """
+        if not self.use_minio:
+            return False
+        
         try:
             self.client.remove_object(self.bucket_name, object_path)
             return True
@@ -286,6 +319,9 @@ class MinIOStorageService:
 
     def delete_file_from_bucket(self, bucket_name: str, object_path: str) -> bool:
         """Deletes a file from a specified bucket."""
+        if not self.use_minio:
+            return False
+        
         try:
             self.client.remove_object(bucket_name, object_path)
             return True
@@ -298,6 +334,9 @@ class MinIOStorageService:
         Lists files for a specific user from the default profile bucket.
         Returns a list of object information dictionaries.
         """
+        if not self.use_minio:
+            return []
+        
         try:
             objects = self.client.list_objects(
                 self.bucket_name, 

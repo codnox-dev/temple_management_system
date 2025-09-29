@@ -135,15 +135,21 @@ async def upload_profile_picture(
         print(f"Unexpected error during upload: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload profile picture")
 
-    # Update admin document with the new MinIO URL
+    # Prepare update data
+    update_data = {
+        "last_profile_update": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "updated_by": username,
+    }
+    
+    # Only update profile_picture if upload was successful
+    if object_path:
+        update_data["profile_picture"] = public_url
+
+    # Update admin document
     updated_admin = await admins_collection.find_one_and_update(
         {"_id": ObjectId(current_admin.get("_id"))},
-        {"$set": {
-            "profile_picture": public_url,
-            "last_profile_update": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "updated_by": username,
-        }},
+        {"$set": update_data},
         return_document=ReturnDocument.AFTER
     )
 

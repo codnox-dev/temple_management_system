@@ -43,6 +43,11 @@ const EmployeeRitualBooking = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { user } = (useAuth() as any) || {};
+    // Define view-only roles: Viewer (id 5?), Volunteer (id 6?), Support (id 7?)
+    // Assumption based on prior context: smaller numbers = more privileges.
+    // We'll treat role_id > 4 as view-only (5+ cannot interact)
+    const roleId: number = (user?.role_id ?? 99);
+    const isViewOnly = roleId > 4;
 
 	const { data: rituals = [], isLoading } = useQuery({ queryKey: ['rituals'], queryFn: fetchRituals });
 	
@@ -127,7 +132,7 @@ const EmployeeRitualBooking = () => {
                     <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30">
                         <CardHeader><CardTitle className="text-purple-400">Select Rituals</CardTitle></CardHeader>
                         <CardContent>
-                            <Input placeholder="Search rituals..." value={search} onChange={e => setSearch(e.target.value)} className="bg-slate-800/50 border-purple-500/30 text-white mb-4" />
+                            <Input placeholder="Search rituals..." value={search} onChange={e => setSearch(e.target.value)} className="bg-slate-800/50 border-purple-500/30 text-white mb-4" disabled={isViewOnly} aria-disabled={isViewOnly} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
                                 {isLoading ? <p>Loading rituals...</p> : visibleRituals.map((ritual) => (
                                     <div key={ritual.id} className="bg-slate-800/50 p-3 rounded-lg border border-purple-500/20 flex justify-between items-center">
@@ -136,13 +141,13 @@ const EmployeeRitualBooking = () => {
                                             <p className="text-xs text-purple-300/80">{ritual.description}</p>
                                             <p className="text-sm font-bold mt-1">₹{ritual.price}</p>
                                         </div>
-                                        <Button size="icon" className="bg-purple-600 hover:bg-purple-700" onClick={() => addInstance(ritual.id)}><Plus className="h-4 w-4" /></Button>
+                                        <Button size="icon" className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => addInstance(ritual.id)} disabled={isViewOnly} aria-disabled={isViewOnly}><Plus className="h-4 w-4" /></Button>
                                     </div>
                                 ))}
                             </div>
                              {filteredRituals.length > 6 && (
                                 <div className="text-center mt-4">
-                                    <Button variant="link" onClick={() => setShowAllRituals(!showAllRituals)} className="text-purple-400">
+                                    <Button variant="link" onClick={() => setShowAllRituals(!showAllRituals)} className="text-purple-400" disabled={isViewOnly} aria-disabled={isViewOnly}>
                                         {showAllRituals ? 'Show Less' : 'Show More'} <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${showAllRituals ? 'rotate-180' : ''}`} />
                                     </Button>
                                 </div>
@@ -160,14 +165,14 @@ const EmployeeRitualBooking = () => {
                                     <div key={inst.id} className="bg-slate-800/50 p-4 rounded-lg">
                                         <div className="flex justify-between items-center mb-3">
                                             <h3 className="font-semibold">{r.name} #{idx + 1}</h3>
-                                            <Button variant="ghost" size="icon" onClick={() => removeInstance(inst.id)} className="text-red-400 hover:bg-red-900/30 h-7 w-7"><XCircle className="h-4 w-4"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => removeInstance(inst.id)} className="text-red-400 hover:bg-red-900/30 h-7 w-7 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isViewOnly} aria-disabled={isViewOnly}><XCircle className="h-4 w-4"/></Button>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div><Label>Devotee Name *</Label><Input value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="bg-slate-900/70 border-purple-500/20" /></div>
-                                            <div><Label>Date of Birth *</Label><Input type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="bg-slate-900/70 border-purple-500/20" /></div>
-                                            <div><Label>Naal *</Label><select value={inst.naal} onChange={e => updateInstance(inst.id, 'naal', e.target.value)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm"><option value="">Select Naal</option>{NAALS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
-                                            <div><Label>Subscription</Label><select value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-                                            <div><Label>Quantity</Label><Input type="number" min="1" value={inst.quantity} onChange={e => updateInstance(inst.id, 'quantity', parseInt(e.target.value) || 1)} className="bg-slate-900/70 border-purple-500/20" /></div>
+                                            <div><Label>Devotee Name *</Label><Input value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
+                                            <div><Label>Date of Birth *</Label><Input type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
+                                            <div><Label>Naal *</Label><select value={inst.naal} onChange={e => updateInstance(inst.id, 'naal', e.target.value)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm" disabled={isViewOnly} aria-disabled={isViewOnly}><option value="">Select Naal</option>{NAALS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                                            <div><Label>Subscription</Label><select value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm" disabled={isViewOnly} aria-disabled={isViewOnly}><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                                            <div><Label>Quantity</Label><Input type="number" min="1" value={inst.quantity} onChange={e => updateInstance(inst.id, 'quantity', parseInt(e.target.value) || 1)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
                                         </div>
                                     </div>
                                 );
@@ -181,7 +186,7 @@ const EmployeeRitualBooking = () => {
                     <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30">
                         <CardHeader><CardTitle className="text-purple-400">Devotee Information</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div><Label>Full Name *</Label><Input name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-slate-800/50 border-purple-500/30" /></div>
+                            <div><Label>Full Name *</Label><Input name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-slate-800/50 border-purple-500/30" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30">
@@ -197,7 +202,7 @@ const EmployeeRitualBooking = () => {
                                 <span className="text-purple-300">Total</span>
                                 <span>₹{calculateTotal().toFixed(2)}</span>
                             </div>
-                            <Button onClick={handleCheckout} disabled={!canCheckout || bookingMutation.isPending} className="w-full mt-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                            <Button onClick={handleCheckout} disabled={isViewOnly || !canCheckout || bookingMutation.isPending} aria-disabled={isViewOnly || !canCheckout || bookingMutation.isPending} className="w-full mt-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed">
                                 {bookingMutation.isPending ? 'Processing...' : 'Create Booking'}
                             </Button>
                         </CardContent>

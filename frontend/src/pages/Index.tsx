@@ -26,7 +26,7 @@ const Index = () => {
     }
   }, [location.state]);
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden no-scrollbar">
       <ScrollProgress />
       <Navigation />
       {fromAdmin && (
@@ -38,7 +38,7 @@ const Index = () => {
           </Link>
         </div>
       )}
-      <main>
+  <main className="overflow-x-hidden">
         {/* Each component is wrapped in a div with an ID that matches the Navigation component's links */}
         <div id="home" className="scroll-offset">
           <HeroSection />

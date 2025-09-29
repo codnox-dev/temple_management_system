@@ -109,12 +109,8 @@ const App = () => (
                 </RoleGuard>
               } />
 
-              {/* Employee Booking: only employees (role_id === 4) */}
-              <Route path="employee-booking" element={
-                <RoleGuard allow={(rid) => (rid ?? 99) === 4}>
-                  <EmployeeBooking />
-                </RoleGuard>
-              } />
+              {/* Employee Booking: accessible to all roles (page enforces view-only for some) */}
+              <Route path="employee-booking" element={<EmployeeBooking />} />
 
               {/* Stock visible to all except editor (3); viewers see read-only */}
               <Route path="stock/add" element={
