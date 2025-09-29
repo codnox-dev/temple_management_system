@@ -252,8 +252,9 @@ class JWTAuthService {
    * Get API base URL from environment
    */
   private getApiBaseUrl(): string {
-    const viteEnv = (import.meta as any)?.env as { VITE_API_BASE_URL?: string } | undefined;
-    return viteEnv?.VITE_API_BASE_URL || 'https://temple-management-system-3p4x.onrender.com';
+    // Use the environment variable, fallback to a default for local dev
+    // return import.meta.env.VITE_API_BASE_URL || 'https://temple-management-system-3p4x.onrender.com';
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
   }
 }
 

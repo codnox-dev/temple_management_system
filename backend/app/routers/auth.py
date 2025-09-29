@@ -45,13 +45,12 @@ def _is_local_origin(origin: str) -> bool:
     return origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
 
 def _cookie_attrs_for_request(origin: str) -> dict:
-    """Decide cookie attributes based on environment/origin.
-    - Local dev (localhost/127.0.0.1 over HTTP): secure=False, samesite="lax"
-    - Production or any HTTPS cross-site: secure=True, samesite="none"
+    """Choose cookie attributes for refresh_token based on caller origin.
+    - Local dev (HTTP localhost): secure=False, samesite="lax"
+    - Cross-site production (HTTPS): secure=True, samesite="none"
     """
     if _is_local_origin(origin):
         return {"secure": False, "samesite": "lax"}
-    # Default for cross-site production (Netlify -> Render)
     return {"secure": True, "samesite": "none"}
 
 # Handle CORS preflight requests for auth endpoints
@@ -147,7 +146,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         access_token = jwt_security.create_access_token(token_data, client_info)
         refresh_token = jwt_security.create_refresh_token(token_data, client_info)
         
-        # Set refresh token as HTTP-only cookie for security (attrs depend on origin)
+        # Set refresh token as HTTP-only cookie for security
         origin = request.headers.get("origin", "")
         attrs = _cookie_attrs_for_request(origin)
         response.set_cookie(

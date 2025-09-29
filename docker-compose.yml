@@ -4,6 +4,7 @@ services:
   backend:
     build:
       context: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
     ports:
       - "8080:8000"
     volumes:
@@ -12,3 +13,6 @@ services:
       MONGODB_URL: mongodb+srv://codnoxdev_db_user:LRbvzDD2AbLodP0G@cluster0.je8cht0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       DATABASE_NAME: temple_db
       USE_MINIO: "false"
+      # Make uvicorn/watchfiles reload stable on Windows file shares
+      WATCHFILES_FORCE_POLLING: "true"
+      PYTHONUNBUFFERED: "1"
