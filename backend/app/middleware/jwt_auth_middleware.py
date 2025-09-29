@@ -18,6 +18,21 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             "/api/auth/login", "/api/auth/register", "/api/auth/get-token", 
             "/api/auth/refresh-token", "/api"
         ]
+        # Public GET endpoints (no auth required)
+        # Use exact matches for sensitive roots and prefix matches where safe
+        self.public_get_exact = {
+            "/api/featured-event",
+            "/api/featured-event/",
+            "/api/rituals",
+            "/api/rituals/",
+        }
+        self.public_get_prefixes = [
+            "/api/events/",                 # list and view event by id, also files
+            "/api/gallery/",                # list and files
+            "/api/gallery-home-preview",    # fetch home preview
+            "/api/slideshow",               # fetch slideshow
+            "/api/v1/calendar/",            # calendar APIs (GET)
+        ]
     
     async def dispatch(self, request: Request, call_next):
         # Skip validation for CORS preflight requests
@@ -33,6 +48,16 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         # Skip validation for non-API paths (static files, etc.)
         if not request.url.path.startswith("/api/"):
             return await call_next(request)
+
+        # Allow public GET endpoints
+        if request.method == "GET":
+            path = request.url.path
+            if path in self.public_get_exact:
+                return await call_next(request)
+            if any(path.startswith(prefix) for prefix in self.public_get_prefixes):
+                # But keep admin-only subpaths protected if any
+                # Example: do not allow /api/rituals/admin (not covered by prefixes anyway)
+                return await call_next(request)
         
         # Log the request for monitoring
         client_ip = request.client.host if request.client else "unknown"

@@ -13,13 +13,16 @@ const viteEnv = (import.meta as any)?.env as { VITE_API_BASE_URL?: string } | un
 const envBase = viteEnv?.VITE_API_BASE_URL;
 
 function deriveBaseURL(): string {
-    if (envBase && envBase.trim()) return envBase.replace(/\/$/, '');
-    // Heuristic: if frontend served from same host, default FastAPI port is 8000
-    if (typeof window !== 'undefined') {
-        const { protocol, hostname } = window.location;
-        return `${protocol}//${hostname}:8080`;
-    }
-    return 'http://localhost:8080';
+	if (envBase && envBase.trim()) return envBase.replace(/\/$/, '');
+	// Prefer local backend only when running on localhost
+	if (typeof window !== 'undefined') {
+		const { protocol, hostname } = window.location;
+		if (hostname === 'localhost' || hostname === '127.0.0.1') {
+			return `${protocol}//${hostname}:8080`;
+		}
+	}
+	// Default to Render production API when no env provided (Netlify, etc.)
+	return 'https://temple-management-system-3p4x.onrender.com';
 }
 
 export const API_BASE_URL = deriveBaseURL();
