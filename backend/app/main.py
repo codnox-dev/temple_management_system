@@ -26,7 +26,7 @@ app = FastAPI(
 # --- CORS Middleware ---
 # Allows the frontend to communicate with the backend
 # Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://vamana-temple.netlify.app/")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://vamana-temple.netlify.app")
 origins = [origin.strip() for origin in allowed_origins.split(",")]
 
 app.add_middleware(
@@ -37,13 +37,10 @@ app.add_middleware(
     allow_headers=[
         "Authorization",
         "Content-Type", 
-        "X-Timestamp",
-        "X-Signature",
         "Accept",
         "Origin",
         "X-Requested-With"
-    ],
-    expose_headers=["X-Timestamp", "X-Signature"],  # Expose security headers
+    ]
 )
 
 # --- JWT Authentication Middleware ---

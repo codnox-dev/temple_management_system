@@ -1,5 +1,6 @@
 import os
-from jose import jwt, JWTError
+import jwt
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Request
@@ -12,7 +13,7 @@ class JWTSecurityService:
         self.algorithm = os.getenv("ALGORITHM", "HS256")
         self.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 7))
         self.refresh_token_expire_days = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
-        self.audience = os.getenv("JWT_AUDIENCE", "https://heroic-elf-ec8175.netlify.app")
+        self.audience = os.getenv("JWT_AUDIENCE", "https://vamana-temple.netlify.app")
         
         if not self.secret_key:
             raise ValueError("SECRET_KEY environment variable is required")
@@ -88,7 +89,9 @@ class JWTSecurityService:
             
             return payload
             
-        except JWTError:
+        except ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except InvalidTokenError:
             raise HTTPException(status_code=401, detail="Invalid token")
         except Exception as e:
             raise HTTPException(status_code=401, detail="Token validation failed")

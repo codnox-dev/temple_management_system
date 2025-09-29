@@ -2,12 +2,10 @@ fastapi
 uvicorn[standard]
 motor
 dnspython
-python-jose[cryptography]
+PyJWT[cryptography]
 passlib[bcrypt]
 python-dotenv
 pydantic[email]
 python-multipart
 bcrypt==4.0.1
 minio
-PyJWT
-cryptography
