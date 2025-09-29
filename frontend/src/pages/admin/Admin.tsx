@@ -55,8 +55,18 @@ interface ActivityRec {
   timestamp: string; // ISO
 }
 
+// Define employee booking interface
+interface EmployeeBooking {
+  _id: string;
+  name: string;
+  total_cost: number;
+  instances: RitualInstance[];
+  booked_by: string;
+}
+
 // Fetch bookings data
 const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
+const fetchEmployeeBookings = (): Promise<EmployeeBooking[]> => get<EmployeeBooking[]>('/employee-bookings/');
 
 // Fetch rituals data
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
@@ -66,10 +76,16 @@ const AdminDashboard = () => {
   const roleId: number = user?.role_id ?? 99;
   const showRecentActivities = roleId <= 1; // Super Admin (0) and Admin (1)
   const showRecentEvents = roleId > 1; // Everyone else that can access dashboard
-  // Fetch bookings data
+  
+  // Fetch both public and employee bookings
   const { data: bookings, isLoading: isLoadingBookings } = useQuery<Booking[]>({
     queryKey: ['adminBookings'],
     queryFn: fetchBookings,
+  });
+
+  const { data: employeeBookings, isLoading: isLoadingEmployeeBookings } = useQuery<EmployeeBooking[]>({
+    queryKey: ['adminEmployeeBookings'],
+    queryFn: fetchEmployeeBookings,
   });
 
   // Fetch rituals data
@@ -78,10 +94,12 @@ const AdminDashboard = () => {
     queryFn: fetchRituals,
   });
 
-  // Calculate stats from real data
-  const totalBookings = bookings?.length || 0;
+  // Calculate combined stats from both booking types
+  const totalBookings = (bookings?.length || 0) + (employeeBookings?.length || 0);
   const totalRituals = rituals?.length || 0;
-  const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
+  const publicRevenue = bookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
+  const employeeRevenue = employeeBookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
+  const totalRevenue = publicRevenue + employeeRevenue;
   
   // Derive "upcoming" rituals from actual rituals list.
   // Since scheduling data isn't provided by the API, we surface popular rituals first then fall back to the first few.
@@ -196,7 +214,7 @@ const AdminDashboard = () => {
     return '/admin/activity';
   };
 
-  if (isLoadingBookings || isLoadingRituals) {
+  if (isLoadingBookings || isLoadingEmployeeBookings || isLoadingRituals) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-purple-400">Loading dashboard data...</div>
