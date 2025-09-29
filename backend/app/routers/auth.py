@@ -11,6 +11,22 @@ from ..services.auth_service import authenticate_admin, get_admin_by_username
 router = APIRouter()
 logger = logging.getLogger("auth")
 
+# Handle CORS preflight requests for auth endpoints
+@router.options("/get-token")
+@router.options("/login") 
+@router.options("/refresh-token")
+async def handle_cors_preflight():
+    """Handle CORS preflight requests for auth endpoints"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "https://vamana-temple.netlify.app",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
+
 # OAuth2 scheme for Swagger UI
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 

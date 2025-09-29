@@ -22,10 +22,12 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip validation for CORS preflight requests
         if request.method == "OPTIONS":
+            logger.info(f"OPTIONS request for {request.url.path} - passing through JWT middleware")
             return await call_next(request)
             
         # Skip validation for excluded paths
         if any(request.url.path.startswith(path) for path in self.exclude_paths):
+            logger.info(f"Excluding {request.url.path} from JWT validation (matched exclusion path)")
             return await call_next(request)
         
         # Skip validation for non-API paths (static files, etc.)
