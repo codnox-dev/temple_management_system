@@ -2,13 +2,14 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar  # changed: employee_bookings -> employee_booking
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth  # changed: employee_bookings -> employee_booking
 from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
 from .models.role_models import RoleBase
 from .services import auth_service
 from .models.admin_models import AdminCreate
 from .models.ritual_models import AvailableRitualBase
 from fastapi.middleware.cors import CORSMiddleware
+from .middleware.jwt_auth_middleware import JWTAuthMiddleware
 from dotenv import load_dotenv
 from pymongo import ASCENDING
 
@@ -24,13 +25,32 @@ app = FastAPI(
 
 # --- CORS Middleware ---
 # Allows the frontend to communicate with the backend
-origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+# Get allowed origins from environment or use secure defaults
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://vamana-temple.netlify.app/")
+origins = [origin.strip() for origin in allowed_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # Specific methods only
+    allow_headers=[
+        "Authorization",
+        "Content-Type", 
+        "X-Timestamp",
+        "X-Signature",
+        "Accept",
+        "Origin",
+        "X-Requested-With"
+    ],
+    expose_headers=["X-Timestamp", "X-Signature"],  # Expose security headers
+)
+
+# --- JWT Authentication Middleware ---
+# Validates API requests using JWT tokens
+app.add_middleware(
+    JWTAuthMiddleware,
+    exclude_paths=["/docs", "/redoc", "/openapi.json", "/", "/api", "/api/auth"]
 )
 
 
@@ -130,6 +150,7 @@ app.include_router(activity.router, tags=["Activity"], prefix="/api/activity")
 app.include_router(slideshow.router, tags=["Slideshow"], prefix="/api/slideshow")
 app.include_router(featured_event.router, tags=["Featured Event"], prefix="/api/featured-event")
 app.include_router(calendar.router, tags=["Calendar"], prefix="/api")
+app.include_router(auth.router, tags=["Authentication"], prefix="/api/auth")
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

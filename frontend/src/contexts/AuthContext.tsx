@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { setAuthToken } from '../api/api';
+import { jwtAuth } from '../lib/jwtAuth';
 
 type AuthUser = { _id?: string; username: string; role_id?: number; role?: string } | null;
 type AuthContextType = {
@@ -21,61 +21,55 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const init = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        setAuthToken(token);
-        try {
-          const me = await api.get('/admin/me');
-          const data = (me as any)?.data ?? me;
-          setIsAuthenticated(true);
-          setUser({ username: data?.username, role_id: data?.role_id, role: data?.role, _id: data?._id });
-        } catch (e) {
-          // Token invalid; clean up
-          setAuthToken(null);
-          setIsAuthenticated(false);
-          setUser(null);
+      try {
+        // Check if user is already authenticated
+        if (jwtAuth.isAuthenticated()) {
+          const currentUser = await jwtAuth.getCurrentUser();
+          if (currentUser) {
+            setIsAuthenticated(true);
+            setUser({ 
+              username: currentUser.sub, 
+              role_id: currentUser.role_id, 
+              role: currentUser.role, 
+              _id: currentUser.user_id 
+            });
+          }
+        } else {
+          // Get initial token for app functionality
+          await jwtAuth.getInitialToken();
         }
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     void init();
   }, []);
 
   const login = async (username, password) => {
     try {
-      const params = new URLSearchParams();
-      params.append('username', username);
-      params.append('password', password);
-      const response = await api.post(
-        '/admin/token',
-        params,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
-      const token = (response as any)?.access_token ?? (response as any)?.data?.access_token; // support wrapper vs raw
-      if (token) {
-        setAuthToken(token);
-        // load real user
-        try {
-          const me = await api.get('/admin/me');
-          const data = (me as any)?.data ?? me;
-          setIsAuthenticated(true);
-          setUser({ username: data?.username, role_id: data?.role_id, role: data?.role, _id: data?._id });
-          // role-based landing
-          const rid = Number(data?.role_id ?? 99);
-          if (rid === 3) {
-            navigate('/admin/events');
-          } else if (rid === 4) {
-            navigate('/admin/bookings');
-          } else {
-            navigate('/admin');
-          }
-        } catch (e) {
-          setIsAuthenticated(true);
-          setUser({ username });
+      // Use JWT auth service for login
+      await jwtAuth.login(username, password);
+      
+      // Get user info after successful login
+      const currentUser = await jwtAuth.getCurrentUser();
+      if (currentUser) {
+        setIsAuthenticated(true);
+        setUser({ 
+          username: currentUser.sub, 
+          role_id: currentUser.role_id, 
+          role: currentUser.role, 
+          _id: currentUser.user_id 
+        });
+        
+        // Role-based navigation
+        const rid = Number(currentUser.role_id ?? 99);
+        if (rid === 3) {
+          navigate('/admin/events');
+        } else if (rid === 4) {
+          navigate('/admin/bookings');
+        } else {
           navigate('/admin');
         }
         return true;
@@ -87,11 +81,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    setAuthToken(null);
-    setIsAuthenticated(false);
-    setUser(null);
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await jwtAuth.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsAuthenticated(false);
+      setUser(null);
+      navigate('/login');
+    }
   };
 
   const authContextValue = {
