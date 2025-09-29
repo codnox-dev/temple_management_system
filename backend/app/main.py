@@ -29,8 +29,9 @@ app = FastAPI(
 app.add_middleware(
     JWTAuthMiddleware,
     exclude_paths=[
-        "/docs", "/redoc", "/openapi.json", "/", "/api", 
-        "/api/auth", "/api/auth/login", "/api/auth/register", 
+        "/docs", "/redoc", "/openapi.json", "/", "/api",
+        # Public auth endpoints only (verify-token should be protected)
+        "/api/auth/login", "/api/auth/register",
         "/api/auth/get-token", "/api/auth/refresh-token"
     ]
 )

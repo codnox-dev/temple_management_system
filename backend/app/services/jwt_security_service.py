@@ -14,6 +14,10 @@ class JWTSecurityService:
         self.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 7))
         self.refresh_token_expire_days = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
         self.audience = os.getenv("JWT_AUDIENCE", "https://vamana-temple.netlify.app")
+        # Whether to bind tokens to client info (IP/UA). Disabled by default to avoid issues behind proxies.
+        self.bind_to_client = os.getenv("JWT_BIND_TO_CLIENT", "false").lower() in {"1", "true", "yes"}
+        # When extracting client IP, trust X-Forwarded-For if running behind a reverse proxy
+        self.trust_proxy = os.getenv("TRUST_PROXY", "true").lower() in {"1", "true", "yes"}
         
         if not self.secret_key:
             raise ValueError("SECRET_KEY environment variable is required")
@@ -31,9 +35,8 @@ class JWTSecurityService:
             "type": "access"
         })
         
-        # Add client binding for additional security
-        if client_info:
-            # Create a hash of client info to bind token to specific client
+        # Add client binding for additional security (configurable)
+        if self.bind_to_client and client_info:
             client_hash = hashlib.sha256(
                 f"{client_info.get('ip', '')}{client_info.get('user_agent', '')}".encode()
             ).hexdigest()[:16]
@@ -56,7 +59,7 @@ class JWTSecurityService:
         })
         
         # Add client binding
-        if client_info:
+        if self.bind_to_client and client_info:
             client_hash = hashlib.sha256(
                 f"{client_info.get('ip', '')}{client_info.get('user_agent', '')}".encode()
             ).hexdigest()[:16]
@@ -78,12 +81,12 @@ class JWTSecurityService:
             if payload.get("type") != token_type:
                 raise HTTPException(status_code=401, detail="Invalid token type")
             
-            # Verify client binding if present
-            if client_info and "client_hash" in payload:
+            # Verify client binding if enabled and present
+            if self.bind_to_client and client_info and "client_hash" in payload:
                 expected_hash = hashlib.sha256(
                     f"{client_info.get('ip', '')}{client_info.get('user_agent', '')}".encode()
                 ).hexdigest()[:16]
-                
+
                 if payload["client_hash"] != expected_hash:
                     raise HTTPException(status_code=401, detail="Token bound to different client")
             
@@ -97,9 +100,18 @@ class JWTSecurityService:
             raise HTTPException(status_code=401, detail="Token validation failed")
     
     def get_client_info(self, request: Request) -> Dict[str, str]:
-        """Extract client information for token binding"""
+        """Extract client information for token binding. If behind a proxy and TRUST_PROXY is true,
+        prefer X-Forwarded-For header's first IP."""
+        ip = ""
+        if self.trust_proxy:
+            xff = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+            if xff:
+                # Take the first IP in the list
+                ip = xff.split(",")[0].strip()
+        if not ip:
+            ip = request.client.host if request.client else ""
         return {
-            "ip": request.client.host if request.client else "",
+            "ip": ip,
             "user_agent": request.headers.get("user-agent", "")
         }
     

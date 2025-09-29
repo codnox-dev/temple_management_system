@@ -5,9 +5,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from ..database import admins_collection
+from .jwt_security_service import jwt_security
 from ..models import AdminCreate
 
 # Load environment variables from .env file
@@ -25,7 +26,8 @@ if not SECRET_KEY:
 # --- Password Hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/admin/token")
+# Token URL is only used for docs; actual tokens are issued under /api/auth
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def verify_password(plain_password, hashed_password):
     """Verifies a plain password against a hashed password."""
@@ -73,9 +75,13 @@ async def authenticate_admin(username: str, password: str):
     return admin
 
 # --- Dependency for protected routes ---
-async def get_current_admin(token: str = Depends(oauth2_scheme)):
+async def get_current_admin(request: Request, token: str = Depends(oauth2_scheme)):
     """
-    Decodes the JWT token, fetches the user from the database, and returns the full admin document.
+    Validate JWT (prefer the already-verified payload from middleware), then
+    load and return the current admin document from the database.
+    
+    Accepts tokens issued by the unified jwt_security service (with audience
+    and optional client binding) to avoid decode mismatches.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,11 +89,20 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # If middleware already validated, reuse its payload to keep validation consistent
+        payload = getattr(request.state, "user", None)
+        if not payload:
+            # Fallback: verify using the centralized JWT security service
+            client_info = jwt_security.get_client_info(request)
+            payload = jwt_security.verify_token(token, token_type="access", client_info=client_info)
+
         username: str = payload.get("sub")
-        if username is None:
+        if not username:
             raise credentials_exception
-    except (InvalidTokenError, ExpiredSignatureError):
+    except HTTPException:
+        # Bubble up auth errors from jwt_security.verify_token
+        raise
+    except Exception:
         raise credentials_exception
     
     admin = await get_admin_by_username(username)

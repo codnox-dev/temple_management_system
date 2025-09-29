@@ -56,7 +56,7 @@ interface ActivityRec {
 }
 
 // Fetch bookings data
-const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings');
+const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
 
 // Fetch rituals data
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
