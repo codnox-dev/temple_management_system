@@ -1,5 +1,5 @@
 import os
-import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Request
@@ -88,9 +88,7 @@ class JWTSecurityService:
             
             return payload
             
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token has expired")
-        except jwt.InvalidTokenError:
+        except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
         except Exception as e:
             raise HTTPException(status_code=401, detail="Token validation failed")

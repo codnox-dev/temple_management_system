@@ -62,6 +62,15 @@ async def get_admin_by_username(username: str):
     """Fetches a single admin user from the database by username."""
     return await admins_collection.find_one({"username": username})
 
+async def authenticate_admin(username: str, password: str):
+    """Authenticate admin user with username and password."""
+    admin = await get_admin_by_username(username)
+    if not admin:
+        return False
+    if not verify_password(password, admin.get("hashed_password", "")):
+        return False
+    return admin
+
 # --- Dependency for protected routes ---
 async def get_current_admin(token: str = Depends(oauth2_scheme)):
     """
