@@ -64,12 +64,23 @@ interface EmployeeBooking {
   booked_by: string;
 }
 
+// Define stock item interface
+interface StockItem {
+  _id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
 // Fetch bookings data
 const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
 const fetchEmployeeBookings = (): Promise<EmployeeBooking[]> => get<EmployeeBooking[]>('/employee-bookings/');
 
 // Fetch rituals data
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
+
+// Fetch stock data
+const fetchStockItems = (): Promise<StockItem[]> => get<StockItem[]>('/stock/');
 
 const AdminDashboard = () => {
   const { user } = (useAuth() as any) || {};
@@ -94,12 +105,23 @@ const AdminDashboard = () => {
     queryFn: fetchRituals,
   });
 
+  // Fetch stock data
+  const { data: stockItems, isLoading: isLoadingStock } = useQuery<StockItem[]>({
+    queryKey: ['adminStockItems'],
+    queryFn: fetchStockItems,
+  });
+
   // Calculate combined stats from both booking types
   const totalBookings = (bookings?.length || 0) + (employeeBookings?.length || 0);
   const totalRituals = rituals?.length || 0;
   const publicRevenue = bookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
   const employeeRevenue = employeeBookings?.reduce((sum, booking) => sum + booking.total_cost, 0) || 0;
   const totalRevenue = publicRevenue + employeeRevenue;
+  
+  // Calculate stock stats
+  const totalStockItems = stockItems?.length || 0;
+  const totalStockQuantity = stockItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const lowStockItems = stockItems?.filter(item => item.quantity < 10).length || 0;
   
   // Derive "upcoming" rituals from actual rituals list.
   // Since scheduling data isn't provided by the API, we surface popular rituals first then fall back to the first few.
@@ -138,8 +160,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Stock Items",
-      value: "156",
-      change: "-2.3%",
+      value: totalStockItems.toString(),
+      change: lowStockItems > 0 ? `${lowStockItems} low stock` : "All stocked",
       icon: Package,
       color: "text-blue-400",
       bgColor: "bg-blue-400/20",
@@ -214,7 +236,7 @@ const AdminDashboard = () => {
     return '/admin/activity';
   };
 
-  if (isLoadingBookings || isLoadingEmployeeBookings || isLoadingRituals) {
+  if (isLoadingBookings || isLoadingEmployeeBookings || isLoadingRituals || isLoadingStock) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-purple-400">Loading dashboard data...</div>
