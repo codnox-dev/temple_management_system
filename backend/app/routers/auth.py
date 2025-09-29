@@ -15,17 +15,18 @@ logger = logging.getLogger("auth")
 @router.options("/get-token")
 @router.options("/login") 
 @router.options("/refresh-token")
-async def handle_cors_preflight():
+async def handle_cors_preflight(request: Request):
     """Handle CORS preflight requests for auth endpoints"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "https://vamana-temple.netlify.app",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
-            "Access-Control-Allow-Credentials": "true"
-        }
-    )
+    origin = request.headers.get("origin", "")
+    headers = {
+        "Access-Control-Allow-Origin": origin if origin else "*",
+        "Vary": "Origin",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+        "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "authorization, content-type"),
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "600",
+    }
+    return Response(status_code=200, headers=headers)
 
 # OAuth2 scheme for Swagger UI
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -111,7 +112,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
             value=refresh_token,
             httponly=True,
             secure=True,  # HTTPS only
-            samesite="strict",  # CSRF protection
+            samesite="none",  # allow cross-site cookie for Netlify <-> Render
             max_age=jwt_security.refresh_token_expire_days * 24 * 60 * 60
         )
         

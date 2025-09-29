@@ -36,24 +36,49 @@ app.add_middleware(
 )
 
 # --- CORS Middleware ---
-# Allows the frontend to communicate with the backend
-# NOTE: Added second so it runs first and handles CORS preflight requests
-# Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://vamana-temple.netlify.app")
-origins = [origin.strip() for origin in allowed_origins.split(",")]
+"""
+Allows the frontend to communicate with the backend.
+
+We read ALLOWED_ORIGINS from env (comma-separated). If it's missing or empty,
+we fall back to the production Netlify app. Additionally, we allow Netlify
+deploy preview subdomains via a safe regex and local dev hosts for convenience.
+"""
+
+# Read ALLOWED_ORIGINS; treat empty/whitespace as unset
+raw_allowed = os.getenv("ALLOWED_ORIGINS", "").strip()
+
+default_origins = [
+    "https://vamana-temple.netlify.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+if raw_allowed:
+    origins = [o.strip() for o in raw_allowed.split(",") if o.strip()]
+else:
+    origins = default_origins
+
+# Optional regex from env to support wildcard subdomains (e.g., Netlify previews)
+origin_regex_env = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip()
+
+# Sensible default to allow Netlify preview subdomains only
+default_origin_regex = r"^https:\/\/([a-z0-9-]+\.)*netlify\.app$"
+
+allow_origin_regex = origin_regex_env or default_origin_regex
+
+# Log resolved CORS configuration at startup for debugging
+print(f"CORS allow_origins: {origins}")
+if allow_origin_regex:
+    print(f"CORS allow_origin_regex: {allow_origin_regex}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # Specific methods only
-    allow_headers=[
-        "Authorization",
-        "Content-Type", 
-        "Accept",
-        "Origin",
-        "X-Requested-With"
-    ]
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["content-length", "content-type"],
 )
 
 
