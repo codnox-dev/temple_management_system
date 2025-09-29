@@ -23,8 +23,21 @@ app = FastAPI(
     version="1.1.0"
 )
 
+# --- JWT Authentication Middleware ---
+# Validates API requests using JWT tokens
+# NOTE: Added first so it runs after CORS middleware (FastAPI processes middleware in reverse order)
+app.add_middleware(
+    JWTAuthMiddleware,
+    exclude_paths=[
+        "/docs", "/redoc", "/openapi.json", "/", "/api", 
+        "/api/auth", "/api/auth/login", "/api/auth/register", 
+        "/api/auth/get-token", "/api/auth/refresh-token"
+    ]
+)
+
 # --- CORS Middleware ---
 # Allows the frontend to communicate with the backend
+# NOTE: Added second so it runs first and handles CORS preflight requests
 # Get allowed origins from environment or use secure defaults
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://vamana-temple.netlify.app")
 origins = [origin.strip() for origin in allowed_origins.split(",")]
@@ -41,13 +54,6 @@ app.add_middleware(
         "Origin",
         "X-Requested-With"
     ]
-)
-
-# --- JWT Authentication Middleware ---
-# Validates API requests using JWT tokens
-app.add_middleware(
-    JWTAuthMiddleware,
-    exclude_paths=["/docs", "/redoc", "/openapi.json", "/", "/api", "/api/auth"]
 )
 
 
