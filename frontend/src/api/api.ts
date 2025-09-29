@@ -3,6 +3,7 @@
 // can be managed in one place instead of scattering http://localhost:8000 across files.
 
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios';
+import { jwtAuth } from '../lib/jwtAuth';
 
 // Resolve base URL: prefer explicit env var, fallback to window location heuristic, then hardcoded dev default.
 // Vite exposes env vars prefixed with VITE_.
@@ -49,9 +50,27 @@ if (existing) {
 	setAuthToken(existing);
 }
 
-// Optional request interceptor (extendable for logging, retry tags, etc.)
+// Request interceptor to add JWT authentication
 api.interceptors.request.use(
-	(config: InternalAxiosRequestConfig) => config,
+	async (config: InternalAxiosRequestConfig) => {
+		try {
+			// Skip auth for authentication endpoints
+			const authPaths = ['/api/auth/get-token', '/api/auth/login', '/api/auth/refresh-token'];
+			const isAuthPath = authPaths.some(path => config.url?.includes(path));
+			
+			if (!isAuthPath) {
+				// Get current access token (handles automatic refresh)
+				const token = await jwtAuth.getAccessToken();
+				if (token) {
+					config.headers.set('Authorization', `Bearer ${token}`);
+				}
+			}
+		} catch (error) {
+			console.error('Failed to set JWT token:', error);
+		}
+		
+		return config;
+	},
 	(error) => Promise.reject(error)
 );
 

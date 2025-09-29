@@ -15,7 +15,7 @@ load_dotenv()
 class MinIOStorageService:
     def __init__(self):
         # Check if MinIO should be used
-        self.use_minio = os.getenv("USE_MINIO", "true").lower() == "true"
+        self.use_minio = os.getenv("USE_MINIO", "false").lower() == "true"
         
         if not self.use_minio:
             self.client = None
