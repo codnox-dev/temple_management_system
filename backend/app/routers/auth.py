@@ -38,6 +38,22 @@ def _is_allowed_origin(origin: str) -> bool:
         pass
     return False
 
+def _is_local_origin(origin: str) -> bool:
+    """Detect localhost dev origins (non-HTTPS)."""
+    if not origin:
+        return False
+    return origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
+
+def _cookie_attrs_for_request(origin: str) -> dict:
+    """Decide cookie attributes based on environment/origin.
+    - Local dev (localhost/127.0.0.1 over HTTP): secure=False, samesite="lax"
+    - Production or any HTTPS cross-site: secure=True, samesite="none"
+    """
+    if _is_local_origin(origin):
+        return {"secure": False, "samesite": "lax"}
+    # Default for cross-site production (Netlify -> Render)
+    return {"secure": True, "samesite": "none"}
+
 # Handle CORS preflight requests for auth endpoints
 @router.options("/get-token")
 @router.options("/login") 
@@ -131,13 +147,15 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         access_token = jwt_security.create_access_token(token_data, client_info)
         refresh_token = jwt_security.create_refresh_token(token_data, client_info)
         
-        # Set refresh token as HTTP-only cookie for security
+        # Set refresh token as HTTP-only cookie for security (attrs depend on origin)
+        origin = request.headers.get("origin", "")
+        attrs = _cookie_attrs_for_request(origin)
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=True,  # HTTPS only
-            samesite="none",  # allow cross-site cookie for Netlify <-> Render
+            secure=attrs["secure"],
+            samesite=attrs["samesite"],
             max_age=jwt_security.refresh_token_expire_days * 24 * 60 * 60
         )
         
@@ -205,11 +223,12 @@ async def logout(request: Request, response: Response):
         raise HTTPException(status_code=403, detail="Invalid origin")
 
     # Use the same attributes as when the cookie was set to ensure browsers remove it
+    attrs = _cookie_attrs_for_request(origin)
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=attrs["secure"],
+        samesite=attrs["samesite"],
         path="/"
     )
     return {"message": "Logged out successfully"}
