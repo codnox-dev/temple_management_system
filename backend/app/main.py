@@ -158,6 +158,10 @@ except Exception:
     pass
 app.mount("/static", StaticFiles(directory=_base_dir), name="static")
 
+@app.get("/")
+async def health_check():
+    return {"status": "healthy", "message": "Temple Management System API is running"}
+
 @app.get("/api")
 async def root():
     return {"message": "Welcome to the Temple Management System API"}
