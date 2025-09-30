@@ -8,7 +8,10 @@ from datetime import datetime, timedelta
 import logging
 
 from ..services.jwt_security_service import jwt_security
-from ..services.auth_service import authenticate_admin, get_admin_by_username
+from ..services.auth_service import get_admin_by_username, get_admin_by_google_email
+from ..database import admins_collection
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 router = APIRouter()
 logger = logging.getLogger("auth")
@@ -42,6 +45,7 @@ def _is_allowed_origin(origin: str) -> bool:
 @router.options("/get-token")
 @router.options("/login") 
 @router.options("/refresh-token")
+@router.options("/google")
 async def handle_cors_preflight(request: Request):
     """Handle CORS preflight requests for auth endpoints"""
     origin = request.headers.get("origin", "")
@@ -66,6 +70,9 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
 
 @router.post("/get-token", response_model=TokenResponse)
 async def get_initial_token(request: Request):
@@ -99,60 +106,96 @@ async def get_initial_token(request: Request):
         logger.error(f"Token creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not create token")
 
-@router.post("/login", response_model=TokenResponse)
-async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+@router.post("/google", response_model=TokenResponse)
+async def google_login(request: Request, response: Response, payload: GoogleLoginRequest):
     """
-    Admin login endpoint - returns JWT tokens for authenticated users
+    Google Sign-In endpoint: accepts a Google ID token from the frontend, verifies it,
+    validates the email, looks up the admin by google_email, and issues our own JWTs.
     """
     try:
-        # Authenticate admin user
-        admin_user = await authenticate_admin(form_data.username, form_data.password)
+        # CSRF mitigation: validate Origin header explicitly
+        origin = request.headers.get("origin", "")
+        if not _is_allowed_origin(origin):
+            raise HTTPException(status_code=403, detail="Invalid origin")
+
+        # Verify Google ID token
+        client = google_requests.Request()
+        try:
+            # Verify signature first
+            idinfo = google_id_token.verify_oauth2_token(payload.id_token, client)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+
+        # Validate email and verification
+        email = idinfo.get("email")
+        email_verified = idinfo.get("email_verified", False)
+        if not email or not email_verified:
+            raise HTTPException(status_code=401, detail="Unverified Google account")
+
+        # Enforce audience/client ID match
+        expected_auds = [a.strip() for a in os.getenv("GOOGLE_CLIENT_IDS", os.getenv("GOOGLE_CLIENT_ID", "")).split(",") if a.strip()]
+        if expected_auds:
+            aud = idinfo.get("aud")
+            if aud not in expected_auds:
+                logger.warning(f"Google login rejected due to audience mismatch: aud={aud}")
+                raise HTTPException(status_code=401, detail="Invalid Google client")
+
+        # Find admin by google_email
+        admin_user = await get_admin_by_google_email(email)
         if not admin_user:
-            logger.warning(f"Failed login attempt for username: {form_data.username}")
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Get client information for token binding
+            logger.warning(f"Google login denied for unlinked email: {email}")
+            raise HTTPException(status_code=403, detail="No admin account linked to this Google email")
+
+        # Optional: sync profile picture only (do not alter name via Google)
+        picture = idinfo.get("picture")
+        if picture:
+            try:
+                await admins_collection.update_one({"_id": admin_user["_id"]}, {"$set": {"profile_picture": picture}})
+            except Exception:
+                pass
+
+        # Get client information for optional token binding
         client_info = jwt_security.get_client_info(request)
-        
-        # Create token data
+
+        # Create token data aligned with existing JWT system
         token_data = {
-            "sub": admin_user["username"],
-            "user_id": str(admin_user["_id"]),
+            "sub": admin_user.get("username"),
+            "user_id": str(admin_user.get("_id")),
             "role": admin_user.get("role", "admin"),
             "role_id": admin_user.get("role_id", 1),
-            "permissions": admin_user.get("permissions", [])
+            "permissions": admin_user.get("permissions", []),
         }
-        
-        # Create tokens
+
         access_token = jwt_security.create_access_token(token_data, client_info)
         refresh_token = jwt_security.create_refresh_token(token_data, client_info)
-        
-        # Set refresh token as HTTP-only cookie for security
+
+        # Set refresh token cookie
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=True,  # HTTPS only
-            samesite="none",  # allow cross-site cookie for Netlify <-> Render
-            max_age=jwt_security.refresh_token_expire_days * 24 * 60 * 60
+            secure=True,
+            samesite="none",
+            max_age=jwt_security.refresh_token_expire_days * 24 * 60 * 60,
         )
-        
-        logger.info(f"Admin login successful: {admin_user['username']} from IP {client_info.get('ip', 'unknown')}")
-        
+
+        logger.info(f"Google login successful for admin: {admin_user.get('username')} ({email})")
         return TokenResponse(
             access_token=access_token,
-            expires_in=jwt_security.access_token_expire_minutes * 60
+            expires_in=jwt_security.access_token_expire_minutes * 60,
         )
-        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
+        logger.error(f"Google login error: {e}")
         raise HTTPException(status_code=500, detail="Authentication error")
+
+@router.post("/login", response_model=TokenResponse)
+async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Password-based login is disabled. Use /api/auth/google with Google ID token.
+    """
+    raise HTTPException(status_code=403, detail="Password login disabled. Use Google Sign-In.")
 
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(request: Request, refresh_request: RefreshTokenRequest = None):

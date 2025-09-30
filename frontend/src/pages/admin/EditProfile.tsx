@@ -262,8 +262,9 @@ const EditProfile: React.FC = () => {
             />
           </div>
 
-          {/* Email */}
-          <div className="relative">
+          {/* Notification Email */}
+          <div>
+            <div className="text-sm font-semibold text-orange-700 mb-1">Notification Email</div>
             <input 
               type="email" 
               name="email"
@@ -271,8 +272,9 @@ const EditProfile: React.FC = () => {
               onChange={handleInputChange}
               className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
               disabled={!isEditing}
-              placeholder="Email"
+              placeholder="Notification Email"
             />
+            <div className="text-xs text-neutral-600 mt-1">Used for notifications; sign-in uses your Authentication Email.</div>
           </div>
 
           {/* Phone split: simple country code + number input */}

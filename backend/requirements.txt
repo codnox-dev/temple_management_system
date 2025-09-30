@@ -3,9 +3,9 @@ uvicorn[standard]
 motor
 dnspython
 PyJWT[cryptography]
-passlib[bcrypt]
 python-dotenv
 pydantic[email]
 python-multipart
-bcrypt==4.0.1
 minio
+google-auth
+requests>=2.31.0,<3

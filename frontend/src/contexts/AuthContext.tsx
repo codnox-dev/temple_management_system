@@ -8,6 +8,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (idToken: string) => Promise<boolean>;
   logout: () => void;
 };
 
@@ -48,35 +49,39 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
+    console.error('Password login disabled');
+    return false;
+  };
+
+  const finishLoginWithUser = (currentUser: any) => {
+    setIsAuthenticated(true);
+    setUser({ 
+      username: currentUser.sub, 
+      role_id: currentUser.role_id, 
+      role: currentUser.role, 
+      _id: currentUser.user_id 
+    });
+    const rid = Number(currentUser.role_id ?? 99);
+    if (rid === 3) {
+      navigate('/admin/events');
+    } else if (rid === 4) {
+      navigate('/admin/bookings');
+    } else {
+      navigate('/admin');
+    }
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
     try {
-      // Use JWT auth service for login
-      await jwtAuth.login(username, password);
-      
-      // Get user info after successful login
+      await jwtAuth.loginWithGoogle(idToken);
       const currentUser = await jwtAuth.getCurrentUser();
       if (currentUser) {
-        setIsAuthenticated(true);
-        setUser({ 
-          username: currentUser.sub, 
-          role_id: currentUser.role_id, 
-          role: currentUser.role, 
-          _id: currentUser.user_id 
-        });
-        
-        // Role-based navigation
-        const rid = Number(currentUser.role_id ?? 99);
-        if (rid === 3) {
-          navigate('/admin/events');
-        } else if (rid === 4) {
-          navigate('/admin/bookings');
-        } else {
-          navigate('/admin');
-        }
+        finishLoginWithUser(currentUser);
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (e) {
+      console.error('Google login failed:', e);
       return false;
     }
   };
@@ -98,6 +103,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     login,
+    loginWithGoogle,
     logout,
   };
 

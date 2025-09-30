@@ -1,39 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 const FuturisticTempleLogin = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [gisReady, setGisReady] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const { loginWithGoogle } = useAuth() as any;
   const navigate = useNavigate();
+  const googleBtnRef = useRef<HTMLDivElement | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    try {
-      const success = await login(username, password);
-      if (success) {
-        toast.success('Login successful! Redirecting...');
-        navigate('/admin');
-      } else {
-        throw new Error('Invalid credentials');
-      }
-    } catch (err) {
-      setError('Invalid username or password. Please try again.');
-      toast.error('Login Failed');
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    // Load Google Identity Services script
+    const scriptId = 'google-identity-services';
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.id = scriptId;
+      script.onload = () => initGoogle();
+      document.body.appendChild(script);
+    } else {
+      initGoogle();
     }
-  };
+    function initGoogle() {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+      const w: any = window as any;
+      if (!clientId) {
+        setSetupError('Google client ID is not configured. Please set VITE_GOOGLE_CLIENT_ID.');
+        return;
+      }
+      if (!w.google) {
+        setSetupError('Google services failed to load. Please refresh the page.');
+        return;
+      }
+      const google = w.google;
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response: any) => {
+          setIsLoading(true);
+          try {
+            const idToken = response.credential;
+            const ok = await loginWithGoogle(idToken);
+            if (ok) {
+              toast.success('Login successful! Redirecting...');
+              navigate('/admin');
+            } else {
+              toast.error('Login failed');
+            }
+          } catch (e: any) {
+            toast.error(e?.message || 'Login failed');
+          } finally {
+            setIsLoading(false);
+          }
+        },
+        auto_select: false,
+        ux_mode: 'popup',
+      });
+      setGisReady(true);
+      if (googleBtnRef.current) {
+        google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'filled_blue',
+          size: 'large',
+          shape: 'pill',
+          width: 320,
+          text: 'continue_with',
+          logo_alignment: 'left'
+        });
+      }
+    }
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen w-full bg-gray-900 text-white p-4" style={{
@@ -55,52 +94,38 @@ const FuturisticTempleLogin = () => {
             Sanctum Access
           </CardTitle>
           <CardDescription className="text-gray-400">
-            Enter the digital sanctum.
+            Sign in with your Google-administered account.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-purple-300">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="bg-gray-800/50 border-gray-700 focus:border-purple-500 focus:ring-purple-500 text-white placeholder-gray-500"
-              />
+          <div className="space-y-6">
+            <div className="text-center text-gray-400 text-sm">
+              Use your Google account that’s linked to your admin profile to enter the sanctum.
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-purple-300">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-gray-800/50 border-gray-700 focus:border-purple-500 focus:ring-purple-500 text-white placeholder-gray-500"
-              />
+            {setupError && (
+              <div className="text-center text-red-400 text-sm">
+                {setupError}
+              </div>
+            )}
+            <div className="flex justify-center">
+              <div ref={googleBtnRef} className="min-h-[44px]" />
             </div>
-            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
-            <Button 
-              type="submit" 
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 shadow-lg shadow-purple-500/30"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Authenticating...
-                </div>
-              ) : 'Enter the Sanctum'}
-            </Button>
-          </form>
+            {!gisReady && !setupError && (
+              <div className="text-center text-xs text-gray-500">Loading Google Sign-In…</div>
+            )}
+            {isLoading && (
+              <div className="flex items-center justify-center text-sm text-gray-300">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Authenticating with Google...
+              </div>
+            )}
+            <div className="text-center text-xs text-gray-500">
+              Having trouble? Contact your administrator to ensure your Google email is linked.
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

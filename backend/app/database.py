@@ -41,7 +41,18 @@ calendar_audit_collection = database.get_collection("calendar_audit")
 async def ensure_indexes():
     """Creates required indexes on startup if they don't exist."""
     # Admins
-    await admins_collection.create_index([("username", ASCENDING)], unique=True)
+    await admins_collection.create_index([("username", ASCENDING)], unique=True, name="uniq_username")
+    # Unique google_email only when field exists
+    try:
+        await admins_collection.create_index(
+            [("google_email", ASCENDING)],
+            unique=True,
+            name="uniq_google_email",
+            partialFilterExpression={"google_email": {"$exists": True, "$type": "string"}}
+        )
+    except Exception as e:
+        # If duplicates exist, index creation will fail; log and continue
+        print(f"Warning: Could not create unique index on google_email: {e}")
 
     # Calendar indexes
     # Unique date key

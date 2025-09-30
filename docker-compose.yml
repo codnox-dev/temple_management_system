@@ -10,9 +10,20 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      MONGODB_URL: mongodb+srv://codnoxdev_db_user:LRbvzDD2AbLodP0G@cluster0.je8cht0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-      DATABASE_NAME: temple_db
-      USE_MINIO: "false"
-      # Make uvicorn/watchfiles reload stable on Windows file shares
-      WATCHFILES_FORCE_POLLING: "true"
-      PYTHONUNBUFFERED: "1"
+      - MONGODB_URL=mongodb://mongo:27017
+      - DATABASE_NAME=temple_db
+      - USE_MINIO="false"
+      - WATCHFILES_FORCE_POLLING="true"
+      - PYTHONUNBUFFERED="1"
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

@@ -57,32 +57,27 @@ class JWTAuthService {
    * Login with username and password
    */
   async login(username: string, password: string): Promise<boolean> {
-    try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
+    // Deprecated: password login disabled on server
+    throw new Error('Password login disabled. Use Google Sign-In.');
+  }
 
-      const response = await fetch(`${this.getApiBaseUrl()}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        credentials: 'include', // Include cookies
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
-        throw new Error(errorData.detail || 'Login failed');
-      }
-
-      const tokenData: TokenResponse = await response.json();
-      this.setTokens(tokenData);
-      return true;
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
+  /**
+   * Login using Google ID token returned by Google Identity Services
+   */
+  async loginWithGoogle(idToken: string): Promise<boolean> {
+    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Google login failed' }));
+      throw new Error(errorData.detail || 'Google login failed');
     }
+    const tokenData: TokenResponse = await response.json();
+    this.setTokens(tokenData);
+    return true;
   }
 
   /**

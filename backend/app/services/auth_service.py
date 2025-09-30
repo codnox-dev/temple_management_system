@@ -1,53 +1,11 @@
-import os
-from dotenv import load_dotenv
-from passlib.context import CryptContext
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-import jwt
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from ..database import admins_collection
 from .jwt_security_service import jwt_security
 from ..models import AdminCreate
 
-# Load environment variables from .env file
-load_dotenv()
-
-# --- Configuration ---
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
-
-# --- Error Handling for Missing Secret Key ---
-if not SECRET_KEY:
-    raise ValueError("No SECRET_KEY set for JWT. Please set it in your .env file.")
-
-# --- Password Hashing ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Token URL is only used for docs; actual tokens are issued under /api/auth
+# Token URL is only used for docs; tokens are issued under /api/auth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-def verify_password(plain_password, hashed_password):
-    """Verifies a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    """Hashes a plain password."""
-    return pwd_context.hash(password)
-
-# --- JWT Token ---
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Creates a new JWT access token."""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 # --- Admin Database Operations ---
 async def create_admin(admin: AdminCreate):
@@ -65,14 +23,9 @@ async def get_admin_by_username(username: str):
     """Fetches a single admin user from the database by username."""
     return await admins_collection.find_one({"username": username})
 
-async def authenticate_admin(username: str, password: str):
-    """Authenticate admin user with username and password."""
-    admin = await get_admin_by_username(username)
-    if not admin:
-        return False
-    if not verify_password(password, admin.get("hashed_password", "")):
-        return False
-    return admin
+async def get_admin_by_google_email(google_email: str):
+    """Fetch admin by linked Google email."""
+    return await admins_collection.find_one({"google_email": google_email})
 
 # --- Dependency for protected routes ---
 async def get_current_admin(request: Request, token: str = Depends(oauth2_scheme)):
