@@ -295,11 +295,11 @@ const ManageEvents = () => {
                                 required 
                             />
                            <Input 
-                                placeholder="Time (e.g., 6:00 PM)" 
+                                type="time" 
                                 value={formData.time} 
                                 onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                                 disabled={isReadOnly}
-                                className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
+                                className="bg-slate-800/50 border-purple-500/30 text-white"
                                 required 
                             />
                         </div>
