@@ -16,7 +16,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         self.exclude_paths = exclude_paths or [
             "/docs", "/redoc", "/openapi.json", "/", 
             "/api/auth/login", "/api/auth/register", "/api/auth/get-token", 
-            "/api/auth/refresh-token", "/api"
+            "/api/auth/refresh-token", "/api/auth/google", "/api"
         ]
         # Public GET endpoints (no auth required)
         # Use exact matches for sensitive roots and prefix matches where safe

@@ -44,6 +44,7 @@ interface Admin {
   _id: string;
   name: string;
   email: string;
+  google_email?: string;
   username: string;
   mobile_prefix: string;
   mobile_number: number;
@@ -63,14 +64,12 @@ interface Admin {
   last_profile_update?: string;
 }
 
-interface AdminCreationPayload extends Omit<Admin, '_id' | 'created_at' | 'last_login'> {
-    hashed_password?: string;
-    password?: string;
-}
+interface AdminCreationPayload extends Omit<Admin, '_id' | 'created_at' | 'last_login'> {}
 
 interface AdminUpdatePayload {
   name?: string;
   email?: string;
+  google_email?: string;
   username?: string;
   role?: string;
   role_id?: number;
@@ -82,7 +81,6 @@ interface AdminUpdatePayload {
   dob?: string;
   notification_preference?: string[];
   notification_list?: string[];
-  hashed_password?: string; // plain password placed here; backend will hash
 }
 
 // --- API Fetching ---
@@ -217,11 +215,19 @@ const StatCard = ({ icon: Icon, title, value, color }: { icon: React.ElementType
 const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const queryClient = useQueryClient();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [modalEditing, setModalEditing] = useState(false);
+  const [snapshot, setSnapshot] = useState<{ name: string; username: string; email: string; google_email: string; mobile_prefix: string; mobile_number: string; dob: string } | null>(null);
   // inline edit states
   const [editingEmail, setEditingEmail] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [editingAuthEmail, setEditingAuthEmail] = useState(false);
   const [editingPhone, setEditingPhone] = useState(false);
   const [editingDob, setEditingDob] = useState(false);
   const [emailValue, setEmailValue] = useState(admin.email);
+  const [nameValue, setNameValue] = useState(admin.name);
+  const [usernameValue, setUsernameValue] = useState(admin.username);
+  const [authEmailValue, setAuthEmailValue] = useState(admin.google_email || '');
   const [prefixValue, setPrefixValue] = useState(admin.mobile_prefix);
   const [mobileValue, setMobileValue] = useState(String(admin.mobile_number ?? ''));
   const [dobValue, setDobValue] = useState(admin.dob || '');
@@ -229,15 +235,24 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const myRoleId: number = user?.role_id ?? 99;
   const myId: string | undefined = user?._id;
   const isSuperAdmin = admin.role_id === 0;
-  const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myRoleId >= 2 && myId && admin._id === myId);
+  // Align with backend: cannot modify Super Admin, must have strictly lower role_id, and no self-mod for any non-super user
+  const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myId && admin._id === myId && myRoleId >= 1);
 
   // Effect to reset inline edit states when dialog is closed
   useEffect(() => {
     if (!isProfileDialogOpen) {
+      setModalEditing(false);
+      setSnapshot(null);
       setEditingEmail(false);
+      setEditingName(false);
+      setEditingUsername(false);
+      setEditingAuthEmail(false);
       setEditingPhone(false);
       setEditingDob(false);
       setEmailValue(admin.email);
+      setNameValue(admin.name);
+      setUsernameValue(admin.username);
+      setAuthEmailValue(admin.google_email || '');
       setPrefixValue(admin.mobile_prefix);
       setMobileValue(String(admin.mobile_number ?? ''));
       setDobValue(admin.dob || '');
@@ -293,6 +308,25 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
     if (!canModify) return;
     updateMutation.mutate({ id: admin._id, payload: { email: emailValue } });
   };
+  const saveName = () => {
+    if (!canModify) return;
+    updateMutation.mutate({ id: admin._id, payload: { name: nameValue } });
+  };
+  const saveUsername = () => {
+    if (!canModify) return;
+    const newUsername = (usernameValue || '').trim();
+    if (!newUsername) { toast.error('Username cannot be empty'); return; }
+    updateMutation.mutate({ id: admin._id, payload: { username: newUsername } });
+  };
+  const saveAuthEmail = () => {
+    if (!canModify) return;
+    const val = (authEmailValue || '').trim();
+    if (!val) { toast.error('Authentication email cannot be empty'); return; }
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(val)) { toast.error('Enter a valid email'); return; }
+    updateMutation.mutate({ id: admin._id, payload: { google_email: val } });
+  };
   const savePhone = () => {
     if (!canModify) return;
     const num = Number(mobileValue);
@@ -305,6 +339,66 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const saveDob = () => {
     if (!canModify) return;
     updateMutation.mutate({ id: admin._id, payload: { dob: dobValue } });
+  };
+
+  const enterEditMode = () => {
+    if (!canModify) return;
+    setSnapshot({
+      name: nameValue,
+      username: usernameValue,
+      email: emailValue,
+      google_email: authEmailValue,
+      mobile_prefix: prefixValue,
+      mobile_number: String(mobileValue || ''),
+      dob: dobValue,
+    });
+    setModalEditing(true);
+  };
+
+  const cancelEdit = () => {
+    if (snapshot) {
+      setNameValue(snapshot.name);
+      setUsernameValue(snapshot.username);
+      setEmailValue(snapshot.email);
+      setAuthEmailValue(snapshot.google_email);
+      setPrefixValue(snapshot.mobile_prefix);
+      setMobileValue(String(snapshot.mobile_number || ''));
+      setDobValue(snapshot.dob);
+    } else {
+      // Fallback to server values
+      setNameValue(admin.name);
+      setUsernameValue(admin.username);
+      setEmailValue(admin.email);
+      setAuthEmailValue(admin.google_email || '');
+      setPrefixValue(admin.mobile_prefix);
+      setMobileValue(String(admin.mobile_number ?? ''));
+      setDobValue(admin.dob || '');
+    }
+    setModalEditing(false);
+  };
+
+  const saveAllChanges = () => {
+    if (!canModify) return;
+    const diff: Partial<Admin> = {};
+    if (nameValue !== admin.name) (diff as any).name = nameValue;
+    const trimmedUser = (usernameValue || '').trim();
+    if (trimmedUser !== admin.username) (diff as any).username = trimmedUser;
+    if (emailValue !== admin.email) (diff as any).email = emailValue;
+    const authVal = (authEmailValue || '').trim();
+    if (authVal !== (admin.google_email || '')) (diff as any).google_email = authVal;
+    if (prefixValue !== admin.mobile_prefix) (diff as any).mobile_prefix = prefixValue;
+    const num = Number(mobileValue);
+    if (Number.isFinite(num) && num !== admin.mobile_number) (diff as any).mobile_number = num;
+    if ((dobValue || '') !== (admin.dob || '')) (diff as any).dob = dobValue;
+
+    if (Object.keys(diff).length === 0) {
+      toast.info('No changes to save.');
+      setModalEditing(false);
+      return;
+    }
+
+    updateMutation.mutate({ id: admin._id, payload: diff });
+    setModalEditing(false);
   };
 
   return (
@@ -363,44 +457,62 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
               </div>
               <div className="md:col-span-2 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Email panel */}
+                  {/* Name panel */}
                   <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wide text-orange-600">Email</div>
-                      {canModify && (
-                        editingEmail ? (
-                          <div className="flex items-center gap-1">
-                            <button className="text-green-600" onClick={saveEmail} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-600" onClick={() => { setEditingEmail(false); setEmailValue(admin.email); }} title="Cancel"><X className="w-4 h-4" /></button>
-                          </div>
-                        ) : (
-                          <button className="text-orange-600" onClick={() => setEditingEmail(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
-                        )
-                      )}
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Name</div>
                     </div>
-                    {editingEmail ? (
+                    {modalEditing && canModify ? (
+                      <Input type="text" value={nameValue} onChange={(e) => setNameValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
+                    ) : (
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{nameValue}</div>
+                    )}
+                  </div>
+
+                  {/* Username panel */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Username</div>
+                    </div>
+                    {modalEditing && canModify ? (
+                      <Input type="text" value={usernameValue} onChange={(e) => setUsernameValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
+                    ) : (
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{usernameValue}</div>
+                    )}
+                    <div className="text-[11px] text-orange-600 mt-1">Must be unique</div>
+                  </div>
+
+                  {/* Notification Email panel */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Notification Email</div>
+                    </div>
+                    {modalEditing && canModify ? (
                       <Input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
                     ) : (
                       <div className="text-sm text-slate-900 mt-0.5 break-words">{emailValue}</div>
                     )}
                   </div>
 
+                  {/* Authentication Email panel */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-wide text-orange-600">Authentication Email</div>
+                    </div>
+                    {modalEditing && canModify ? (
+                      <Input type="email" value={authEmailValue} onChange={(e) => setAuthEmailValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
+                    ) : (
+                      <div className="text-sm text-slate-900 mt-0.5 break-words">{authEmailValue || '—'}</div>
+                    )}
+                    <div className="text-[11px] text-orange-600 mt-1">Used to authenticate with Google; must be unique</div>
+                  </div>
+
                   {/* Phone panel */}
                   <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs uppercase tracking-wide text-orange-600">Phone</div>
-                      {canModify && (
-                        editingPhone ? (
-                          <div className="flex items-center gap-1">
-                            <button className="text-green-600" onClick={savePhone} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-600" onClick={() => { setEditingPhone(false); setPrefixValue(admin.mobile_prefix); setMobileValue(String(admin.mobile_number ?? '')); }} title="Cancel"><X className="w-4 h-4" /></button>
-                          </div>
-                        ) : (
-                          <button className="text-orange-600" onClick={() => setEditingPhone(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
-                        )
-                      )}
                     </div>
-                    {editingPhone ? (
+                    {modalEditing && canModify ? (
                       <div className="mt-1 flex gap-2 items-center">
                         <Input
                           type="text"
@@ -452,18 +564,8 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                   <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs uppercase tracking-wide text-orange-600">DOB</div>
-                      {canModify && (
-                        editingDob ? (
-                          <div className="flex items-center gap-1">
-                            <button className="text-green-600" onClick={saveDob} title="Save"><Check className="w-4 h-4" /></button>
-                            <button className="text-red-600" onClick={() => { setEditingDob(false); setDobValue(admin.dob || ''); }} title="Cancel"><X className="w-4 h-4" /></button>
-                          </div>
-                        ) : (
-                          <button className="text-orange-600" onClick={() => setEditingDob(true)} title="Edit"><Pencil className="w-4 h-4" /></button>
-                        )
-                      )}
                     </div>
-                    {editingDob ? (
+                    {modalEditing && canModify ? (
                       <Input type="date" value={dobValue} onChange={(e) => setDobValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
                     ) : (
                       <div className="text-sm text-slate-900 mt-0.5 break-words">{dobValue || '—'}</div>
@@ -502,7 +604,19 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                     </div>
                   </div>
                 </div>
-                {/* no actions here; actions are visible in the table row */}
+                {/* Global actions at bottom only */}
+                {canModify && (
+                  <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                    {!modalEditing ? (
+                      <Button onClick={enterEditMode} className="bg-orange-600 text-white w-full sm:w-auto">Edit</Button>
+                    ) : (
+                      <>
+                        <Button variant="ghost" onClick={cancelEdit} className="w-full sm:w-auto">Cancel Changes</Button>
+                        <Button onClick={saveAllChanges} className="bg-orange-600 text-white w-full sm:w-auto">Save Changes</Button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </DialogContent>
@@ -518,10 +632,10 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
   type FormState = {
     name: string;
     email: string;
+    google_email: string;
     username: string;
     mobile_prefix: string;
     mobile_number: number | string;
-    password: string;
     role: string;
     role_id?: number;
     permissions: string[];
@@ -529,17 +643,17 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
   };
   const [formData, setFormData] = useState<FormState>({
     name: adminToEdit?.name || '',
-    email: adminToEdit?.email || '',
+    email: adminToEdit?.email || adminToEdit?.google_email || '',
+    google_email: adminToEdit?.google_email || '',
     username: adminToEdit?.username || '',
     mobile_prefix: adminToEdit?.mobile_prefix || '+91',
     mobile_number: adminToEdit?.mobile_number || '',
-    password: '',
     role: adminToEdit?.role || '',
     role_id: adminToEdit?.role_id,
     permissions: adminToEdit?.permissions || [],
     isRestricted: adminToEdit?.isRestricted || false,
   });
-  const [showPassword, setShowPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
   // Allowed roles: hide super admin always; only roles with role_id strictly greater than myRoleId
   const allowedRoles = roles.filter(r => r.role_id !== 0 && r.role_id > myRoleId);
 
@@ -573,13 +687,12 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         ...formData,
         mobile_number: Number(formData.mobile_number),
       } as AdminCreationPayload;
-      payload.hashed_password = payload.password;
-      delete (payload as any).password;
       mutation.mutate(payload);
     } else {
       // UPDATE: send only changed fields
       const diff: Partial<AdminUpdatePayload> = {};
       if (formData.name !== adminToEdit.name) diff.name = formData.name;
+      if ((formData.google_email || '') !== (adminToEdit.google_email || '')) diff.google_email = formData.google_email;
       if (formData.email !== adminToEdit.email) diff.email = formData.email;
       // Username cannot be edited after creation
       if (formData.mobile_prefix !== adminToEdit.mobile_prefix) diff.mobile_prefix = formData.mobile_prefix;
@@ -588,9 +701,6 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
       if (formData.isRestricted !== adminToEdit.isRestricted) diff.isRestricted = formData.isRestricted;
       if (formData.role_id !== adminToEdit.role_id) diff.role_id = formData.role_id;
       if (formData.role && formData.role !== adminToEdit.role) diff.role = formData.role;
-      if (formData.password && String(formData.password).trim().length > 0) {
-        diff.hashed_password = String(formData.password);
-      }
       // role/permissions only if you actually surface editable controls for them
       // if changed: diff.role = formData.role; diff.permissions = formData.permissions;
 
@@ -607,32 +717,7 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <Label htmlFor="role" className="text-purple-300">Role</Label>
-          <select
-            id="role"
-            className="w-full bg-slate-800/50 border-purple-500/30 mt-1 rounded-md p-2"
-            value={formData.role_id != null ? String(formData.role_id) : ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (!val) {
-                setFormData({ ...formData, role_id: undefined, role: '' });
-                return;
-              }
-              const selected = allowedRoles.find(r => String(r.role_id) === val);
-              if (selected) {
-                setFormData({ ...formData, role_id: selected.role_id, role: selected.role_name });
-              }
-            }}
-          >
-            <option value="">Select role</option>
-            {allowedRoles.map(r => (
-              <option key={r._id} value={String(r.role_id)}>{r.role_name}</option>
-            ))}
-          </select>
-        </div>
-        <FormField label="Name" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-        <FormField label="Email" id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+        {/* Username first */}
         {adminToEdit ? (
           <div>
             <Label htmlFor="username" className="text-purple-300">Username</Label>
@@ -642,6 +727,52 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         ) : (
           <FormField label="Username" id="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
         )}
+        {/* Authentication Email for login */}
+        <FormField
+          label="Authentication Email (for login)"
+          id="google_email"
+          type="email"
+          value={formData.google_email}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFormData((prev) => ({ ...prev, google_email: val, ...(emailTouched ? {} : { email: val }) }));
+          }}
+        />
+        {/* Name */}
+        <FormField label="Name" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+        {/* Notification Email (defaults to Authentication email) */}
+        <div>
+          <Label htmlFor="email" className="text-purple-300">Notification Email</Label>
+          <Input
+            id="email"
+            type="email"
+            className="bg-slate-800/50 border-purple-500/30 mt-1"
+            value={formData.email}
+            onChange={(e) => { setEmailTouched(true); setFormData({ ...formData, email: e.target.value }); }}
+          />
+          <div className="text-xs text-gray-400 mt-1">Defaults to Authentication email; you can change it.</div>
+        </div>
+        {/* Role select below identity fields */}
+        <div className="col-span-2">
+          <Label htmlFor="role" className="text-purple-300">Role</Label>
+          <select
+            id="role"
+            className="w-full bg-slate-800/50 border-purple-500/30 mt-1 rounded-md p-2"
+            value={formData.role_id != null ? String(formData.role_id) : ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) { setFormData({ ...formData, role_id: undefined, role: '' }); return; }
+              const selected = allowedRoles.find(r => String(r.role_id) === val);
+              if (selected) { setFormData({ ...formData, role_id: selected.role_id, role: selected.role_name }); }
+            }}
+          >
+            <option value="">Select role</option>
+            {allowedRoles.map(r => (
+              <option key={r._id} value={String(r.role_id)}>{r.role_name}</option>
+            ))}
+          </select>
+        </div>
+        {/* Phone */}
         <div className="flex gap-2">
           <div className="w-1/3">
             <Label htmlFor="mobile_prefix" className="text-purple-300">Prefix</Label>
@@ -682,14 +813,6 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
             />
           </div>
         </div>
-        {!adminToEdit && (
-          <div className="relative">
-            <FormField label="Password" id="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-9 text-gray-400">
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          </div>
-        )}
       </div>
       <div className="flex items-center space-x-2">
         <Checkbox id="isRestricted" checked={formData.isRestricted} onCheckedChange={(checked) => setFormData({ ...formData, isRestricted: !!checked })} />

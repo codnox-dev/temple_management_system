@@ -69,30 +69,8 @@ async def get_me(current_admin: dict = Depends(auth_service.get_current_admin)):
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    """
-    Used to authenticate the admin and return a JWT access token.
-    """
-    admin = await admins_collection.find_one({"username": form_data.username})
-    if not admin or not auth_service.verify_password(form_data.password, admin["hashed_password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=auth_service.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = auth_service.create_access_token(
-        data={"sub": admin["username"]}, expires_delta=access_token_expires
-    )
-    
-    # Log activity
-    await create_activity(ActivityCreate(
-        username=admin["username"],
-        role=admin["role"],
-        activity="Signed in to the admin portal.",
-        timestamp=datetime.utcnow()
-    ))
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    """Deprecated. Use Google Sign-In via /api/auth/google."""
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password login disabled. Use Google Sign-In.")
 
 # --- Admin Management Endpoints ---
 
@@ -125,13 +103,12 @@ async def create_new_admin(
     if not _can_create_user(current_admin, int(getattr(admin_data, "role_id", 99))):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges to create this user")
 
-    # Hash the password before creating
-    hashed_password = auth_service.get_password_hash(admin_data.hashed_password)
-
     # Compose full create model on server: set created_by/created_at from token user
+    # Ignore any provided hashed_password field (back-compat)
+    payload = admin_data.model_dump()
+    payload.pop("hashed_password", None)
     full_create = AdminCreate(
-        **admin_data.model_dump(exclude={"hashed_password"}),
-        hashed_password=hashed_password,
+        **payload,
         created_by=current_admin["username"],
         created_at=datetime.utcnow(),
     )
@@ -172,11 +149,17 @@ async def update_admin_user(
 
     payload = admin_update.model_dump(exclude_unset=True)
 
-    # Disallow username changes explicitly
-    if "username" in payload and str(payload.get("username")) != str(target.get("username")):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username cannot be changed after creation")
-    # Ensure username is not updated even if same value is provided
-    payload.pop("username", None)
+    # Handle username change: allow with uniqueness enforcement
+    requested_username = payload.get("username")
+    if requested_username is not None and str(requested_username) != str(target.get("username")):
+        # Ensure actor can modify target (checked later as well)
+        # Enforce uniqueness pre-check for better error message
+        existing = await admins_collection.find_one({
+            "username": str(requested_username),
+            "_id": {"$ne": ObjectId(user_id)}
+        })
+        if existing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
 
     # Disallow any changes to Super Admin account
     if int(target.get("role_id", 99)) == 0:
@@ -192,12 +175,23 @@ async def update_admin_user(
     if proposed_role_id is not None and int(proposed_role_id) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot assign super admin role")
 
+    # Enforce google_email uniqueness if updated
+    if "google_email" in payload:
+        new_auth_email = payload.get("google_email")
+        if new_auth_email:
+            exists_auth = await admins_collection.find_one({
+                "google_email": str(new_auth_email),
+                "_id": {"$ne": ObjectId(user_id)}
+            })
+            if exists_auth:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication email already linked to another admin")
+
     update_data = payload
     update_data["updated_at"] = datetime.utcnow()
     update_data["updated_by"] = current_admin["username"]
 
-    if "hashed_password" in update_data:
-        update_data["hashed_password"] = auth_service.get_password_hash(update_data["hashed_password"])
+    # Remove password update path in Google Sign-In migration
+    update_data.pop("hashed_password", None)
 
     updated_admin = await admins_collection.find_one_and_update(
         {"_id": ObjectId(user_id)},
@@ -211,6 +205,9 @@ async def update_admin_user(
     
     # Build human-readable change messages
     change_msgs = []
+    # Username change
+    if "username" in update_data and str(update_data.get("username")) != str(target.get("username")):
+        change_msgs.append(f"changed username from '{target.get('username')}' to '{update_data.get('username')}'")
     # Role name change
     if "role" in update_data and str(update_data.get("role")) != str(target.get("role")):
         change_msgs.append(f"changed role from '{target.get('role')}' to '{update_data.get('role')}'")
@@ -231,11 +228,10 @@ async def update_admin_user(
     if "permissions" in update_data:
         change_msgs.append("updated permissions")
     # Password change
-    if "hashed_password" in update_data:
-        change_msgs.append("updated password")
+    # Skip password-related messages
     # Profile-like fields
     profile_fields = [
-        f for f in ("name","email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")
+        f for f in ("name","email","google_email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")
         if f in update_data
     ]
     if profile_fields:

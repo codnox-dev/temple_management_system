@@ -28,9 +28,7 @@ async def get_my_profile(current_admin: dict = Depends(auth_service.get_current_
     """
     Fetches the profile information for the currently authenticated admin.
     """
-    admin = current_admin.copy()
-    admin.pop("hashed_password", None)
-    return admin
+    return current_admin
 
 @router.put("/me", response_model=AdminPublic) # This will also work correctly now
 async def update_my_profile(
@@ -61,7 +59,7 @@ async def update_my_profile(
     if not updated_admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
 
-    updated_admin.pop("hashed_password", None)
+    # No password field to sanitize
     
     # Build a human-readable summary of what changed
     fields = ", ".join(k.replace("_", " ") for k in update_data.keys()) or "profile"
@@ -156,7 +154,7 @@ async def upload_profile_picture(
     if not updated_admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
 
-    updated_admin.pop("hashed_password", None)
+    # No password field to sanitize
     
     # Log activity
     await create_activity(ActivityCreate(

@@ -32,7 +32,7 @@ app.add_middleware(
         "/docs", "/redoc", "/openapi.json", "/", "/api",
         # Public auth endpoints only (verify-token should be protected)
         "/api/auth/login", "/api/auth/register",
-        "/api/auth/get-token", "/api/auth/refresh-token"
+        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/google"
     ]
 )
 
@@ -127,24 +127,20 @@ async def startup_db_client():
     if await admins_collection.count_documents({}) == 0:
         print("Creating default admin user from .env file...")
         admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
-        admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
         admin_name = os.getenv("DEFAULT_ADMIN_NAME", "Administrator")
         admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
-
-        if not admin_password:
-            raise ValueError("DEFAULT_ADMIN_PASSWORD is not set in the .env file.")
+        admin_google_email = os.getenv("DEFAULT_ADMIN_GOOGLE_EMAIL")
 
         # Resolve role details from roles collection (role_id=0)
         super_role = await roles_collection.find_one({"role_id": 0})
         role_name = (super_role or {}).get("role_name", "Super Admin")
         role_perms = (super_role or {}).get("basic_permissions", ["*"])
 
-        hashed_password = auth_service.get_password_hash(admin_password)
         admin_user = AdminCreate(
             name=admin_name,
             email=admin_email,
+            google_email=admin_google_email,
             username=admin_username,
-            hashed_password=hashed_password,
             role=role_name,
             role_id=0,
             mobile_number=int(''.join([str(random.randint(0, 9)) for _ in range(10)])),
@@ -159,7 +155,8 @@ async def startup_db_client():
         # Use the create_admin function from the auth_service
         await auth_service.create_admin(admin_user)
         print(f"Default admin created with username '{admin_username}'.")
-        print("Password is set from the DEFAULT_ADMIN_PASSWORD in your .env file.")
+        if admin_google_email:
+            print("Google email linked for Sign-In.")
 
 
 # --- API Routers ---
