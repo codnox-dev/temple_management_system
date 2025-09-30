@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Flame } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import lotusFooter from '../assets/lotusfooter.png';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -92,8 +93,8 @@ const Navigation = () => {
           {/* Logo and Brand Name */}
           <div className="flex-shrink-0">
             <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-500 rounded-full">
-                <Flame className="h-6 w-6 text-white" />
+              <div className="p-2 rounded-full bg-transparent">
+                <img src={lotusFooter} alt="lotus" className="h-12 w-12 md:h-14 md:w-14 object-contain" />
               </div>
               <span className={`text-xl font-playfair font-bold whitespace-nowrap ${logoTextColor} transition-colors duration-300`}>
                 Vamanan Temple
@@ -115,7 +116,11 @@ const Navigation = () => {
                 {item.label}
               </a>
             ))}
-            <button className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => navigate('/ritual-booking')}
+              className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap"
+            >
               Book Now
             </button>
           </div>
@@ -155,7 +160,11 @@ const Navigation = () => {
               </a>
             ))}
             <div className="pt-4 px-2">
-              <button className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors">
+              <button
+                type="button"
+                onClick={() => { setIsMobileMenuOpen(false); navigate('/ritual-booking'); }}
+                className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors"
+              >
                 Book Now
               </button>
             </div>

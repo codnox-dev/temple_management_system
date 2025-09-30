@@ -43,21 +43,27 @@ const Index = () => {
         <div id="home" className="scroll-offset">
           <HeroSection />
         </div>
+        <div className="section-divider" />
         <div id="about" className="scroll-offset">
           <TempleOverview />
         </div>
+        <div className="section-divider" />
         <div id="rituals" className="scroll-offset">
           <RitualSection />
         </div>
+        <div className="section-divider" />
         <div id="events" className="scroll-offset">
           <EventSection />
         </div>
+        <div className="section-divider" />
         <div id="gallery" className="scroll-offset">
           <GalleryPreview />
         </div>
+        <div className="section-divider" />
         <div id="committee" className="scroll-offset">
           <CommitteeSection />
         </div>
+        <div className="section-divider" />
         
         {/* ContactSection already contains the id="contact", add wrapper to ensure scroll offset */}
         <div id="contact" className="scroll-offset">
