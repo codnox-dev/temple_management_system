@@ -166,9 +166,6 @@ const EventSection = () => {
                       <h3 className="text-3xl text-black font-playfair font-semibold group-hover:text-gray-800 transition-colors mb-4">
                         {currentEvent.title}
                       </h3>
-                      <p className="text-gray-900 leading-relaxed mb-6 line-clamp-4">
-                        {currentEvent.description}
-                      </p>
                       <div className="space-y-3 text-sm">
                         <div className="text-gray-800 flex items-center">
                           <Calendar className="h-4 w-4 mr-3 text-primary" />
