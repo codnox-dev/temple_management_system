@@ -5,10 +5,10 @@ const Footer = () => {
   return (
   // Replaced 'bg-gradient-golden' with a gold-orange gradient
   <footer className="bg-gradient-to-r from-amber-400 via-orange-500 to-orange-700 text-white bg-cover">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-          {/* Temple Info (centered column) */}
-          <div className="flex flex-col items-center text-center space-y-4">
+      <div className="max-w-7xl mx-auto py-16 pr-4 sm:pr-6 lg:pr-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          {/* Temple Info (centered in a 3/12 column to shift it further left) */}
+          <div className="flex flex-col items-center text-center space-y-4 md:col-span-3">
             <img src={lotusFooter} alt="lotus" className="h-40 w-40 md:h-48 md:w-48 lg:h-56 lg:w-56 object-contain" />
             <span className="text-xl md:text-2xl font-playfair font-bold">Vamanakulangara Vishnu Temple</span>
             <div className="flex space-x-3 mt-2 items-center">
@@ -27,8 +27,8 @@ const Footer = () => {
               and divine blessings through traditional rituals and ceremonies.
             </p>
           </div>
-          {/* Right-side group (starts at centre and extends to right) */}
-          <div className="flex justify-end">
+          {/* Right-side group (in a wider 9/12 column) */}
+          <div className="flex justify-end md:col-span-9">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full lg:w-auto">
               {/* Quick Links */}
               <div className="">
