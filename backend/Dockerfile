@@ -1,17 +1,22 @@
-# Start with an official Python runtime as a parent image
+# Use official Python slim image (smallest with precompiled packages)
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set environment variables for optimization
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV SECURITY_LEVEL=minimal
+
+# Set working directory
 WORKDIR /app
 
-# Copy the dependencies file to the working directory
+# Copy requirements first for better caching
 COPY ./requirements.txt .
 
-# Install any needed packages specified in requirements.txt
+# Install packages directly (most have wheels available, no compilation needed)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the content of the local src directory to the working directory
+# Copy application code
 COPY . .
 
-# Command to run the application - Updated for Render's dynamic PORT
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Optimize for 512MB: Single worker, minimal logging, no hot reload
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-access-log

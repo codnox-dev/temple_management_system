@@ -9,6 +9,8 @@ from datetime import datetime
 class AdminBase(BaseModel):
     name: str = Field(..., example="Administrator")
     email: EmailStr = Field(..., example="admin@example.com")
+    # Email used for Google Sign-In linking. Must be unique across admins.
+    google_email: Optional[EmailStr] = Field(None, example="admin.google@example.com")
     username: str = Field(..., example="adminuser")
     role: str = Field(..., example="super_admin")
     role_id: int = Field(..., example=1)
@@ -36,6 +38,7 @@ class AdminCreate(AdminBase):
 class AdminUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    google_email: Optional[EmailStr] = None
     username: Optional[str] = None
     role: Optional[str] = None
     role_id: Optional[int] = None
@@ -48,6 +51,8 @@ class AdminUpdate(BaseModel):
     notification_preference: Optional[List[str]] = None
     notification_list: Optional[List[str]] = None
     isRestricted: Optional[bool] = None
+    # Backward compatibility: accepted but ignored
+    hashed_password: Optional[str] = None
 
 # Represents an admin object as stored in the database.
 class AdminInDB(AdminBase):
@@ -63,6 +68,7 @@ class AdminPublic(AdminBase):
 class AdminCreateInput(BaseModel):
     name: str
     email: EmailStr
+    google_email: Optional[EmailStr] = None
     username: str
     role: str
     role_id: int
@@ -70,6 +76,8 @@ class AdminCreateInput(BaseModel):
     mobile_prefix: str
     permissions: List[str] = Field(default_factory=list)
     isRestricted: bool = False
+    # Backward compatibility: accepted but ignored
+    hashed_password: Optional[str] = None
 
 # Schema for the authentication token response.
 class Token(BaseModel):

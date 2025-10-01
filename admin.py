@@ -103,21 +103,10 @@ async def create_new_admin(
     if not _can_create_user(current_admin, int(getattr(admin_data, "role_id", 99))):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges to create this user")
 
-    # Check mobile number uniqueness
-    full_mobile = f"{admin_data.mobile_prefix}{admin_data.mobile_number}"
-    existing_admin = await admins_collection.find_one({
-        "$expr": {
-            "$eq": [
-                {"$concat": ["$mobile_prefix", {"$toString": "$mobile_number"}]},
-                full_mobile
-            ]
-        }
-    })
-    if existing_admin:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mobile number already registered to another admin")
-
     # Compose full create model on server: set created_by/created_at from token user
+    # Ignore any provided hashed_password field (back-compat)
     payload = admin_data.model_dump()
+    payload.pop("hashed_password", None)
     full_create = AdminCreate(
         **payload,
         created_by=current_admin["username"],
@@ -186,25 +175,16 @@ async def update_admin_user(
     if proposed_role_id is not None and int(proposed_role_id) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot assign super admin role")
 
-    # Mobile number uniqueness check (if being updated)
-    if "mobile_number" in payload or "mobile_prefix" in payload:
-        # Get current values for fields not being updated
-        current_prefix = payload.get("mobile_prefix", target.get("mobile_prefix"))
-        current_number = payload.get("mobile_number", target.get("mobile_number"))
-        
-        if current_prefix and current_number:
-            full_mobile = f"{current_prefix}{current_number}"
-            existing_admin = await admins_collection.find_one({
-                "$expr": {
-                    "$eq": [
-                        {"$concat": ["$mobile_prefix", {"$toString": "$mobile_number"}]},
-                        full_mobile
-                    ]
-                },
+    # Enforce google_email uniqueness if updated
+    if "google_email" in payload:
+        new_auth_email = payload.get("google_email")
+        if new_auth_email:
+            exists_auth = await admins_collection.find_one({
+                "google_email": str(new_auth_email),
                 "_id": {"$ne": ObjectId(user_id)}
             })
-            if existing_admin:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mobile number already registered to another admin")
+            if exists_auth:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication email already linked to another admin")
 
     update_data = payload
     update_data["updated_at"] = datetime.utcnow()
@@ -251,7 +231,7 @@ async def update_admin_user(
     # Skip password-related messages
     # Profile-like fields
     profile_fields = [
-        f for f in ("name","email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")
+        f for f in ("name","email","google_email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")
         if f in update_data
     ]
     if profile_fields:

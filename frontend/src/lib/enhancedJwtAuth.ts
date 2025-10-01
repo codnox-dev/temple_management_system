@@ -1,5 +1,5 @@
-// JWT Authentication Service for Frontend
-// Handles secure token management without exposing secret keys
+// Enhanced JWT Authentication Service for Frontend
+// Includes device fingerprinting, geolocation, and enhanced security
 
 import { authEventBus } from './authEvents';
 
@@ -18,15 +18,173 @@ interface UserInfo {
   permissions?: string[];
 }
 
-class JWTAuthService {
+interface DeviceFingerprint {
+  screen_width?: number;
+  screen_height?: number;
+  timezone?: string;
+  language?: string;
+  platform?: string;
+  canvas_fingerprint?: string;
+  webgl_fingerprint?: string;
+  user_agent?: string;
+}
+
+interface GeolocationCoords {
+  latitude: number;
+  longitude: number;
+}
+
+class EnhancedJWTAuthService {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: Date | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
+  private deviceFingerprint: DeviceFingerprint | null = null;
+  private currentLocation: GeolocationCoords | null = null;
 
   constructor() {
-    // Initialize token from session storage (not localStorage for security)
+    // Initialize token from session storage
     this.loadTokenFromSession();
+    // Generate device fingerprint
+    this.generateDeviceFingerprint();
+    // Get geolocation if permitted
+    this.getCurrentLocation();
+  }
+
+  /**
+   * Initialize enhanced security features
+   */
+  async initializeSecurityFeatures(): Promise<void> {
+    try {
+      // Regenerate device fingerprint to ensure it's fresh
+      await this.generateDeviceFingerprint();
+      
+      // Update geolocation
+      this.getCurrentLocation();
+      
+      // Set up rate limit tracking
+      this.setupRateLimitTracking();
+      
+      console.log('Enhanced security features initialized');
+    } catch (error) {
+      console.warn('Failed to initialize enhanced security features:', error);
+    }
+  }
+
+  /**
+   * Set up rate limit tracking for API calls
+   */
+  private setupRateLimitTracking(): void {
+    // Track API call frequency to help with rate limiting
+    const globalWindow = window as any;
+    if (!globalWindow.apiCallTracker) {
+      globalWindow.apiCallTracker = {
+        calls: [],
+        addCall: (endpoint: string) => {
+          const now = Date.now();
+          globalWindow.apiCallTracker.calls.push({ endpoint, timestamp: now });
+          
+          // Clean up old calls (older than 1 hour)
+          const oneHourAgo = now - (60 * 60 * 1000);
+          globalWindow.apiCallTracker.calls = globalWindow.apiCallTracker.calls.filter(
+            (call: any) => call.timestamp > oneHourAgo
+          );
+        },
+        getRecentCalls: (minutes: number = 1) => {
+          const cutoff = Date.now() - (minutes * 60 * 1000);
+          return globalWindow.apiCallTracker.calls.filter((call: any) => call.timestamp > cutoff);
+        }
+      };
+    }
+  }
+
+  /**
+   * Generate device fingerprint for enhanced security
+   */
+  private async generateDeviceFingerprint(): Promise<void> {
+    try {
+      const fingerprint: DeviceFingerprint = {
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+        platform: navigator.platform,
+        user_agent: navigator.userAgent
+      };
+
+      // Canvas fingerprinting
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.textBaseline = 'top';
+          ctx.font = '14px Arial';
+          ctx.fillText('Device fingerprint canvas', 2, 2);
+          fingerprint.canvas_fingerprint = canvas.toDataURL().slice(-50);
+        }
+      } catch (e) {
+        console.warn('Canvas fingerprinting failed:', e);
+      }
+
+      // WebGL fingerprinting
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext;
+        if (gl) {
+          const renderer = gl.getParameter(gl.RENDERER);
+          const vendor = gl.getParameter(gl.VENDOR);
+          fingerprint.webgl_fingerprint = `${vendor}_${renderer}`.slice(-50);
+        }
+      } catch (e) {
+        console.warn('WebGL fingerprinting failed:', e);
+      }
+
+      this.deviceFingerprint = fingerprint;
+    } catch (error) {
+      console.warn('Device fingerprinting failed:', error);
+    }
+  }
+
+  /**
+   * Get current geolocation
+   */
+  private getCurrentLocation(): void {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          this.currentLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+        },
+        (error) => {
+          console.warn('Geolocation failed:', error.message);
+        },
+        { timeout: 10000, enableHighAccuracy: false }
+      );
+    }
+  }
+
+  /**
+   * Get enhanced headers for API requests
+   */
+  private getEnhancedHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add device fingerprint
+    if (this.deviceFingerprint) {
+      headers['X-Device-Fingerprint'] = JSON.stringify(this.deviceFingerprint);
+    }
+
+    // Add geolocation
+    if (this.currentLocation) {
+      headers['X-Client-Latitude'] = this.currentLocation.latitude.toString();
+      headers['X-Client-Longitude'] = this.currentLocation.longitude.toString();
+    }
+
+    return headers;
   }
 
   /**
@@ -36,10 +194,8 @@ class JWTAuthService {
     try {
       const response = await fetch(`${this.getApiBaseUrl()}/api/auth/get-token`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for refresh token
+        headers: this.getEnhancedHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -56,57 +212,63 @@ class JWTAuthService {
   }
 
   /**
-   * Login with username and password
-   */
-  async login(username: string, password: string): Promise<boolean> {
-    // Deprecated: password login disabled on server
-    throw new Error('Password login disabled. Use Google Sign-In.');
-  }
-
-  /**
    * Send OTP to mobile number
    */
   async sendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number }> {
     const response = await fetch(`${this.getApiBaseUrl()}/api/auth/send-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getEnhancedHeaders(),
       credentials: 'include',
       body: JSON.stringify({ mobile_number: mobileNumber }),
     });
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Failed to send OTP' }));
       throw new Error(errorData.detail || 'Failed to send OTP');
     }
+    
     return await response.json();
   }
 
   /**
-   * Verify OTP and login
+   * Verify OTP and login with enhanced security
    */
   async verifyOTP(mobileNumber: string, otp: string): Promise<boolean> {
+    const headers = this.getEnhancedHeaders();
+    
     const response = await fetch(`${this.getApiBaseUrl()}/api/auth/verify-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
-      body: JSON.stringify({ mobile_number: mobileNumber, otp: otp }),
+      body: JSON.stringify({ 
+        mobile_number: mobileNumber, 
+        otp: otp,
+        device_fingerprint: this.deviceFingerprint
+      }),
     });
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Invalid OTP' }));
       throw new Error(errorData.detail || 'Invalid OTP');
     }
+    
     const tokenData: TokenResponse = await response.json();
     this.setTokens(tokenData);
     return true;
   }
 
   /**
-   * Logout and clear tokens
+   * Logout and clear tokens with enhanced cleanup
    */
   async logout(): Promise<void> {
     try {
-      // Call backend logout endpoint to clear refresh token cookie
+      // Call backend logout endpoint
       await fetch(`${this.getApiBaseUrl()}/api/auth/logout`, {
         method: 'POST',
+        headers: {
+          ...this.getEnhancedHeaders(),
+          'Authorization': `Bearer ${this.accessToken}`
+        },
         credentials: 'include',
       });
     } catch (error) {
@@ -114,8 +276,13 @@ class JWTAuthService {
     } finally {
       this.clearTokens();
       
-      // Disconnect from Google to allow login with same account
-      this.disconnectFromGoogle();
+      // Clear device fingerprint and location
+      this.deviceFingerprint = null;
+      this.currentLocation = null;
+      
+      // Regenerate for next session
+      this.generateDeviceFingerprint();
+      this.getCurrentLocation();
       
       // Emit logout event
       authEventBus.emit('logout');
@@ -123,29 +290,7 @@ class JWTAuthService {
   }
 
   /**
-   * Disconnect from Google Sign-In to allow re-login with same account
-   */
-  private disconnectFromGoogle(): void {
-    try {
-      const w = window as any;
-      if (w.google && w.google.accounts && w.google.accounts.id) {
-        // Disconnect from Google
-        w.google.accounts.id.disableAutoSelect();
-        
-        // Also try to revoke the authorization if available
-        if (w.google.accounts.oauth2) {
-          w.google.accounts.oauth2.revoke('', () => {
-            console.log('Google authorization revoked');
-          });
-        }
-      }
-    } catch (error) {
-      console.log('Google disconnect not available or failed:', error);
-    }
-  }
-
-  /**
-   * Get current access token (handles automatic refresh)
+   * Get current access token with enhanced validation
    */
   async getAccessToken(): Promise<string | null> {
     // Check if token is expired or expiring soon (within 1 minute)
@@ -153,7 +298,6 @@ class JWTAuthService {
       try {
         await this.refreshAccessToken();
       } catch (error) {
-        // If refresh fails, token is invalid
         console.error('Token refresh failed:', error);
         return null;
       }
@@ -170,7 +314,7 @@ class JWTAuthService {
   }
 
   /**
-   * Get current user information
+   * Get current user information with enhanced verification
    */
   async getCurrentUser(): Promise<UserInfo | null> {
     try {
@@ -179,6 +323,7 @@ class JWTAuthService {
 
       const response = await fetch(`${this.getApiBaseUrl()}/api/auth/verify-token`, {
         headers: {
+          ...this.getEnhancedHeaders(),
           'Authorization': `Bearer ${token}`,
         },
         credentials: 'include',
@@ -202,16 +347,14 @@ class JWTAuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token with enhanced security
    */
   private async refreshAccessToken(): Promise<void> {
     try {
       const response = await fetch(`${this.getApiBaseUrl()}/api/auth/refresh-token`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Send refresh token cookie
+        headers: this.getEnhancedHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -238,7 +381,7 @@ class JWTAuthService {
     this.accessToken = tokenData.access_token;
     this.tokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
     
-    // Store in session storage (not localStorage for security)
+    // Store in session storage
     sessionStorage.setItem('access_token', this.accessToken);
     sessionStorage.setItem('token_expiry', this.tokenExpiry.toISOString());
 
@@ -247,7 +390,7 @@ class JWTAuthService {
   }
 
   /**
-   * Clear all tokens
+   * Clear all tokens and related data
    */
   private clearTokens(): void {
     this.accessToken = null;
@@ -309,12 +452,32 @@ class JWTAuthService {
    * Get API base URL from environment
    */
   private getApiBaseUrl(): string {
-    // Use the environment variable, fallback to a default for local dev
-    // return import.meta.env.VITE_API_BASE_URL || 'https://temple-management-system-3p4x.onrender.com';
     return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+  }
+
+  /**
+   * Get device fingerprint for external use
+   */
+  getDeviceFingerprint(): DeviceFingerprint | null {
+    return this.deviceFingerprint;
+  }
+
+  /**
+   * Get current location for external use
+   */
+  getCurrentLocationData(): GeolocationCoords | null {
+    return this.currentLocation;
+  }
+
+  /**
+   * Force refresh of device fingerprint and location
+   */
+  async refreshSecurityData(): Promise<void> {
+    await this.generateDeviceFingerprint();
+    this.getCurrentLocation();
   }
 }
 
 // Export singleton instance
-export const jwtAuth = new JWTAuthService();
-export default jwtAuth;
+export const enhancedJwtAuth = new EnhancedJWTAuthService();
+export default enhancedJwtAuth;

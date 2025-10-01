@@ -33,13 +33,15 @@ const FullGallery = () => {
 
   // attempt to load layout
   const [layout, setLayout] = useState<LayoutItem[] | null>(null);
+  const [order, setOrder] = useState<string[] | null>(null);
   const [designW, setDesignW] = useState<number>(DESIGN_WIDTH_FALLBACK);
   const [designH, setDesignH] = useState<number>(DESIGN_HEIGHT_FALLBACK);
   useEffect(() => {
     (async () => {
       try {
-        const data = await get<{ items: LayoutItem[]; design_width: number; design_height: number }>(`/gallery-layout/full`);
-        setLayout(data.items || null);
+  const data = await get<{ items?: LayoutItem[]; design_width?: number; design_height?: number; order?: string[] }>(`/gallery-layout/full`);
+  setLayout((data.items && data.items.length) ? data.items : null);
+  setOrder((data.order && data.order.length) ? data.order : null);
         setDesignW(data.design_width || DESIGN_WIDTH_FALLBACK);
         setDesignH(data.design_height || DESIGN_HEIGHT_FALLBACK);
       } catch {
@@ -55,6 +57,11 @@ const FullGallery = () => {
     if (!layout) return [] as LayoutItem[];
     return layout.filter((it) => !!imagesById[it.id]);
   }, [layout, imagesById]);
+
+  const orderedImages = useMemo(() => {
+    if (!order) return [] as GalleryImage[];
+    return order.map((id) => imagesById[id]).filter(Boolean) as GalleryImage[];
+  }, [order, imagesById]);
 
   // Slideshow state
   const [slides, setSlides] = useState<string[]>([]);
@@ -115,7 +122,7 @@ const FullGallery = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const hasLayout = filteredLayout.length > 0 && galleryImages && galleryImages.length > 0;
+  const hasLayout = (filteredLayout.length > 0 || (order && order.length > 0)) && galleryImages && galleryImages.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-sacred py-20">
@@ -183,6 +190,28 @@ const FullGallery = () => {
 
         {/* If a saved layout exists, render it scaled; otherwise fallback to grid */}
         {!isLoading && !isError && hasLayout ? (
+          order && order.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {orderedImages.map((img) => (
+                <Card key={img._id} className="card-divine group overflow-hidden cursor-pointer">
+                  <div className="relative overflow-hidden rounded-lg">
+                    <img
+                      src={resolveImageUrl(img.src)}
+                      alt={img.title}
+                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                      <div className="p-4 text-white w-full">
+                        <h3 className="font-playfair font-semibold mb-1">{img.title}</h3>
+                        <span className="text-sm opacity-80">{img.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
           <div ref={containerRef} className="w-full overflow-auto">
             <div
               className="relative"
@@ -217,6 +246,7 @@ const FullGallery = () => {
               </div>
             </div>
           </div>
+          )
         ) : (!isLoading && !isError) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {galleryImages?.map((image) => (

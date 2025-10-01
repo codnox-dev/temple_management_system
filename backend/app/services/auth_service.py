@@ -23,9 +23,17 @@ async def get_admin_by_username(username: str):
     """Fetches a single admin user from the database by username."""
     return await admins_collection.find_one({"username": username})
 
-async def get_admin_by_google_email(google_email: str):
-    """Fetch admin by linked Google email."""
-    return await admins_collection.find_one({"google_email": google_email})
+async def get_admin_by_mobile(mobile_number: str):
+    """Fetch admin by mobile number (full number with country code)."""
+    # Try to find admin where mobile_prefix + mobile_number equals the provided mobile_number
+    return await admins_collection.find_one({
+        "$expr": {
+            "$eq": [
+                {"$concat": ["$mobile_prefix", {"$toString": "$mobile_number"}]},
+                mobile_number
+            ]
+        }
+    })
 
 # --- Dependency for protected routes ---
 async def get_current_admin(request: Request, token: str = Depends(oauth2_scheme)):

@@ -18,6 +18,10 @@ if not MONGO_DETAILS:
 client = AsyncIOMotorClient(MONGO_DETAILS)
 database = client[DATABASE_NAME]
 
+def get_database():
+    """Get the database instance"""
+    return database
+
 # --- Collections ---
 available_rituals_collection = database.get_collection("available_rituals")
 bookings_collection = database.get_collection("bookings")
@@ -36,23 +40,29 @@ gallery_home_preview_collection = database.get_collection("gallery_home_preview"
 events_featured_collection = database.get_collection("events_featured")
 calendar_collection = database.get_collection("calendar")
 calendar_audit_collection = database.get_collection("calendar_audit")
+otp_collection = database.get_collection("otp")
+
+# Enhanced Security Collections
+token_revocation_collection = database.get_collection("token_revocation")
+device_fingerprints_collection = database.get_collection("device_fingerprints")
+security_events_collection = database.get_collection("security_events")
+user_sessions_collection = database.get_collection("user_sessions")
 
 # Ensure unique index on username for admins collection
 async def ensure_indexes():
     """Creates required indexes on startup if they don't exist."""
     # Admins
     await admins_collection.create_index([("username", ASCENDING)], unique=True, name="uniq_username")
-    # Unique google_email only when field exists
+    # Unique mobile number (combination of prefix + number)
     try:
         await admins_collection.create_index(
-            [("google_email", ASCENDING)],
+            [("mobile_prefix", ASCENDING), ("mobile_number", ASCENDING)],
             unique=True,
-            name="uniq_google_email",
-            partialFilterExpression={"google_email": {"$exists": True, "$type": "string"}}
+            name="uniq_mobile_number"
         )
     except Exception as e:
         # If duplicates exist, index creation will fail; log and continue
-        print(f"Warning: Could not create unique index on google_email: {e}")
+        print(f"Warning: Could not create unique index on mobile_number: {e}")
 
     # Calendar indexes
     # Unique date key
@@ -64,6 +74,28 @@ async def ensure_indexes():
 
     # Audit indexes
     await calendar_audit_collection.create_index([("dateISO", ASCENDING), ("timestamp", ASCENDING)], name="audit_date_time")
+
+    # Enhanced Security Indexes
+    # Token revocation indexes
+    await token_revocation_collection.create_index([("jti", ASCENDING)], unique=True, name="uniq_jti")
+    await token_revocation_collection.create_index([("revoked_at", ASCENDING)], name="revoked_at_idx")
+    
+    # Device fingerprints indexes
+    await device_fingerprints_collection.create_index([("user_id", ASCENDING)], unique=True, name="uniq_user_device")
+    await device_fingerprints_collection.create_index([("last_seen", ASCENDING)], name="last_seen_idx")
+    
+    # Security events indexes
+    await security_events_collection.create_index([("user_id", ASCENDING), ("timestamp", ASCENDING)], name="user_security_events")
+    await security_events_collection.create_index([("event_type", ASCENDING), ("timestamp", ASCENDING)], name="event_type_time")
+    await security_events_collection.create_index([("ip_address", ASCENDING), ("timestamp", ASCENDING)], name="ip_security_events")
+    
+    # User sessions indexes
+    await user_sessions_collection.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], name="user_sessions")
+    await user_sessions_collection.create_index([("expires_at", ASCENDING)], name="session_expiry")
+
+    # OTP indexes
+    await otp_collection.create_index([("mobile_number", ASCENDING)], name="mobile_number")
+    await otp_collection.create_index([("expires_at", ASCENDING)], expireAfterSeconds=0, name="expire_otps")  # TTL index
 
 # Note: The index creation is now within an async function.
 # This should be called during your application's startup event in main.py.

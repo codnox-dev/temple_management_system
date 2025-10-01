@@ -1,17 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks
 import os
 import re
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 
 from ..services.jwt_security_service import jwt_security
-from ..services.auth_service import get_admin_by_username, get_admin_by_google_email
+from ..services.auth_service import get_admin_by_username, get_admin_by_mobile
+from ..services.otp_service import otp_service
+from ..models.otp_models import OTPSendRequest, OTPVerificationRequest, OTPResponse
 from ..database import admins_collection
-from google.oauth2 import id_token as google_id_token
-from google.auth.transport import requests as google_requests
 
 router = APIRouter()
 logger = logging.getLogger("auth")
@@ -43,9 +43,9 @@ def _is_allowed_origin(origin: str) -> bool:
 
 # Handle CORS preflight requests for auth endpoints
 @router.options("/get-token")
-@router.options("/login") 
+@router.options("/send-otp") 
+@router.options("/verify-otp")
 @router.options("/refresh-token")
-@router.options("/google")
 async def handle_cors_preflight(request: Request):
     """Handle CORS preflight requests for auth endpoints"""
     origin = request.headers.get("origin", "")
@@ -70,9 +70,6 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
-
-class GoogleLoginRequest(BaseModel):
-    id_token: str
 
 @router.post("/get-token", response_model=TokenResponse)
 async def get_initial_token(request: Request):
@@ -106,11 +103,10 @@ async def get_initial_token(request: Request):
         logger.error(f"Token creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not create token")
 
-@router.post("/google", response_model=TokenResponse)
-async def google_login(request: Request, response: Response, payload: GoogleLoginRequest):
+@router.post("/send-otp", response_model=OTPResponse)
+async def send_otp(request: Request, background_tasks: BackgroundTasks, payload: OTPSendRequest):
     """
-    Google Sign-In endpoint: accepts a Google ID token from the frontend, verifies it,
-    validates the email, looks up the admin by google_email, and issues our own JWTs.
+    Send OTP to mobile number for authentication.
     """
     try:
         # CSRF mitigation: validate Origin header explicitly
@@ -118,41 +114,49 @@ async def google_login(request: Request, response: Response, payload: GoogleLogi
         if not _is_allowed_origin(origin):
             raise HTTPException(status_code=403, detail="Invalid origin")
 
-        # Verify Google ID token
-        client = google_requests.Request()
-        try:
-            # Verify signature first
-            idinfo = google_id_token.verify_oauth2_token(payload.id_token, client)
-        except Exception:
-            raise HTTPException(status_code=401, detail="Invalid Google token")
+        # Generate and send OTP
+        plain_otp, otp_doc = await otp_service.create_otp(payload.mobile_number)
+        
+        # Schedule cleanup of expired OTPs in background
+        background_tasks.add_task(otp_service.cleanup_expired_otps)
+        
+        logger.info(f"OTP sent to mobile number: {payload.mobile_number}")
+        
+        return OTPResponse(
+            message="OTP sent successfully",
+            mobile_number=otp_doc.mobile_number,
+            expires_in=300  # 5 minutes
+        )
+        
+    except ValueError as e:
+        logger.warning(f"OTP send failed: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OTP send error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
 
-        # Validate email and verification
-        email = idinfo.get("email")
-        email_verified = idinfo.get("email_verified", False)
-        if not email or not email_verified:
-            raise HTTPException(status_code=401, detail="Unverified Google account")
+@router.post("/verify-otp", response_model=TokenResponse)
+async def verify_otp_login(request: Request, response: Response, payload: OTPVerificationRequest):
+    """
+    Verify OTP and authenticate admin user.
+    """
+    try:
+        # CSRF mitigation: validate Origin header explicitly
+        origin = request.headers.get("origin", "")
+        if not _is_allowed_origin(origin):
+            raise HTTPException(status_code=403, detail="Invalid origin")
 
-        # Enforce audience/client ID match
-        expected_auds = [a.strip() for a in os.getenv("GOOGLE_CLIENT_IDS", os.getenv("GOOGLE_CLIENT_ID", "")).split(",") if a.strip()]
-        if expected_auds:
-            aud = idinfo.get("aud")
-            if aud not in expected_auds:
-                logger.warning(f"Google login rejected due to audience mismatch: aud={aud}")
-                raise HTTPException(status_code=401, detail="Invalid Google client")
-
-        # Find admin by google_email
-        admin_user = await get_admin_by_google_email(email)
+        # Verify OTP and get admin user
+        admin_user = await otp_service.verify_otp(payload.mobile_number, payload.otp)
         if not admin_user:
-            logger.warning(f"Google login denied for unlinked email: {email}")
-            raise HTTPException(status_code=403, detail="No admin account linked to this Google email")
+            raise HTTPException(status_code=401, detail="Invalid or expired OTP")
 
-        # Optional: sync profile picture only (do not alter name via Google)
-        picture = idinfo.get("picture")
-        if picture:
-            try:
-                await admins_collection.update_one({"_id": admin_user["_id"]}, {"$set": {"profile_picture": picture}})
-            except Exception:
-                pass
+        # Check if admin is restricted
+        if admin_user.get("isRestricted", False):
+            logger.warning(f"Login attempt by restricted admin: {admin_user.get('username')}")
+            raise HTTPException(status_code=403, detail="Account is restricted")
 
         # Get client information for optional token binding
         client_info = jwt_security.get_client_info(request)
@@ -179,23 +183,29 @@ async def google_login(request: Request, response: Response, payload: GoogleLogi
             max_age=jwt_security.refresh_token_expire_days * 24 * 60 * 60,
         )
 
-        logger.info(f"Google login successful for admin: {admin_user.get('username')} ({email})")
+        # Get role-based token duration
+        token_duration = jwt_security.get_token_duration(admin_user.get("role_id"))
+
+        mobile_display = f"{admin_user.get('mobile_prefix', '')}{admin_user.get('mobile_number', '')}"
+        logger.info(f"OTP login successful for admin: {admin_user.get('username')} ({mobile_display}) with {token_duration // 60}min token")
+        
         return TokenResponse(
             access_token=access_token,
-            expires_in=jwt_security.access_token_expire_minutes * 60,
+            expires_in=token_duration,
         )
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Google login error: {e}")
+        logger.error(f"OTP verification error: {e}")
         raise HTTPException(status_code=500, detail="Authentication error")
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(request: Request, response: Response):
     """
-    Password-based login is disabled. Use /api/auth/google with Google ID token.
+    Password-based login is disabled. Use OTP authentication.
     """
-    raise HTTPException(status_code=403, detail="Password login disabled. Use Google Sign-In.")
+    raise HTTPException(status_code=403, detail="Password login disabled. Use OTP authentication via /api/auth/send-otp and /api/auth/verify-otp")
 
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(request: Request, refresh_request: RefreshTokenRequest = None):
@@ -224,11 +234,15 @@ async def refresh_token(request: Request, refresh_request: RefreshTokenRequest =
         # Create new access token
         new_access_token = jwt_security.refresh_access_token(refresh_token, client_info)
         
+        # Decode token to get role_id for proper expires_in calculation
+        payload = jwt_security.verify_token(new_access_token, token_type="access", client_info=client_info)
+        token_duration = jwt_security.get_token_duration(payload.get("role_id"))
+        
         logger.info(f"Token refreshed for IP {client_info.get('ip', 'unknown')}")
         
         return TokenResponse(
             access_token=new_access_token,
-            expires_in=jwt_security.access_token_expire_minutes * 60
+            expires_in=token_duration
         )
         
     except HTTPException:

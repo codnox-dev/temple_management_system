@@ -3,7 +3,7 @@
 // can be managed in one place instead of scattering http://localhost:8000 across files.
 
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios';
-import { jwtAuth } from '../lib/jwtAuth';
+import { enhancedJwtAuth } from '../lib/enhancedJwtAuth';
 
 // Resolve base URL: prefer explicit env var, fallback to window location heuristic, then hardcoded dev default.
 // Vite exposes env vars prefixed with VITE_.
@@ -63,9 +63,22 @@ api.interceptors.request.use(
 			
 			if (!isAuthPath) {
 				// Get current access token (handles automatic refresh)
-				const token = await jwtAuth.getAccessToken();
+				const token = await enhancedJwtAuth.getAccessToken();
 				if (token) {
 					config.headers.set('Authorization', `Bearer ${token}`);
+					
+					// Add enhanced security headers
+					const deviceFingerprint = enhancedJwtAuth.getDeviceFingerprint();
+					const location = enhancedJwtAuth.getCurrentLocationData();
+					
+					if (deviceFingerprint) {
+						config.headers.set('X-Device-Fingerprint', JSON.stringify(deviceFingerprint));
+					}
+					
+					if (location) {
+						config.headers.set('X-Client-Latitude', location.latitude.toString());
+						config.headers.set('X-Client-Longitude', location.longitude.toString());
+					}
 				}
 			}
 		} catch (error) {
