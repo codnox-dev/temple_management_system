@@ -111,7 +111,7 @@ const Navigation = () => {
       </style>
       <header className="fixed top-0 z-50 w-full p-2 sm:p-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <nav
-          className={`desktop-trapezoid max-w-7xl mx-auto transition-all duration-300 ease-in-out ${
+          className={`desktop-trapezoid max-w-7xl mx-auto transition-all duration-300 ease-in-out rounded-lg md:rounded-none overflow-hidden ${
             isScrolled ? 'bg-yellow-950 shadow-lg' : 'bg-yellow-950/60 backdrop-blur-md'
           }`}
         >
@@ -163,7 +163,7 @@ const Navigation = () => {
 
           {/* The mobile menu dropdown */}
           {isMobileMenuOpen && (
-            <div className="md:hidden bg-yellow-950/95 backdrop-blur-sm shadow-xl overflow-hidden">
+            <div className="md:hidden bg-yellow-950/95 backdrop-blur-sm shadow-xl">
               <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                 {navItems.map((item) => (
                   <a
