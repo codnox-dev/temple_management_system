@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get } from '../api/api';
 import { Flame, Flower2, Heart, Star, LucideProps } from 'lucide-react';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import lampVideo from '../assets/lamp.mp4';
 
 // --- Type Definitions ---
 interface Ritual {
@@ -43,23 +44,43 @@ const RitualSection = () => {
   const { ref: cardsRef, isVisible: cardsVisible } = useScrollAnimation();
 
   return (
-  // Changed py-20 to py-10 to reduce vertical space
   <section className="py-10 px-6">
-    <div className="max-w-screen-2xl mx-auto bg-transparent border-2 border-red-500 rounded-xl p-6 sm:p-8 lg:p-12">
+    <div className="max-w-screen-2xl mx-auto bg-transparent rounded-xl p-6 sm:p-8 lg:p-12">
       <div className="max-w-7xl mx-auto">
-        <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
-          <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
-            Sacred <span className="text-primary">Rituals</span>
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed py-6">
-            Connect with the divine through our authentic spiritual ceremonies,
-            each designed to bring peace, prosperity, and divine blessings into your life.
-          </p>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+            
+            {/* Left Column: Video */}
+            <div className={`flex items-center justify-center lg:justify-start ${headerVisible ? 'animate-fade-in-up' : ''}`} style={{ animationDelay: '0.2s' }}>
+                <video
+                    src={lampVideo}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="rounded-xl w-full max-w-md object-cover shadow-2xl border-4 border-primary/20"
+                >
+                    Your browser does not support the video tag.
+                </video>
+                {/* 1. REMOVED BUTTON FROM HERE */}
+            </div>
+
+            {/* Right Column: Text */}
+            <div ref={headerRef} className={`text-center lg:text-left ${headerVisible ? 'animate-fade-in-up' : ''}`}>
+                <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
+                    Sacred <span className="text-primary">Rituals</span>
+                </h2>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                    Connect with the divine through our authentic spiritual ceremonies,
+                    each designed to bring peace, prosperity, and divine blessings into your life.
+                </p>
+            </div>
         </div>
-        <div ref={cardsRef} className="flex flex-wrap justify-center gap-6">
+
+        <div ref={cardsRef} className="flex flex-wrap justify-center lg:justify-start gap-6">
           {isLoading && Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="w-full md:w-1/2 lg:w-1/4 max-w-sm">
-              <div className="rounded-xl border border-red-500 overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <div className="card-ritual group relative animate-pulse">
                    <div className="h-24 bg-muted rounded-full w-24 mx-auto mb-4"></div>
                    <div className="h-6 bg-muted rounded w-3/4 mx-auto mb-2"></div>
@@ -76,7 +97,7 @@ const RitualSection = () => {
           {isError && <p className="text-red-500 col-span-full text-center">Failed to load rituals. Please try again later.</p>}
           {rituals?.map((ritual, index) => (
             <div key={ritual._id} className={`w-full md:w-1/2 lg:w-1/4 max-w-sm ${cardsVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
-              <div className="rounded-xl border border-red-500 overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <div className="card-ritual group relative flex flex-col">
                   {ritual.popular && (
                     <div className="absolute -top-3 -right-3 bg-gradient-golden text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium z-10">
@@ -105,7 +126,9 @@ const RitualSection = () => {
             </div>
           ))}
         </div>
-        <div className="text-center mt-12">
+        
+        {/* 2. ADDED BUTTON HERE, ALIGNED TO THE LEFT */}
+        <div className="text-left mt-16">
           <a href="/ritual-booking" className="btn-divine">
             Book Ritual
           </a>

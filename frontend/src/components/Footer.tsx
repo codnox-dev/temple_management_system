@@ -3,14 +3,14 @@ import lotusFooter from '../assets/lotusfooter.png';
 
 const Footer = () => {
   return (
-  // Replaced 'bg-gradient-golden' with a gold-orange gradient
-  <footer className="bg-gradient-to-r from-amber-400 via-orange-500 to-orange-700 text-white bg-cover">
+  // UPDATED: Changed the gradient from amber/orange to a gold/brown combination
+  <footer className="bg-gradient-to-r from-yellow-500 via-amber-700 to-amber-900 text-white bg-cover">
       <div className="max-w-7xl mx-auto py-16 pr-4 sm:pr-6 lg:pr-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           {/* Temple Info (centered in a 3/12 column to shift it further left) */}
           <div className="flex flex-col items-center text-center space-y-4 md:col-span-3">
             <img src={lotusFooter} alt="lotus" className="h-40 w-40 md:h-48 md:w-48 lg:h-56 lg:w-56 object-contain" />
-            <span className="text-xl md:text-2xl font-playfair font-bold">Vamanakulangara Vishnu Temple</span>
+            <span className="text-xl md:text-2xl font-prata font-bold">Vamanakulangara Vishnu Temple</span>
             <div className="flex space-x-3 mt-2 items-center">
               <a href="#" className="p-2 bg-transparent rounded-lg hover:bg-white/10 transition-colors">
                 <Instagram className="h-5 w-5 text-white" />
@@ -32,7 +32,7 @@ const Footer = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full lg:w-auto">
               {/* Quick Links */}
               <div className="">
-                <h3 className="text-lg font-playfair font-semibold mb-6">Quick Links</h3>
+                <h3 className="text-lg font-prata font-semibold mb-6">Quick Links</h3>
                 <ul className="space-y-3">
                   {['About Temple', 'Ritual Booking', 'Events', 'Gallery', 'Donations', 'Contact'].map((link) => (
                     <li key={link}>
@@ -49,7 +49,7 @@ const Footer = () => {
 
               {/* Services */}
               <div>
-                <h3 className="text-lg font-playfair font-semibold mb-6 text-white">Services</h3>
+                <h3 className="text-lg font-prata font-semibold mb-6 text-white">Services</h3>
                 <ul className="space-y-3">
                   {['Daily Aarti', 'Special Pujas', 'Wedding Ceremonies', 'Festival Celebrations', 'Spiritual Counseling', 'Meditation Classes'].map((service) => (
                     <li key={service}>
@@ -63,7 +63,7 @@ const Footer = () => {
 
               {/* Contact Info */}
               <div>
-                <h3 className="text-lg font-playfair font-semibold mb-6 text-white">Contact Us</h3>
+                <h3 className="text-lg font-prata font-semibold mb-6 text-white">Contact Us</h3>
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
                     <MapPin className="h-5 w-5 mt-0.5 text-white/80" />

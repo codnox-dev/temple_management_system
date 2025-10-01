@@ -68,7 +68,7 @@ const Navigation = () => {
   };
 
   const textColor = 'text-white';
-  const activeLinkColor = 'text-orange-400';
+  const activeLinkColor = 'text-yellow-400'; // Changed to yellow
   const logoTextColor = 'text-white';
 
   const NavLink = ({ item }) => (
@@ -76,7 +76,7 @@ const Navigation = () => {
       key={item.path}
       href={item.path}
       onClick={(e) => handleNavClick(e, item.path)}
-      className={`font-semibold ${textColor} hover:text-orange-400 transition-colors duration-300 whitespace-nowrap ${
+      className={`font-semibold ${textColor} hover:text-yellow-400 transition-colors duration-300 whitespace-nowrap ${ // Changed hover to yellow
         activeSection === item.path.substring(1) ? `font-bold ${activeLinkColor}` : ''
       }`}
     >
@@ -136,7 +136,7 @@ const Navigation = () => {
                   <button
                     type="button"
                     onClick={() => navigate('/ritual-booking')}
-                    className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap"
+                    className="bg-yellow-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-yellow-600 transition-colors duration-300 whitespace-nowrap" // Changed button colors to yellow
                   >
                     Book Now
                   </button>
@@ -170,8 +170,8 @@ const Navigation = () => {
                     key={item.path}
                     href={item.path}
                     onClick={(e) => handleNavClick(e, item.path)}
-                    className={`block px-3 py-2 rounded-md text-base font-medium text-stone-100 hover:text-white hover:bg-yellow-900/50 ${
-                      activeSection === item.path.substring(1) ? 'font-bold text-orange-400 bg-yellow-900/50' : ''
+                    className={`block px-3 py-2 rounded-md text-base font-medium text-stone-100 hover:text-yellow-400 hover:bg-yellow-900/50 ${ // Changed hover text to yellow
+                      activeSection === item.path.substring(1) ? 'font-bold text-yellow-400 bg-yellow-50' : '' // Changed active styles to yellow
                     }`}
                   >
                     {item.label}
@@ -181,7 +181,7 @@ const Navigation = () => {
                   <button
                     type="button"
                     onClick={() => { setIsMobileMenuOpen(false); navigate('/ritual-booking'); }}
-                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors"
+                    className="w-full bg-yellow-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-yellow-600 transition-colors" // Changed button colors to yellow
                   >
                     Book Now
                   </button>
