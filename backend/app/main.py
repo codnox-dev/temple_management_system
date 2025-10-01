@@ -2,14 +2,18 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth  # changed: employee_bookings -> employee_booking
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin
+
+# Conditional imports for resource optimization
+security_level = os.getenv("SECURITY_LEVEL", "standard").lower()
 from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
 from .models.role_models import RoleBase
 from .services import auth_service
 from .models.admin_models import AdminCreate
 from .models.ritual_models import AvailableRitualBase
 from fastapi.middleware.cors import CORSMiddleware
-from .middleware.jwt_auth_middleware import JWTAuthMiddleware
+from .middleware.enhanced_jwt_auth_middleware import EnhancedJWTAuthMiddleware
+from .middleware.enhanced_security_middleware import create_enhanced_security_middleware
 from dotenv import load_dotenv
 from pymongo import ASCENDING
 
@@ -20,19 +24,36 @@ load_dotenv()
 app = FastAPI(
     title="Temple Management System API",
     description="API for managing temple rituals, events, and bookings.",
-    version="1.1.0"
+    version="1.2.0"  # Updated version for enhanced security
 )
 
-# --- JWT Authentication Middleware ---
-# Validates API requests using JWT tokens
-# NOTE: Added first so it runs after CORS middleware (FastAPI processes middleware in reverse order)
+# --- Enhanced Security Middleware ---
+# Conditional security layer - disabled for low resource environments
+# NOTE: Only enabled if not running in minimal resource mode
+if os.getenv("DISABLE_HEAVY_MIDDLEWARE", "false").lower() != "true":
+    app.add_middleware(
+        create_enhanced_security_middleware(
+            exclude_paths=[
+                "/docs", "/redoc", "/openapi.json", "/", "/api"
+            ],
+            enable_waf=os.getenv("ENABLE_WAF_PROTECTION", "false").lower() == "true",
+            enable_ddos_protection=os.getenv("ENABLE_DDOS_PROTECTION", "false").lower() == "true",
+            enable_rate_limiting=os.getenv("ENABLE_RATE_LIMITING", "true").lower() == "true",
+            enable_request_signing=os.getenv("ENABLE_REQUEST_SIGNING", "false").lower() == "true"
+        )
+    )
+
+# --- Enhanced JWT Authentication Middleware ---
+# Validates API requests using enhanced JWT security with device fingerprinting and geolocation
+# NOTE: Added after security middleware for authenticated endpoints
 app.add_middleware(
-    JWTAuthMiddleware,
+    EnhancedJWTAuthMiddleware,
     exclude_paths=[
         "/docs", "/redoc", "/openapi.json", "/", "/api",
         # Public auth endpoints only (verify-token should be protected)
         "/api/auth/login", "/api/auth/register",
-        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/google"
+        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/send-otp", "/api/auth/verify-otp",
+
     ]
 )
 
@@ -129,7 +150,8 @@ async def startup_db_client():
         admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
         admin_name = os.getenv("DEFAULT_ADMIN_NAME", "Administrator")
         admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
-        admin_google_email = os.getenv("DEFAULT_ADMIN_GOOGLE_EMAIL")
+        admin_mobile = os.getenv("DEFAULT_ADMIN_MOBILE", "1234567890")
+        admin_mobile_prefix = os.getenv("DEFAULT_ADMIN_MOBILE_PREFIX", "+91")
 
         # Resolve role details from roles collection (role_id=0)
         super_role = await roles_collection.find_one({"role_id": 0})
@@ -139,12 +161,11 @@ async def startup_db_client():
         admin_user = AdminCreate(
             name=admin_name,
             email=admin_email,
-            google_email=admin_google_email,
             username=admin_username,
             role=role_name,
             role_id=0,
-            mobile_number=int(''.join([str(random.randint(0, 9)) for _ in range(10)])),
-            mobile_prefix="+91",
+            mobile_number=int(admin_mobile),
+            mobile_prefix=admin_mobile_prefix,
             profile_picture="https://example.com/default-avatar.png",
             dob="1970-01-01",
             created_by="system",
@@ -154,9 +175,7 @@ async def startup_db_client():
         )
         # Use the create_admin function from the auth_service
         await auth_service.create_admin(admin_user)
-        print(f"Default admin created with username '{admin_username}'.")
-        if admin_google_email:
-            print("Google email linked for Sign-In.")
+        print(f"Default admin created with username '{admin_username}' and mobile {admin_mobile_prefix}{admin_mobile}.")
 
 
 # --- API Routers ---
@@ -177,6 +196,7 @@ app.include_router(slideshow.router, tags=["Slideshow"], prefix="/api/slideshow"
 app.include_router(featured_event.router, tags=["Featured Event"], prefix="/api/featured-event")
 app.include_router(calendar.router, tags=["Calendar"], prefix="/api")
 app.include_router(auth.router, tags=["Authentication"], prefix="/api/auth")
+app.include_router(enhanced_admin.router, tags=["Enhanced Admin"], prefix="/api/enhanced-admin")
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

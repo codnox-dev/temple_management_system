@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { get, API_BASE_URL } from '@/api/api';
+import api, { get } from '../../api/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveImageUrl } from '@/lib/utils';
 import GalleryStaticLayoutManager from '@/pages/admin/GalleryStaticLayoutManager';
+import { API_BASE_URL } from '@/api/api';
+import { jwtAuth } from '@/lib/jwtAuth';
+
 
 interface GalleryImage {
     _id: string;
@@ -24,7 +27,7 @@ const ManageGallery = () => {
     const queryClient = useQueryClient();
     const { user } = (useAuth() as any) || {};
     const roleId: number = user?.role_id ?? 99;
-    const isReadOnly = roleId > 3;
+        const isReadOnly = roleId > 3;
     const [isEditing, setIsEditing] = useState<GalleryImage | null>(null);
     const [formData, setFormData] = useState({ src: '', title: '', category: '' });
     const [uploading, setUploading] = useState(false);
@@ -33,8 +36,7 @@ const ManageGallery = () => {
     const [selectedFileName, setSelectedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const [designerMode, setDesignerMode] = useState<null | 'full'>(null);
-    const [designerInlineOpen, setDesignerInlineOpen] = useState(false);
+    const [staticLayoutOpen, setStaticLayoutOpen] = useState(false);
     const [homePreviewOpen, setHomePreviewOpen] = useState(false);
     const [homeSlots, setHomeSlots] = useState<(string | null)[]>([null, null, null, null, null, null]);
 
@@ -135,8 +137,6 @@ const ManageGallery = () => {
             </div>
         );
     };
-
-    // Slideshow config
     const [slideConfigOpen, setSlideConfigOpen] = useState(false);
     const [slides, setSlides] = useState<string[]>([]);
     const [intervalMs, setIntervalMs] = useState(4000);
@@ -162,13 +162,11 @@ const ManageGallery = () => {
 
     const mutation = useMutation({
         mutationFn: (imagePayload: Omit<GalleryImage, '_id'>) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
             if (isEditing) {
-                return api.put(`/gallery/${isEditing._id}`, imagePayload, config);
+                return api.put(`/gallery/${isEditing._id}`, imagePayload);
             }
-            return api.post('/gallery', imagePayload, config);
+            return api.post('/gallery', imagePayload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -182,17 +180,15 @@ const ManageGallery = () => {
             if (fileInputRef.current) fileInputRef.current.value = '';
         },
         onError: (error) => {
-            console.error('Error saving image:', error);
+            console.error("Error saving image:", error);
             toast.error('Failed to save image. See console for details.');
         }
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
-            return api.delete(`/gallery/${id}`, config);
+            return api.delete(`/gallery/${id}`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -201,7 +197,7 @@ const ManageGallery = () => {
             toast.success('Image deleted successfully!');
         },
         onError: (error) => {
-            console.error('Error deleting image:', error);
+            console.error("Error deleting image:", error);
             toast.error('Failed to delete image. See console for details.');
         }
     });
@@ -217,19 +213,29 @@ const ManageGallery = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const token = localStorage.getItem('token');
+                const token = await jwtAuth.getAccessToken();
+                if (!token) {
+                    throw new Error('Not authenticated. Please sign in again.');
+                }
                 const form = new FormData();
                 form.append('file', selectedFile);
                 const res = await fetch(`${API_BASE_URL}/api/gallery/upload`, {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${token ?? ''}`,
+                        Authorization: `Bearer ${token}`,
                     },
                     body: form,
                 });
                 if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err?.detail || 'Upload failed');
+                    let message = 'Upload failed';
+                    try {
+                        const err = await res.json();
+                        message = err?.detail || message;
+                    } catch {}
+                    if (res.status === 401) {
+                        message = 'Unauthorized. Your session may have expired. Please sign in again.';
+                    }
+                    throw new Error(message);
                 }
                 const data = await res.json();
                 imageUrl = data.url;
@@ -292,10 +298,11 @@ const ManageGallery = () => {
                         Configure Home Preview
                     </Button>
                     <Button
-                        onClick={() => { setDesignerMode('full'); setDesignerInlineOpen(true); }}
-                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                        variant="outline"
+                        onClick={() => setStaticLayoutOpen((v) => !v)}
+                        className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50"
                     >
-                        Preview Full Gallery
+                        {staticLayoutOpen ? 'Hide Configure Full Gallery' : 'Configure Full Gallery'}
                     </Button>
                     <Link to={{ pathname: '/gallery' }} state={{ fromAdmin: '/admin/gallery' }} className="inline-flex">
                         <Button variant="outline" className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50">
@@ -309,6 +316,21 @@ const ManageGallery = () => {
                     </Link>
                 </div>
             </div>
+
+            {/* Static container-based layout configuration */}
+            {staticLayoutOpen && (
+                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/40 shadow-lg shadow-purple-500/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold text-purple-100">Configure Full Gallery Layout</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => setStaticLayoutOpen(false)} className="border-purple-500/40 text-purple-100 hover:bg-purple-900/60">Close</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <GalleryStaticLayoutManager images={(images || []).map(i => ({...i, src: resolveImageUrl(i.src)}))} />
+                    </CardContent>
+                </Card>
+            )}
             
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -366,15 +388,21 @@ const ManageGallery = () => {
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
                                 try {
+                                    const token = await jwtAuth.getAccessToken();
+                                    if (!token) throw new Error('Not authenticated. Please sign in again.');
                                     const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`, {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                                            Authorization: `Bearer ${token}`,
                                         },
                                         body: JSON.stringify({ slots: homeSlots }),
                                     });
-                                    if (!res.ok) throw new Error('Failed');
+                                    if (!res.ok) {
+                                        let message = 'Failed';
+                                        try { const err = await res.json(); message = err?.detail || message; } catch {}
+                                        throw new Error(message);
+                                    }
                                     toast.success('Home preview updated');
                                     queryClient.invalidateQueries({ queryKey: ['galleryHomePreview'] });
                                     setHomePreviewOpen(false);
@@ -434,15 +462,22 @@ const ManageGallery = () => {
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
                                 try {
+                                    const token = await jwtAuth.getAccessToken();
+                                    if (!token) throw new Error('Not authenticated. Please sign in again.');
                                     const res = await fetch(`${API_BASE_URL}/api/slideshow/`, {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                                            Authorization: `Bearer ${token}`,
                                         },
                                         body: JSON.stringify({ image_ids: slides, interval_ms: intervalMs, transition_ms: transitionMs, aspect_ratio: aspectRatio }),
                                     });
-                                    if (!res.ok) throw new Error('Failed');
+                                    if (!res.ok) {
+                                        let message = 'Failed';
+                                        try { const err = await res.json(); message = err?.detail || message; } catch {}
+                                        if (res.status === 401) message = 'Unauthorized. Your session may have expired.';
+                                        throw new Error(message);
+                                    }
                                     toast.success('Slideshow updated');
                                     setSlideConfigOpen(false);
                                 } catch (e) {
@@ -483,7 +518,7 @@ const ManageGallery = () => {
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold text-slate-800">Selected Slides Order</h4>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50 disabled:opacity-50">Clear</Button>
+                                            <Button variant="outline" disabled={isReadOnly || slides.length === 0} onClick={() => !isReadOnly && setSlides([])} className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50 disabled:opacity-50">Clear</Button>
                                 </div>
                             </div>
                             {slides.length === 0 ? (
@@ -554,20 +589,7 @@ const ManageGallery = () => {
                 </Card>
             )}
 
-            {/* Inline Static Full Gallery Layout Manager */}
-            {designerMode === 'full' && designerInlineOpen && (
-                <Card className="bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-lg font-semibold text-purple-300">Full Gallery Layout (Static Order)</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => { setDesignerInlineOpen(false); setDesignerMode(null); }} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">Close</Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <GalleryStaticLayoutManager images={images || []} isReadOnly={isReadOnly} />
-                    </CardContent>
-                </Card>
-            )}
+
 
             <Card className="mb-8 bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
                 <CardHeader><CardTitle className="text-purple-400">{isEditing ? 'Edit Image' : 'Add New Image'}</CardTitle></CardHeader>
@@ -619,7 +641,7 @@ const ManageGallery = () => {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {images?.map(image => (
                         <Card key={image._id} className="relative group bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-lg shadow-purple-500/10">
-                            <img src={resolveImageUrl(image.src)} alt={image.title} className="w-full h-40 object-cover rounded-t-lg" onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400' }}/>
+                            <img src={resolveImageUrl(image.src)} alt={image.title} className="w-full h-40 object-cover rounded-t-lg" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}/>
                             <div className="p-2">
                                <p className="font-semibold truncate text-white">{image.title}</p>
                                <p className="text-sm text-purple-300">{image.category}</p>
@@ -649,6 +671,8 @@ const ManageGallery = () => {
                 </div>
             )}
 
+            {/* Removed modal popup for designer in favor of inline section above */}
+            
         </div>
     );
 };

@@ -1,3 +1,7 @@
+// DEPRECATED: This component is no longer used. The gallery now uses a static
+// order-based layout managed by `GalleryStaticLayoutManager`. Please do not
+// import or use this component. It remains temporarily in the repo until it's
+// safe to delete across branches.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';

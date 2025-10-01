@@ -14,35 +14,27 @@ load_dotenv()
 
 class MinIOStorageService:
     def __init__(self):
-        # Check if MinIO should be used
-        self.use_minio = os.getenv("USE_MINIO", "false").lower() == "true"
-        
-        if not self.use_minio:
-            self.client = None
-            self.endpoint = None
-            self.access_key = None
-            self.secret_key = None
-            self.bucket_name = None
-            self.events_bucket = None
-            self.gallery_bucket = None
-            self.secure = None
-            self.public_base = None
-            print("MinIO storage disabled via USE_MINIO=false")
-            return
-        
-        # Get MinIO configuration from environment
-        self.endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000").replace("http://", "").replace("https://", "")
+        # Check if MinIO should be used (robust truthy parsing, handle quoted values)
+        _use_minio_raw = (os.getenv("USE_MINIO", "false") or "").strip().strip('"\'').lower()
+        self.use_minio = _use_minio_raw in {"1", "true", "yes", "on"}
+
+        # Load bucket/config values regardless so other code can safely reference names
+        self.endpoint = (os.getenv("MINIO_ENDPOINT", "http://localhost:9000") or "").replace("http://", "").replace("https://", "")
         self.access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
         self.secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-        # Default/profile bucket
         self.bucket_name = os.getenv("MINIO_BUCKET_NAME", "profile-pics")
-        # Additional buckets for domain media (events, gallery)
         self.events_bucket = os.getenv("MINIO_EVENTS_BUCKET", "events")
         self.gallery_bucket = os.getenv("MINIO_GALLERY_BUCKET", "gallery")
-        self.secure = os.getenv("MINIO_SECURE", "false").lower() == "true"
+        self.secure = (os.getenv("MINIO_SECURE", "false") or "").strip().strip('"\'').lower() in {"1", "true", "yes", "on"}
         # Optional public base URL to construct absolute URLs (e.g., http://localhost:8080)
-        self.public_base = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
-        
+        self.public_base = (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
+
+        if not self.use_minio:
+            # Explicitly disable client while retaining names
+            self.client = None
+            print("MinIO storage disabled via USE_MINIO=false")
+            return
+
         # Initialize MinIO client
         try:
             self.client = Minio(
@@ -51,16 +43,16 @@ class MinIOStorageService:
                 secret_key=self.secret_key,
                 secure=self.secure
             )
-            
+
             # Test connection and ensure buckets exist
             self._ensure_bucket_exists(self.bucket_name)
             self._ensure_bucket_exists(self.events_bucket)
             self._ensure_bucket_exists(self.gallery_bucket)
-            print(f"MinIO storage service initialized successfully")
-            
+            print("MinIO storage service initialized successfully")
+
         except Exception as e:
             print(f"Warning: Failed to initialize MinIO storage service: {e}")
-            print("Profile picture uploads will not work until MinIO is available")
+            print("Object storage uploads/serves will not work until MinIO is available")
             self.client = None
 
     def _publicize(self, path: str) -> str:
@@ -161,7 +153,8 @@ class MinIOStorageService:
         Returns a tuple containing the object_path and its public_url.
         """
         if not self.use_minio:
-            return "", ""
+            # Explicitly signal to callers that storage is disabled
+            raise HTTPException(status_code=503, detail="Object storage is disabled")
         
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available. Please try again later.")
@@ -202,7 +195,8 @@ class MinIOStorageService:
         Returns the object_path and public_url.
         """
         if not self.use_minio:
-            return "", ""
+            # Explicitly signal to callers that storage is disabled
+            raise HTTPException(status_code=503, detail="Object storage is disabled")
         
         if not self.client:
             raise HTTPException(status_code=503, detail="Storage service is not available. Please try again later.")

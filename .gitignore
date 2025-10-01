@@ -28,9 +28,7 @@ __pycache__/
 
 # Folers
 backend/profile/
-API_Security_Documentation.md
-API_Security_Setup.md
-PRODUCTION_DEPLOYMENT.md
-PRODUCTION_SECURITY.md
-NETLIFY_SECURITY_CONFIG.md
-JWT_SECURITY_IMPLEMENTATION.md
+
+# Environment files
+backend/.env
+frontend/.env

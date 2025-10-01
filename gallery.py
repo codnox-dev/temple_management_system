@@ -134,8 +134,6 @@ async def delete_gallery_image(
     try:
         # Remove any layout items referencing this image id
         await gallery_layouts_collection.update_many({}, {"$pull": {"items": {"id": id}}})
-        # Also remove from static 'order' list if present
-        await gallery_layouts_collection.update_many({}, {"$pull": {"order": id}})
     except Exception:
         # Non-fatal; logging can be added here if a logger exists
         pass

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jwtAuth } from '../lib/jwtAuth';
+import { enhancedJwtAuth } from '../lib/enhancedJwtAuth';
 
 type AuthUser = { _id?: string; username: string; role_id?: number; role?: string } | null;
 type AuthContextType = {
@@ -9,6 +9,8 @@ type AuthContextType = {
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   loginWithGoogle: (idToken: string) => Promise<boolean>;
+  sendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number }>;
+  verifyOTP: (mobileNumber: string, otp: string) => Promise<boolean>;
   logout: () => void;
 };
 
@@ -23,9 +25,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       try {
+        // Initialize enhanced security features
+        await enhancedJwtAuth.initializeSecurityFeatures();
+        
         // Check if user is already authenticated
-        if (jwtAuth.isAuthenticated()) {
-          const currentUser = await jwtAuth.getCurrentUser();
+        if (enhancedJwtAuth.isAuthenticated()) {
+          const currentUser = await enhancedJwtAuth.getCurrentUser();
           if (currentUser) {
             setIsAuthenticated(true);
             setUser({ 
@@ -37,7 +42,7 @@ export const AuthProvider = ({ children }) => {
           }
         } else {
           // Get initial token for app functionality
-          await jwtAuth.getInitialToken();
+          await enhancedJwtAuth.getInitialToken();
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);
@@ -72,23 +77,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithGoogle = async (idToken: string) => {
+    console.error('Google login disabled');
+    return false;
+  };
+
+  const sendOTP = async (mobileNumber: string) => {
+    return await enhancedJwtAuth.sendOTP(mobileNumber);
+  };
+
+  const verifyOTP = async (mobileNumber: string, otp: string) => {
     try {
-      await jwtAuth.loginWithGoogle(idToken);
-      const currentUser = await jwtAuth.getCurrentUser();
-      if (currentUser) {
-        finishLoginWithUser(currentUser);
-        return true;
+      const success = await enhancedJwtAuth.verifyOTP(mobileNumber, otp);
+      if (success) {
+        const currentUser = await enhancedJwtAuth.getCurrentUser();
+        if (currentUser) {
+          finishLoginWithUser(currentUser);
+          return true;
+        }
       }
       return false;
     } catch (e) {
-      console.error('Google login failed:', e);
-      return false;
+      console.error('OTP verification failed:', e);
+      throw e;
     }
   };
 
   const logout = async () => {
     try {
-      await jwtAuth.logout();
+      await enhancedJwtAuth.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -104,6 +120,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     loginWithGoogle,
+    sendOTP,
+    verifyOTP,
     logout,
   };
 
