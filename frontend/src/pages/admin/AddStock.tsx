@@ -190,10 +190,10 @@ const AddStock = () => {
 
   return (
     <div className="space-y-6 text-white">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">Stock Management</h1>
-          <p className="text-purple-100/90 mt-2">Add and manage temple inventory items</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Stock Management</h1>
+          <p className="text-purple-300 mt-2">Add and manage temple inventory items</p>
         </div>
         <button
           onClick={() => { setEditingItem(null); setFormState(initialFormState); setShowAddForm(true); }}
@@ -331,12 +331,12 @@ const AddStock = () => {
         {isLoading && <p>Loading...</p>}
         {error && <p className="text-red-500">{error}</p>}
         {!isLoading && !error && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {stockItems.map((item) => (
                 <div key={item._id} className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20 flex flex-col justify-between hover:shadow-md hover:shadow-purple-500/10 transition-shadow">
                     <div>
-            <div className="flex justify-between items-start mb-3 gap-2">
-              <h3 className="text-lg font-semibold text-white break-words line-clamp-2">{item.name}</h3>
+                        <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-lg font-semibold text-white">{item.name}</h3>
                             <div className="flex space-x-1 flex-shrink-0">
                             {isLowStock(item) && (
                                 <span className="bg-red-900/50 text-red-300 text-xs px-2 py-1 rounded-full border border-red-500/30">Low Stock</span>
@@ -346,18 +346,18 @@ const AddStock = () => {
                             )}
                             </div>
                         </div>
-            <div className="space-y-2 text-sm text-purple-100/90">
-              <p className="break-words"><span className="font-medium text-purple-200">Category:</span> {item.category}</p>
+                        <div className="space-y-2 text-sm text-purple-200">
+                            <p><span className="font-medium text-purple-300">Category:</span> {item.category}</p>
                             <p><span className="font-medium text-purple-300">Quantity:</span> {item.quantity} {item.unit}</p>
                             <p><span className="font-medium text-purple-300">Price:</span> ₹{item.price.toLocaleString()} per {item.unit}</p>
-              <p className="break-words"><span className="font-medium text-purple-200">Supplier:</span> {item.supplier || 'N/A'}</p>
+                            <p><span className="font-medium text-purple-300">Supplier:</span> {item.supplier || 'N/A'}</p>
                             {item.expiryDate && (
                             <p><span className="font-medium text-purple-300">Expiry:</span> {new Date(item.expiryDate).toLocaleDateString('en-IN')}</p>
                             )}
                             <p><span className="font-medium text-purple-300">Total Value:</span> ₹{(item.quantity * item.price).toLocaleString()}</p>
                         </div>
                     </div>
-          <div className="flex justify-end space-x-2 mt-4">
+                    <div className="flex justify-end space-x-2 mt-4">
             <button onClick={() => handleEdit(item)} disabled={roleId > 4} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-md disabled:opacity-50"><Edit size={16}/></button>
             <button onClick={() => handleDelete(item._id)} disabled={roleId > 4} className="p-2 text-red-400 hover:bg-red-900/50 rounded-md disabled:opacity-50"><Trash2 size={16}/></button>
                     </div>
