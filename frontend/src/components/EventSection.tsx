@@ -134,7 +134,7 @@ const EventSection = () => {
         <div className="max-w-7xl mx-auto">
           <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
             <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
-              Upcoming <span className="text-primary">Events</span>
+              Upcoming <span className="text-amber-900">Events</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Join our spiritual community in celebrating divine festivals, daily prayers, and special ceremonies.
@@ -148,7 +148,7 @@ const EventSection = () => {
             <>
               <div ref={eventsRef} className={`relative max-w-4xl mx-auto ${eventsVisible ? 'animate-fade-in' : ''}`}>
                 {/* The main event card now has transition properties for a smooth fade */}
-                <div className={`relative group overflow-hidden flex flex-col md:flex-row h-full rounded-xl border-transparent card-divine bg-transparent shadow-lg transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
+                <div className={`relative group overflow-hidden flex flex-col md:flex-row h-full rounded-xl border-4 border-amber-600/30 bg-amber-400/30 shadow-xl transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
                   <div className="relative overflow-hidden md:w-1/2 h-64 md:h-auto">
                     <ImageWithBlur
                       src={resolveImageUrl(currentEvent.image)}
@@ -161,31 +161,31 @@ const EventSection = () => {
                       </span>
                     )}
                   </div>
-                  <div className="p-6 md:p-8 flex flex-col flex-grow md:w-1/2">
+                  <div className="p-6 md:p-8 flex flex-col flex-grow md:w-1/2 md:border-l-8 md:border-amber-700/30">
                     <div className="flex-grow">
-                      <h3 className="text-3xl text-foreground font-playfair font-semibold group-hover:text-primary transition-colors mb-4">
+                      <h3 className="text-3xl text-black font-playfair font-semibold group-hover:text-gray-800 transition-colors mb-4">
                         {currentEvent.title}
                       </h3>
-                      <p className="text-muted-foreground leading-relaxed mb-6 line-clamp-4">
+                      <p className="text-gray-900 leading-relaxed mb-6 line-clamp-4">
                         {currentEvent.description}
                       </p>
                       <div className="space-y-3 text-sm">
-                        <div className="text-muted-foreground flex items-center">
+                        <div className="text-gray-800 flex items-center">
                           <Calendar className="h-4 w-4 mr-3 text-primary" />
                           {new Date(currentEvent.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
-                        <div className="text-muted-foreground flex items-center">
+                        <div className="text-gray-800 flex items-center">
                           <Clock className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.time}
                         </div>
-                        <div className="text-muted-foreground flex items-center">
+                        <div className="text-gray-800 flex items-center">
                           <MapPin className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.location}
                         </div>
                       </div>
                     </div>
                     <div className="mt-auto pt-6">
-                      <Link to={`/events/${currentEvent._id}`} className="w-full md:w-auto inline-flex items-center justify-center rounded-md px-6 py-3 btn-golden">
+                      <Link to={`/events/${currentEvent._id}`} className="w-full md:w-auto inline-flex items-center justify-center rounded-md px-6 py-3 bg-amber-800 hover:bg-amber-900 text-white font-semibold shadow-md transform hover:scale-105 transition-transform duration-300">
                         Event Details
                       </Link>
                     </div>
@@ -244,3 +244,4 @@ const EventSection = () => {
 };
 
 export default EventSection;
+
