@@ -2,7 +2,7 @@ import os
 import random
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section
 
 # Conditional imports for resource optimization
 security_level = os.getenv("SECURITY_LEVEL", "standard").lower()
@@ -194,6 +194,7 @@ app.include_router(profile.router, tags=["Profile"], prefix="/api/profile")
 app.include_router(activity.router, tags=["Activity"], prefix="/api/activity")
 app.include_router(slideshow.router, tags=["Slideshow"], prefix="/api/slideshow")
 app.include_router(featured_event.router, tags=["Featured Event"], prefix="/api/featured-event")
+app.include_router(events_section.router, tags=["Events Section"], prefix="/api/events-section")
 app.include_router(calendar.router, tags=["Calendar"], prefix="/api")
 app.include_router(auth.router, tags=["Authentication"], prefix="/api/auth")
 app.include_router(enhanced_admin.router, tags=["Enhanced Admin"], prefix="/api/enhanced-admin")
