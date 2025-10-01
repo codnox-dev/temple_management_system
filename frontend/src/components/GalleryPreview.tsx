@@ -14,6 +14,10 @@ interface GalleryImage {
 	category: string;
 }
 
+/**
+ * Fetches gallery images from the API.
+ * @returns {Promise<GalleryImage[]>} A promise that resolves to an array of gallery images.
+ */
 const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 
 
@@ -93,7 +97,7 @@ const GalleryPreview = () => {
 					{isLoading && <p className="text-center">Loading gallery...</p>}
 					{isError && <p className="text-center text-red-500">Error loading gallery.</p>}
 					{!isLoading && !isError && (
-						<div className="space-y-6">
+						<div className="space-y-6 max-h-[70vh] overflow-y-auto md:max-h-none md:overflow-visible pr-2 md:pr-0">
 							{/* Top area: 1 large + 2 medium */}
 							<div ref={topRef} className="grid grid-cols-1 md:grid-cols-3 gap-6">
 								<div className={`md:col-span-2 ${topVisible ? 'animate-scale-in' : ''}`} style={{animationDelay: '0s'}}>

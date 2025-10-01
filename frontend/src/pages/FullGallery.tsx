@@ -19,9 +19,19 @@ interface GalleryImage {
     src: string;
     title: string;
     category: string;
+  // Optional long description support if present on backend later
+  description?: string;
 }
 
 const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
+
+// Match the static layout manager's size rhythm
+const SIZE_PATTERN: Array<'lg' | 'md' | 'sm'> = ['lg', 'sm', 'sm', 'md', 'sm', 'lg', 'sm', 'md'];
+const sizeClass = (size: 'lg' | 'md' | 'sm') => {
+  if (size === 'lg') return 'h-64 md:h-72';
+  if (size === 'md') return 'h-52 md:h-60';
+  return 'h-40 md:h-48';
+};
 
 const FullGallery = () => {
   const location = useLocation() as any;
@@ -124,6 +134,28 @@ const FullGallery = () => {
 
   const hasLayout = (filteredLayout.length > 0 || (order && order.length > 0)) && galleryImages && galleryImages.length > 0;
 
+  // Modal viewer state (for non-slideshow images)
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImage, setViewerImage] = useState<GalleryImage | null>(null);
+  const openViewer = (img: GalleryImage) => {
+    setViewerImage(img);
+    setViewerOpen(true);
+  };
+  const closeViewer = () => {
+    setViewerOpen(false);
+    setViewerImage(null);
+  };
+
+  // Reusable thumbnail overlay component styles: show title top-left only
+  const ThumbOverlay: React.FC<{ title?: string }>=({ title }) => (
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium max-w-[85%] truncate">
+        {title || ''}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-sacred py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,25 +223,25 @@ const FullGallery = () => {
         {/* If a saved layout exists, render it scaled; otherwise fallback to grid */}
         {!isLoading && !isError && hasLayout ? (
           order && order.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {orderedImages.map((img) => (
-                <Card key={img._id} className="card-divine group overflow-hidden cursor-pointer">
-                  <div className="relative overflow-hidden rounded-lg">
-                    <img
-                      src={resolveImageUrl(img.src)}
-                      alt={img.title}
-                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                      <div className="p-4 text-white w-full">
-                        <h3 className="font-playfair font-semibold mb-1">{img.title}</h3>
-                        <span className="text-sm opacity-80">{img.category}</span>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {orderedImages.map((img, idx) => {
+                const size = SIZE_PATTERN[idx % SIZE_PATTERN.length];
+                return (
+                <div
+                  key={img._id}
+                  className={`relative rounded-lg overflow-hidden bg-muted/40 border ${sizeClass(size)} group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition`}
+                  onClick={() => openViewer(img)}
+                >
+                  <img
+                    src={resolveImageUrl(img.src)}
+                    alt={img.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/600x400'; }}
+                  />
+                  <ThumbOverlay title={img.title} />
+                </div>
+                );
+              })}
             </div>
           ) : (
           <div ref={containerRef} className="w-full overflow-auto">
@@ -225,8 +257,9 @@ const FullGallery = () => {
                   const img = imagesById[it.id];
                   if (!img) return null;
                   return (
-                    <div key={it.id} className="absolute rounded-lg overflow-hidden shadow card-divine"
+                    <div key={it.id} className="absolute rounded-lg overflow-hidden bg-muted/40 border hover:shadow-lg hover:shadow-primary/10 transition group cursor-pointer"
                       style={{ left: it.x, top: it.y, width: it.w, height: it.h, zIndex: it.z ?? 1 }}
+                      onClick={() => openViewer(img)}
                     >
                       <img
                         src={resolveImageUrl(img.src)}
@@ -234,12 +267,7 @@ const FullGallery = () => {
                         className="w-full h-full object-cover"
                         onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400'; }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                        <div className="p-2 text-white w-full">
-                          <h3 className="font-playfair font-semibold mb-1 text-sm">{img.title}</h3>
-                          <span className="text-xs opacity-80">{img.category}</span>
-                        </div>
-                      </div>
+                      <ThumbOverlay title={img.title} />
                     </div>
                   );
                 })}
@@ -248,28 +276,46 @@ const FullGallery = () => {
           </div>
           )
         ) : (!isLoading && !isError) ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {galleryImages?.map((image) => (
-              <Card key={image._id} className="card-divine group overflow-hidden cursor-pointer">
-                <div className="relative overflow-hidden rounded-lg">
-                  <img
-                    src={resolveImageUrl(image.src)}
-                    alt={image.title}
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                    <div className="p-4 text-white w-full">
-                      <h3 className="font-playfair font-semibold mb-1">{image.title}</h3>
-                      <span className="text-sm opacity-80">{image.category}</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {galleryImages?.map((image, idx) => {
+              const size = SIZE_PATTERN[idx % SIZE_PATTERN.length];
+              return (
+              <div
+                key={image._id}
+                className={`relative rounded-lg overflow-hidden bg-muted/40 border ${sizeClass(size)} group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition`}
+                onClick={() => openViewer(image)}
+              >
+                <img
+                  src={resolveImageUrl(image.src)}
+                  alt={image.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400' }}
+                />
+                <ThumbOverlay title={image.title} />
+              </div>
+              );
+            })}
           </div>
         ) : null}
       </div>
+
+      {/* Image viewer modal (simple overlay) */}
+      {viewerOpen && viewerImage && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeViewer}>
+          <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button className="absolute -top-10 right-0 text-white/80 hover:text-white text-sm" onClick={closeViewer}>Close ✕</button>
+            <div className="rounded-lg overflow-hidden bg-slate-900 border border-white/10">
+              <img src={resolveImageUrl(viewerImage.src)} alt={viewerImage.title} className="w-full max-h-[70vh] object-contain bg-black" />
+              {(viewerImage.title || viewerImage.description) && (
+                <div className="p-4 text-white/90 space-y-1">
+                  {viewerImage.title && <div className="text-lg font-semibold">{viewerImage.title}</div>}
+                  {viewerImage.description && <div className="text-sm text-white/80">{viewerImage.description}</div>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* No configuration modal here; this page is read-only for slideshow config */}
     </div>

@@ -57,12 +57,9 @@ const ManageGallery = () => {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const slots = (data.slots || [null, null, null, null, null, null]) as (string | null)[];
-                    setHomeSlots(slots);
-                }
+                const data = await get<{ slots: (string | null)[] }>(`/gallery-home-preview/`);
+                const slots = (data?.slots || [null, null, null, null, null, null]) as (string | null)[];
+                setHomeSlots(slots);
             } catch {
                 // ignore
             }
@@ -146,9 +143,9 @@ const ManageGallery = () => {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/slideshow/`);
-                if (res.ok) {
-                    const data = await res.json();
+                // Using the 'get' helper which correctly uses the axios instance
+                const data = await get<any>(`/slideshow/`);
+                if (data) {
                     setSlides((data.image_ids || []).filter((id: string) => (images || []).some(i => i._id === id)));
                     setIntervalMs(data.interval_ms || 4000);
                     setTransitionMs(data.transition_ms || 600);
@@ -162,13 +159,11 @@ const ManageGallery = () => {
 
     const mutation = useMutation({
         mutationFn: (imagePayload: Omit<GalleryImage, '_id'>) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
             if (isEditing) {
-                return api.put(`/gallery/${isEditing._id}`, imagePayload, config);
+                return api.put(`/gallery/${isEditing._id}`, imagePayload);
             }
-            return api.post('/gallery', imagePayload, config);
+            return api.post('/gallery', imagePayload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -189,10 +184,8 @@ const ManageGallery = () => {
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
-            return api.delete(`/gallery/${id}`, config);
+            return api.delete(`/gallery/${id}`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminGallery'] });
@@ -217,27 +210,24 @@ const ManageGallery = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const token = localStorage.getItem('token');
                 const form = new FormData();
                 form.append('file', selectedFile);
-                const res = await fetch(`${API_BASE_URL}/api/gallery/upload`, {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${token ?? ''}`,
-                    },
-                    body: form,
+                const res = await api.post('/gallery/upload', form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
+
+                if (res.status !== 200) {
+                    const err = res.data || {};
                     throw new Error(err?.detail || 'Upload failed');
                 }
-                const data = await res.json();
-                imageUrl = data.url;
+                
+                imageUrl = res.data.url;
                 toast.success('Image uploaded');
             } catch (err: any) {
                 console.error(err);
-                setUploadError(err?.message || 'Upload failed');
-                toast.error('Image upload failed');
+                const errorMsg = err.response?.data?.detail || err.message || 'Upload failed';
+                setUploadError(errorMsg);
+                toast.error(`Image upload failed: ${errorMsg}`);
                 setUploading(false);
                 return;
             } finally {
@@ -366,15 +356,7 @@ const ManageGallery = () => {
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify home preview.'); return; }
                                 try {
-                                    const res = await fetch(`${API_BASE_URL}/api/gallery-home-preview/`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-                                        },
-                                        body: JSON.stringify({ slots: homeSlots }),
-                                    });
-                                    if (!res.ok) throw new Error('Failed');
+                                    await api.post('/gallery-home-preview/', { slots: homeSlots });
                                     toast.success('Home preview updated');
                                     queryClient.invalidateQueries({ queryKey: ['galleryHomePreview'] });
                                     setHomePreviewOpen(false);
@@ -434,15 +416,13 @@ const ManageGallery = () => {
                             <Button onClick={async () => {
                                 if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
                                 try {
-                                    const res = await fetch(`${API_BASE_URL}/api/slideshow/`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-                                        },
-                                        body: JSON.stringify({ image_ids: slides, interval_ms: intervalMs, transition_ms: transitionMs, aspect_ratio: aspectRatio }),
+                                    // CORRECTED: Replaced fetch with api.post
+                                    await api.post('/slideshow/', {
+                                        image_ids: slides, 
+                                        interval_ms: intervalMs, 
+                                        transition_ms: transitionMs, 
+                                        aspect_ratio: aspectRatio 
                                     });
-                                    if (!res.ok) throw new Error('Failed');
                                     toast.success('Slideshow updated');
                                     setSlideConfigOpen(false);
                                 } catch (e) {
@@ -564,7 +544,7 @@ const ManageGallery = () => {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <GalleryStaticLayoutManager images={images || []} isReadOnly={isReadOnly} />
+                        <GalleryStaticLayoutManager images={images || []} />
                     </CardContent>
                 </Card>
             )}
@@ -590,7 +570,6 @@ const ManageGallery = () => {
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
-                            required 
                         />
                         <Input 
                             placeholder="Category" 
@@ -598,7 +577,6 @@ const ManageGallery = () => {
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                             disabled={isReadOnly}
                             className="bg-slate-800/50 border-purple-500/30 text-white placeholder-purple-300/70"
-                            required 
                         />
                         <div className="flex gap-2">
                             <Button 
@@ -654,4 +632,3 @@ const ManageGallery = () => {
 };
 
 export default ManageGallery;
-
