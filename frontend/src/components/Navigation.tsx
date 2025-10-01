@@ -4,8 +4,9 @@ import lotusFooter from '../assets/lotusfooter.png';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * A responsive navigation bar inspired by the Parassinikadavu temple website.
- * It's transparent at the top, becomes solid white on scroll, and features centered navigation links.
+ * A responsive, trapezoid-shaped navigation bar with a guaranteed centered logo.
+ * Side items are evenly spaced.
+ * It becomes opaque and shrinks on scroll.
  */
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -23,6 +24,10 @@ const Navigation = () => {
     { label: 'Contact', path: '#contact' },
   ];
 
+  const splitIndex = Math.ceil(navItems.length / 2);
+  const leftNavItems = navItems.slice(0, splitIndex);
+  const rightNavItems = navItems.slice(splitIndex);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -32,18 +37,18 @@ const Navigation = () => {
           const section = document.querySelector(item.path);
           if (section instanceof HTMLElement) {
             const sectionTop = section.offsetTop;
-            if (window.scrollY >= sectionTop - 150) { // Adjusted offset for centered nav
+            if (window.scrollY >= sectionTop - 100) {
               currentSection = item.path.substring(1);
             }
           }
         }
       });
-      setActiveSection(currentSection || 'home');
+      setActiveSection(currentSection);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []); // Removed navItems from dependency array as it's constant
+  }, [navItems]);
 
   const handleNavClick = (e, path) => {
     e.preventDefault();
@@ -62,119 +67,120 @@ const Navigation = () => {
     }
   };
 
-  // Dynamic styles based on scroll state
-  const textColor = isScrolled ? 'text-gray-800' : 'text-white';
-  const activeLinkColor = isScrolled ? 'text-orange-600' : 'text-orange-500';
-  const logoTextColor = isScrolled ? 'text-gray-900' : 'text-white';
+  const textColor = 'text-white';
+  const activeLinkColor = 'text-orange-400';
+  const logoTextColor = 'text-white';
 
-  return (
-    <nav
-      className={`fixed top-0 z-50 w-full transition-all duration-300 ease-in-out ${
-        isScrolled ? 'bg-white shadow-md' : 'bg-transparent'
+  const NavLink = ({ item }) => (
+    <a
+      key={item.path}
+      href={item.path}
+      onClick={(e) => handleNavClick(e, item.path)}
+      className={`font-semibold ${textColor} hover:text-orange-400 transition-colors duration-300 whitespace-nowrap ${
+        activeSection === item.path.substring(1) ? `font-bold ${activeLinkColor}` : ''
       }`}
     >
-      <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo and Brand Name (Left) */}
-        <div className="flex-shrink-0">
-          <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-3">
-            <div className="rounded-full bg-transparent">
-              <img src={lotusFooter} alt="lotus" className="h-12 w-12 object-contain" />
+      {item.label}
+    </a>
+  );
+  
+  const Logo = () => (
+     <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="flex items-center space-x-3">
+        <div className="p-1 rounded-full bg-transparent">
+          {/* Increased image size */}
+          <img src={lotusFooter} alt="lotus" className="h-14 w-14 object-contain" />
+        </div>
+        {/* Increased text size and re-added temple name */}
+        <span className={`text-2xl font-playfair font-bold whitespace-nowrap ${logoTextColor} transition-colors duration-300`}>
+          Vamanan Temple
+        </span>
+      </a>
+  );
+
+  return (
+    <header className="fixed top-0 z-50 w-full p-2 sm:p-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* Removed rounded-b-2xl and re-applied clip-path */}
+      <nav
+        className={`max-w-7xl mx-auto transition-all duration-300 ease-in-out ${
+          isScrolled ? 'bg-yellow-950 shadow-lg' : 'bg-yellow-950/60 backdrop-blur-md'
+        }`}
+        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 95% 100%, 5% 100%)' }}
+      >
+        <div className={`relative flex items-center justify-between w-full px-20 transition-all duration-300 ${isScrolled ? 'h-16' : 'h-20'}`}>
+
+            {/* --- Desktop Layout (CSS Grid for guaranteed centering) --- */}
+            <div className="hidden md:grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-6">
+              {/* Left Items (spaced out) */}
+              <div className="flex items-center justify-around">
+                {leftNavItems.map((item) => <NavLink item={item} key={item.path}/>)}
+              </div>
+              
+              {/* Center Logo */}
+              <div className="flex-shrink-0">
+                <Logo />
+              </div>
+
+              {/* Right Items (spaced out with an added left margin) */}
+              <div className="flex items-center justify-around gap-x-4 ml-8">
+                {rightNavItems.map((item) => <NavLink item={item} key={item.path}/>)}
+                <button
+                  type="button"
+                  onClick={() => navigate('/ritual-booking')}
+                  className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap"
+                >
+                  Book Now
+                </button>
+              </div>
             </div>
-            <span className={`text-xl font-playfair font-bold whitespace-nowrap ${logoTextColor} transition-colors duration-300`}>
-              Vamanan Temple
-            </span>
-          </a>
+
+            {/* --- Mobile Layout --- */}
+            <div className="flex-shrink-0 md:hidden w-full flex justify-between items-center">
+                <Logo/>
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="p-2 rounded-md inline-flex items-center justify-center focus:outline-none"
+                  aria-label="Main menu"
+                  aria-expanded={isMobileMenuOpen}
+                >
+                  {isMobileMenuOpen ? (
+                    <X className={`h-6 w-6 ${textColor}`} />
+                  ) : (
+                    <Menu className={`h-6 w-6 ${textColor}`} />
+                  )}
+                </button>
+            </div>
         </div>
 
-        {/* Desktop Navigation Links (Centered) */}
-        <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform md:flex md:items-center md:space-x-8">
-          {navItems.map((item) => (
-            <a
-              key={item.path}
-              href={item.path}
-              onClick={(e) => handleNavClick(e, item.path)}
-              className={`font-semibold ${textColor} hover:text-orange-500 transition-colors duration-300 ${
-                activeSection === item.path.substring(1) ? `font-bold ${activeLinkColor}` : ''
-              }`}
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
-
-        {/* Buttons (Right) */}
-        <div className="hidden items-center space-x-2 md:flex">
-          <button
-            type="button"
-            onClick={() => navigate('/ritual-booking')}
-            className="bg-orange-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors duration-300 whitespace-nowrap"
-          >
-            Book Now
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/donation')} // Added donation button
-            className={`border-2 font-semibold py-2 px-5 rounded-full transition-colors duration-300 whitespace-nowrap ${
-                isScrolled ? 'border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white' : 'border-white text-white hover:bg-white hover:text-orange-500'
-            }`}
-          >
-            Donate
-          </button>
-        </div>
-
-        {/* Mobile Hamburger Menu Button */}
-        <div className="md:hidden">
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-md inline-flex items-center justify-center focus:outline-none"
-            aria-label="Main menu"
-            aria-expanded={isMobileMenuOpen}
-          >
-            {isMobileMenuOpen ? (
-              <X className={`h-6 w-6 text-gray-200`} /> // Icon color is fixed for dark menu
-            ) : (
-              <Menu className={`h-6 w-6 ${textColor}`} />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Dropdown Menu (Dark Theme) */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-gray-900/95 backdrop-blur-sm text-white shadow-xl">
-          <div className="px-2 pt-2 pb-6 space-y-2 sm:px-3">
-            {navItems.map((item) => (
-              <a
-                key={item.path}
-                href={item.path}
-                onClick={(e) => handleNavClick(e, item.path)}
-                className={`block px-3 py-2 rounded-md text-base font-medium text-gray-200 hover:text-white hover:bg-gray-700 ${
-                  activeSection === item.path.substring(1) ? 'font-bold text-orange-400 bg-gray-800' : ''
-                }`}
-              >
-                {item.label}
-              </a>
-            ))}
-            <div className="mt-4 flex flex-col space-y-3 px-2 pt-4 border-t border-gray-700">
-               <button
-                type="button"
-                onClick={() => { setIsMobileMenuOpen(false); navigate('/ritual-booking'); }}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors"
-              >
-                Book Now
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsMobileMenuOpen(false); navigate('/donation'); }}
-                className="w-full border-2 border-orange-400 text-orange-400 py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-400 hover:text-white transition-colors"
-              >
-                Donate
-              </button>
+        {/* The mobile menu dropdown */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-yellow-950/95 backdrop-blur-sm shadow-xl overflow-hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+              {navItems.map((item) => (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  onClick={(e) => handleNavClick(e, item.path)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium text-stone-100 hover:text-white hover:bg-yellow-900/50 ${
+                    activeSection === item.path.substring(1) ? 'font-bold text-orange-400 bg-yellow-900/50' : ''
+                  }`}
+                >
+                  {item.label}
+                </a>
+              ))}
+              <div className="pt-4 px-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsMobileMenuOpen(false); navigate('/ritual-booking'); }}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-full font-semibold shadow-md hover:bg-orange-600 transition-colors"
+                >
+                  Book Now
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </nav>
+        )}
+      </nav>
+    </header>
   );
 };
 
