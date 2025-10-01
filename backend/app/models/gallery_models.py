@@ -7,8 +7,8 @@ from .main_models import PyObjectId
 class GalleryImageBase(BaseModel):
     # Source will be a backend-served URL (e.g., /api/gallery/files/<object_path>)
     src: str = Field(..., example="/api/gallery/files/2025-01-01_12-00-00_000000/photo.jpg")
-    title: str = Field(..., example="Evening Aarti")
-    category: str = Field(..., example="Rituals")
+    title: str = Field(default="", example="Evening Aarti")
+    category: str = Field(default="", example="Rituals")
 
 # Used when creating a new gallery image.
 class GalleryImageCreate(GalleryImageBase):

@@ -74,11 +74,7 @@ const ManageEvents = () => {
     });
     const { data: featured, refetch: refetchFeatured } = useQuery<FeaturedEvent>({
         queryKey: ['featuredEvent'],
-        queryFn: async () => {
-            const res = await fetch(`${API_BASE_URL}/api/featured-event/`);
-            if (!res.ok) return { event_id: null };
-            return res.json();
-        },
+        queryFn: () => get<FeaturedEvent>('/featured-event/').catch(() => ({ event_id: null })),
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
@@ -87,13 +83,11 @@ const ManageEvents = () => {
 
     const mutation = useMutation({
         mutationFn: (eventPayload: Omit<Event, '_id'>) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
             if (isEditing) {
-                return api.put(`/events/${isEditing._id}`, eventPayload, config);
+                return api.put(`/events/${isEditing._id}`, eventPayload);
             }
-            return api.post('/events/', eventPayload, config);
+            return api.post('/events/', eventPayload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminEvents'] });
@@ -110,10 +104,8 @@ const ManageEvents = () => {
     
     const deleteMutation = useMutation({
         mutationFn: (id: string) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 3) throw new Error('Not authorized');
-            return api.delete(`/events/${id}`, config);
+            return api.delete(`/events/${id}`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminEvents'] });
@@ -124,15 +116,9 @@ const ManageEvents = () => {
     });
 
     const setFeaturedMutation = useMutation({
-        mutationFn: async (event_id: string | null) => {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/api/featured-event/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-                body: JSON.stringify({ event_id }),
-            });
-            if (!res.ok) throw new Error('Failed to set featured');
-            return res.json();
+        mutationFn: (event_id: string | null) => {
+            if (roleId > 3) throw new Error('Not authorized');
+            return api.post('/featured-event/', { event_id });
         },
         onSuccess: () => {
             toast.success('Featured event updated');
@@ -153,27 +139,24 @@ const ManageEvents = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const token = localStorage.getItem('token');
                 const form = new FormData();
                 form.append('file', selectedFile);
-                const res = await fetch(`${API_BASE_URL}/api/events/upload`, {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${token ?? ''}`,
-                    },
-                    body: form,
+                const res = await api.post('/events/upload', form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
+
+                if (res.status !== 200) {
+                    const err = res.data || {};
                     throw new Error(err?.detail || 'Upload failed');
                 }
-                const data = await res.json();
-                imageUrl = data.url;
+                
+                imageUrl = res.data.url;
                 toast.success('Image uploaded');
             } catch (err: any) {
                 console.error(err);
-                setUploadError(err?.message || 'Upload failed');
-                toast.error('Image upload failed');
+                const errorMsg = err.response?.data?.detail || err.message || 'Upload failed';
+                setUploadError(errorMsg);
+                toast.error(`Image upload failed: ${errorMsg}`);
                 setUploading(false);
                 return;
             } finally {
