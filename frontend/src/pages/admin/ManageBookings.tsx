@@ -22,6 +22,17 @@ import { Calendar, Users, DollarSign, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Frequency multipliers for subscription types
+const frequencyMultipliers: Record<string, number> = { 'one-time': 1, 'daily': 30, 'weekly': 4, 'monthly': 1 };
+
+// Helper function to calculate cost for a ritual instance
+const calculateRitualCost = (instance: RitualInstance, rituals: any[]) => {
+    if (!rituals || rituals.length === 0) return 0;
+    const ritual = rituals.find(r => r._id === instance.ritualId);
+    if (!ritual) return 0;
+    return ritual.price * instance.quantity * frequencyMultipliers[instance.subscription];
+};
+
 // Extend booking interfaces to include booked_by and support employee bookings
 interface RitualInstance {
     ritualId: string;
@@ -64,6 +75,12 @@ const ManageBookings = () => {
     const { data: employeeBookings, isLoading: loadingEmployee, isError: errorEmployee } = useQuery<EmployeeBooking[]>({
         queryKey: ['adminBookingsEmployee'],
         queryFn: fetchEmployeeBookings
+    });
+
+    // Fetch rituals data for price calculations
+    const { data: rituals } = useQuery<any[]>({
+        queryKey: ['rituals'],
+        queryFn: () => get('/rituals/admin')
     });
 
     // Filter states - must be called before any conditional returns
@@ -163,97 +180,205 @@ const ManageBookings = () => {
     const totalRevenue = filteredBookings.reduce((sum, booking) => sum + booking.total_cost, 0);
     const totalRituals = filteredBookings.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
 
-    // Function to download bookings as PDF
+    // Function to download bookings as PDF (sectioned, readable, and wrapped)
     const downloadBookingsAsPDF = (bookings: UnifiedBooking[]) => {
         try {
-            const doc = new jsPDF();
-            
-            // Add title
-            doc.setFontSize(20);
-            doc.setTextColor(139, 92, 246); // Purple color
-            doc.text('Temple Management System', 14, 20);
-            
-            doc.setFontSize(16);
-            doc.setTextColor(0, 0, 0);
-            doc.text('Filtered Bookings Report', 14, 30);
-            
-            // Add summary statistics
-            doc.setFontSize(11);
-            doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`, 14, 40);
-            doc.text(`Total Bookings: ${totalBookings}`, 14, 47);
-            doc.text(`Total Revenue: ₹${totalRevenue.toFixed(2)}`, 14, 54);
-            doc.text(`Total Rituals: ${totalRituals}`, 14, 61);
-            
-            // Prepare table data
-            const tableData: any[] = [];
-            
-            bookings.forEach((booking) => {
-                // Add main booking row
-                const mainRow = [
-                    booking.name,
-                    booking.booked_by === 'self' ? 'Self' : `Emp: ${booking.booked_by}`,
-                    booking.email || 'N/A',
-                    booking.phone || 'N/A',
-                    formatTimestamp(booking.timestamp),
-                    `₹${booking.total_cost.toFixed(2)}`,
-                    booking.instances.length.toString()
-                ];
-                tableData.push(mainRow);
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginX = 14;
+            let cursorY = 18;
+
+            // Flatten bookings into individual ritual entities
+            // When ritual filter is active, only include matching rituals
+            const flattenedEntities = bookings.flatMap(booking => {
+                let ritualInstances = booking.instances;
                 
-                // Add ritual instances as sub-rows
-                booking.instances.forEach((instance, idx) => {
-                    const ritualRow = [
-                        `  └ ${instance.ritualName}`,
-                        `Qty: ${instance.quantity}`,
-                        `For: ${instance.devoteeName}`,
-                        `Naal: ${instance.naal}`,
-                        '',
-                        `DOB: ${instance.dob}`,
-                        instance.subscription
-                    ];
-                    tableData.push(ritualRow);
-                });
-                
-                // Add empty row for spacing
-                tableData.push(['', '', '', '', '', '', '']);
-            });
-            
-            // Add table with autoTable
-            autoTable(doc, {
-                startY: 70,
-                head: [['Customer', 'Booked By', 'Email', 'Phone', 'Booked At', 'Cost', 'Rituals']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [139, 92, 246], // Purple
-                    textColor: [255, 255, 255],
-                    fontSize: 10,
-                    fontStyle: 'bold'
-                },
-                bodyStyles: {
-                    fontSize: 9,
-                    textColor: [50, 50, 50]
-                },
-                alternateRowStyles: {
-                    fillColor: [245, 245, 255]
-                },
-                margin: { top: 70, left: 14, right: 14 },
-                didDrawPage: (data) => {
-                    // Add page numbers
-                    const pageCount = doc.internal.pages.length - 1;
-                    doc.setFontSize(10);
-                    doc.setTextColor(128);
-                    doc.text(
-                        `Page ${data.pageNumber} of ${pageCount}`,
-                        doc.internal.pageSize.getWidth() / 2,
-                        doc.internal.pageSize.getHeight() - 10,
-                        { align: 'center' }
+                // If ritual search filter is active, only include matching rituals
+                if (searchRitual.trim()) {
+                    ritualInstances = ritualInstances.filter(instance => 
+                        instance.ritualName.toLowerCase().includes(searchRitual.toLowerCase())
                     );
                 }
+                
+                // Create separate entity for each ritual instance with proper cost calculation
+                return ritualInstances.map(instance => ({
+                    ...booking,
+                    instances: [instance], // Only include this specific ritual
+                    total_cost: calculateRitualCost(instance, rituals || []) // Calculate actual cost for this ritual
+                }));
             });
+
+            const totalEntities = flattenedEntities.length;
+            const totalRevenuePDF = flattenedEntities.reduce((sum, entity) => sum + entity.total_cost, 0);
+            const totalRitualsPDF = flattenedEntities.reduce((sum, entity) => sum + entity.instances[0].quantity, 0);
+
+            // Header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Temple Management System', marginX, cursorY);
+
+            cursorY += 8;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            const reportTitle = searchRitual.trim() 
+                ? `Filtered Bookings Report - Ritual: ${searchRitual}` 
+                : (hasFiltersApplied ? 'Filtered Bookings Report' : 'All Bookings Report');
+            doc.text(reportTitle, marginX, cursorY);
+
+            cursorY += 8;
+            // Summary line
+            doc.setFontSize(10);
+            doc.setTextColor(60);
+            const generatedOn = `${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`;
+            doc.text(`Generated on: ${generatedOn}`, marginX, cursorY);
+
+            cursorY += 6;
+            doc.setTextColor(0);
+            doc.text(`Total Bookings: ${totalEntities}`, marginX, cursorY);
+            doc.text(`Total Rituals: ${totalRitualsPDF}`, marginX + 60, cursorY);
+            // Use 'Rs.' instead of the rupee symbol to avoid font issues
+            doc.text(`Total Revenue: Rs. ${totalRevenuePDF.toFixed(2)}`, marginX + 120, cursorY);
+
+            cursorY += 8;
+
+            // Footer renderer for each page
+            const drawFooter = (pageNumber: number) => {
+                doc.setFontSize(9);
+                doc.setTextColor(120);
+                const pageCount = (doc as any).internal.getNumberOfPages();
+                doc.text(
+                    `Page ${pageNumber} of ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 8,
+                    { align: 'center' }
+                );
+            };
+
+            // Shared autotable options with header/footer per page
+            const withPageDecorations = {
+                didDrawPage: (data: any) => {
+                    // Re-draw header title on each page for context
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('Bookings Report', marginX, 10);
+
+                    drawFooter(data.pageNumber);
+                }
+            } as const;
+
+            // Render each ritual entity as a separate section
+            flattenedEntities.forEach((entity, idx) => {
+                // Add space or page break if needed
+                const remaining = pageHeight - cursorY - 40; // keep footer space
+                if (remaining < 40) {
+                    doc.addPage();
+                    cursorY = 18;
+                }
+
+                const instance = entity.instances[0]; // Only one ritual per entity now
+
+                // Booking header panel
+                doc.setFillColor(255,255,255); 
+                const panelWidth = pageWidth - marginX * 2;
+                const panelHeight = 14; // base height for header lines
+                doc.rect(marginX, cursorY, panelWidth, panelHeight, 'F');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(40);
+                const bookedBy = entity.booked_by === 'self' ? 'Self' : `Employee: ${entity.booked_by}`;
+                doc.text(`${idx + 1}. ${entity.name}  (${bookedBy})`, marginX + 2, cursorY + 5.5);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(70);
+                const contactLine = `Email: ${entity.email || 'N/A'}   Phone: ${entity.phone || 'N/A'}   Booked: ${formatTimestamp(entity.timestamp)}`;
+                doc.text(contactLine, marginX + 2, cursorY + 10.5);
+
+                // Total cost badge on the right
+                const costText = `Total: Rs. ${entity.total_cost.toFixed(2)}`; // avoid rupee symbol
+                const costTextWidth = doc.getTextWidth(costText) + 6;
+                const costX = marginX + panelWidth - costTextWidth - 2;
+                doc.setFillColor(229, 231, 235);
+                doc.roundedRect(costX, cursorY + 3, costTextWidth, 8, 2, 2, 'F');
+                doc.setTextColor(0);
+                doc.text(costText, costX + 3, cursorY + 9);
+
+                cursorY += panelHeight + 2;
+
+                // Ritual instance table (single ritual per entity)
+                const body = [[
+                    instance.ritualName || '-',
+                    String(instance.quantity ?? '-'),
+                    instance.devoteeName || '-',
+                    instance.naal || '-',
+                    instance.dob || '-',
+                    instance.subscription || '-'
+                ]];
+
+                autoTable(doc, {
+                    ...withPageDecorations,
+                    startY: cursorY,
+                    head: [[
+                        'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
+                    ]],
+                    body,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica',
+                        fontSize: 9,
+                        cellPadding: 2,
+                        overflow: 'linebreak'
+                    },
+                    headStyles: {
+                        fillColor: [0, 0, 0],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    bodyStyles: {
+                        textColor: [30, 30, 30]
+                    },
+                    alternateRowStyles: {
+                        fillColor: [248, 250, 252]
+                    },
+                    margin: { left: marginX, right: marginX },
+                    columnStyles: {
+                        0: { cellWidth: 54 }, // Ritual
+                        1: { cellWidth: 12, halign: 'center' }, // Qty
+                        2: { cellWidth: 36 }, // Devotee
+                        3: { cellWidth: 22 }, // Naal
+                        4: { cellWidth: 22 }, // DOB
+                        5: { cellWidth: 'auto' } // Subscription
+                    },
+                });
+
+                cursorY = (doc as any).lastAutoTable.finalY + 6;
+            });
+
+            // If no bookings, still ensure footer is drawn once
+            if (flattenedEntities.length === 0) {
+                autoTable(doc, {
+                    ...withPageDecorations,
+                    startY: cursorY,
+                    head: [['No bookings found for selected filters']],
+                    body: [],
+                    theme: 'plain',
+                    styles: { font: 'helvetica', fontSize: 10 },
+                    headStyles: { textColor: [120, 120, 120] },
+                    margin: { left: marginX, right: marginX }
+                });
+            }
+
+            const fileName = searchRitual.trim() 
+                ? `temple_bookings_${searchRitual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+                : `temple_bookings_${new Date().toISOString().split('T')[0]}.pdf`;
             
-            // Save the PDF
-            doc.save(`temple_bookings_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(fileName);
             toast.success('Bookings PDF downloaded successfully!');
         } catch (error) {
             console.error('Error generating PDF:', error);
