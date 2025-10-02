@@ -216,18 +216,16 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const queryClient = useQueryClient();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [modalEditing, setModalEditing] = useState(false);
-  const [snapshot, setSnapshot] = useState<{ name: string; username: string; email: string; google_email: string; mobile_prefix: string; mobile_number: string; dob: string } | null>(null);
+  const [snapshot, setSnapshot] = useState<{ name: string; username: string; email: string; mobile_prefix: string; mobile_number: string; dob: string } | null>(null);
   // inline edit states
   const [editingEmail, setEditingEmail] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editingUsername, setEditingUsername] = useState(false);
-  const [editingAuthEmail, setEditingAuthEmail] = useState(false);
   const [editingPhone, setEditingPhone] = useState(false);
   const [editingDob, setEditingDob] = useState(false);
   const [emailValue, setEmailValue] = useState(admin.email);
   const [nameValue, setNameValue] = useState(admin.name);
   const [usernameValue, setUsernameValue] = useState(admin.username);
-  const [authEmailValue, setAuthEmailValue] = useState(admin.google_email || '');
   const [prefixValue, setPrefixValue] = useState(admin.mobile_prefix);
   const [mobileValue, setMobileValue] = useState(String(admin.mobile_number ?? ''));
   const [dobValue, setDobValue] = useState(admin.dob || '');
@@ -246,13 +244,11 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       setEditingEmail(false);
       setEditingName(false);
       setEditingUsername(false);
-      setEditingAuthEmail(false);
       setEditingPhone(false);
       setEditingDob(false);
       setEmailValue(admin.email);
       setNameValue(admin.name);
       setUsernameValue(admin.username);
-      setAuthEmailValue(admin.google_email || '');
       setPrefixValue(admin.mobile_prefix);
       setMobileValue(String(admin.mobile_number ?? ''));
       setDobValue(admin.dob || '');
@@ -318,15 +314,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
     if (!newUsername) { toast.error('Username cannot be empty'); return; }
     updateMutation.mutate({ id: admin._id, payload: { username: newUsername } });
   };
-  const saveAuthEmail = () => {
-    if (!canModify) return;
-    const val = (authEmailValue || '').trim();
-    if (!val) { toast.error('Authentication email cannot be empty'); return; }
-    // Basic email format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(val)) { toast.error('Enter a valid email'); return; }
-    updateMutation.mutate({ id: admin._id, payload: { google_email: val } });
-  };
   const savePhone = () => {
     if (!canModify) return;
     const num = Number(mobileValue);
@@ -347,7 +334,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       name: nameValue,
       username: usernameValue,
       email: emailValue,
-      google_email: authEmailValue,
       mobile_prefix: prefixValue,
       mobile_number: String(mobileValue || ''),
       dob: dobValue,
@@ -360,7 +346,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       setNameValue(snapshot.name);
       setUsernameValue(snapshot.username);
       setEmailValue(snapshot.email);
-      setAuthEmailValue(snapshot.google_email);
       setPrefixValue(snapshot.mobile_prefix);
       setMobileValue(String(snapshot.mobile_number || ''));
       setDobValue(snapshot.dob);
@@ -369,7 +354,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       setNameValue(admin.name);
       setUsernameValue(admin.username);
       setEmailValue(admin.email);
-      setAuthEmailValue(admin.google_email || '');
       setPrefixValue(admin.mobile_prefix);
       setMobileValue(String(admin.mobile_number ?? ''));
       setDobValue(admin.dob || '');
@@ -384,8 +368,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
     const trimmedUser = (usernameValue || '').trim();
     if (trimmedUser !== admin.username) (diff as any).username = trimmedUser;
     if (emailValue !== admin.email) (diff as any).email = emailValue;
-    const authVal = (authEmailValue || '').trim();
-    if (authVal !== (admin.google_email || '')) (diff as any).google_email = authVal;
     if (prefixValue !== admin.mobile_prefix) (diff as any).mobile_prefix = prefixValue;
     const num = Number(mobileValue);
     if (Number.isFinite(num) && num !== admin.mobile_number) (diff as any).mobile_number = num;
@@ -492,19 +474,6 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
                     ) : (
                       <div className="text-sm text-slate-900 mt-0.5 break-words">{emailValue}</div>
                     )}
-                  </div>
-
-                  {/* Authentication Email panel */}
-                  <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wide text-orange-600">Authentication Email</div>
-                    </div>
-                    {modalEditing && canModify ? (
-                      <Input type="email" value={authEmailValue} onChange={(e) => setAuthEmailValue(e.target.value)} className="bg-white border-orange-300 mt-1" />
-                    ) : (
-                      <div className="text-sm text-slate-900 mt-0.5 break-words">{authEmailValue || '—'}</div>
-                    )}
-                    <div className="text-[11px] text-orange-600 mt-1">Used to authenticate with Google; must be unique</div>
                   </div>
 
                   {/* Phone panel */}

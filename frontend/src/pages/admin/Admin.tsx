@@ -664,11 +664,13 @@ const AdminDashboard = () => {
                       <p className="text-xs text-purple-300">₹{ritual.price.toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-[10px] font-medium ${
-                    ritual.popular
-                      ? 'bg-green-900/30 text-green-400 border border-green-400/30'
-                      : 'bg-yellow-900/30 text-yellow-400 border border-yellow-400/30'
-                  }`}>
+                  <div
+                    className={`px-2 py-1 rounded-full text-[10px] font-medium ${
+                      ritual.popular
+                        ? 'bg-green-600 text-white border border-green-400'
+                        : 'bg-yellow-500 text-black border border-yellow-300'
+                    }`}
+                  >
                     {ritual.popular ? 'Popular' : 'Ritual'}
                   </div>
                 </Link>

@@ -338,11 +338,7 @@ const AddStock = () => {
         <div className="bg-slate-900/80 backdrop-blur-sm border border-amber-500/30 p-6 rounded-xl shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 transition-shadow">
             <div className="flex items-center justify-between">
                 <div>
-<<<<<<< HEAD
-                    <p className="text-amber-700 dark:text-amber-300">Expiring Soon</p>
-=======
                     <p className="text-amber-300 text-sm">Expiring Soon</p>
->>>>>>> origin/test
                     <p className="text-3xl font-bold">{stockItems.filter(isExpiringSoon).length}</p>
                     <p className="text-xs text-amber-400 mt-1">Within 30 days</p>
                 </div>
