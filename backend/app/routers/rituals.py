@@ -41,7 +41,7 @@ async def list_all_rituals_public():
     Public endpoint for clients (e.g., booking page) to fetch all rituals without
     date filtering. Employee-only filtering (if required) should be handled client-side.
     """
-    rituals = await ritual_service.get_all_available_rituals_admin()
+    rituals = await ritual_service.get_all_public_rituals_no_date()
     return rituals
 
 @router.post("", response_description="Add new ritual", response_model=AvailableRitualInDB, status_code=status.HTTP_201_CREATED)

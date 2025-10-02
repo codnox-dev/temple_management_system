@@ -52,8 +52,7 @@ app.add_middleware(
         "/docs", "/redoc", "/openapi.json", "/", "/api",
         # Public auth endpoints only (verify-token should be protected)
         "/api/auth/login", "/api/auth/register",
-        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/send-otp", "/api/auth/verify-otp",
-
+        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/send-otp", "/api/auth/verify-otp"
     ]
 )
 

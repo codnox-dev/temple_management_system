@@ -108,6 +108,15 @@ async def send_otp(request: Request, background_tasks: BackgroundTasks, payload:
     """
     Send OTP to mobile number for authentication.
     """
+    # Fetch admin by mobile number
+    admin = await get_admin_by_mobile(payload.mobile_number)
+
+    if admin and admin.get("isRestricted", False):
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been restricted. Please contact the administrator for more details."
+        )
+
     try:
         # CSRF mitigation: validate Origin header explicitly
         origin = request.headers.get("origin", "")
@@ -203,9 +212,29 @@ async def verify_otp_login(request: Request, response: Response, payload: OTPVer
 @router.post("/login", response_model=TokenResponse)
 async def login(request: Request, response: Response):
     """
-    Password-based login is disabled. Use OTP authentication.
+    Handle user login and update last login timestamp.
     """
-    raise HTTPException(status_code=403, detail="Password login disabled. Use OTP authentication via /api/auth/send-otp and /api/auth/verify-otp")
+    form_data = await request.json()
+    username = form_data.get("username")
+    password = form_data.get("password")
+
+    # Authenticate user
+    admin = await get_admin_by_username(username)
+    if not admin or not jwt_security.verify_password(password, admin.get("password_hash")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password."
+        )
+
+    # Update last login timestamp
+    await update_last_login(admin["_id"])
+
+    # Generate token
+    token = jwt_security.create_access_token(data={"sub": username})
+    return TokenResponse(
+        access_token=token,
+        expires_in=3600
+    )
 
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(request: Request, refresh_request: RefreshTokenRequest = None):

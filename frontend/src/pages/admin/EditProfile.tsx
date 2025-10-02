@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { get, put, API_BASE_URL } from '../../api/api'; // Corrected relative import path
 import { UserProfile } from '../../components/Profile'; // Corrected relative import path
 import { toast } from 'sonner';
+import { enhancedJwtAuth } from '../../lib/enhancedJwtAuth';
 
 // This interface matches the ProfileUpdate Pydantic model from your FastAPI backend
 export interface ProfileUpdatePayload {
@@ -84,13 +85,13 @@ const EditProfile: React.FC = () => {
   const preCheckAndOpenPicker = () => {
     if (lastProfileUpdate) {
       const lastDt = new Date(lastProfileUpdate);
-      const nextAllowed = new Date(lastDt.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const nextAllowed = new Date(lastDt.getTime() + 60 * 24 * 60 * 60 * 1000);
       const now = new Date();
       if (now < nextAllowed) {
         const ms = nextAllowed.getTime() - now.getTime();
         const days = Math.floor(ms / (24 * 60 * 60 * 1000));
         const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-        toast.error(`You can change your profile picture on ${nextAllowed.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
+        toast.error(`60-day cooldown active. You can change your profile picture on ${nextAllowed.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
         return;
       }
     }
@@ -122,10 +123,11 @@ const EditProfile: React.FC = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
         // Use fetch here to send multipart since our api.ts defaults JSON
+        const token = await enhancedJwtAuth.getAccessToken();
         const res = await fetch(`${API_BASE_URL}/api/profile/me/upload`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         });
@@ -140,7 +142,7 @@ const EditProfile: React.FC = () => {
               const ms = na.getTime() - now.getTime();
               const days = Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
               const hours = Math.max(0, Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)));
-              toast.error(`Cooldown active. You can change your profile picture on ${na.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
+              toast.error(`60-day cooldown active. You can change your profile picture on ${na.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
               return;
             }
             if (typeof detail === 'string') msg = detail;
@@ -167,7 +169,7 @@ const EditProfile: React.FC = () => {
       setIsEditing(false); // Exit editing mode after saving
     } catch (err) {
       console.error("Failed to update profile:", err);
-      setError("Failed to save changes. Please check your input and try again. If uploading a new photo, ensure it's an image under 2 MB and you haven't changed it in the last 30 days.");
+      setError("Failed to save changes. Please check your input and try again. If uploading a new photo, ensure it's an image under 2 MB and you haven't changed it in the last 60 days.");
     } finally {
       setIsSaving(false);
     }

@@ -5,6 +5,48 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios';
 import { enhancedJwtAuth } from '../lib/enhancedJwtAuth';
 
+// Types
+interface RitualInstance {
+    ritualId: string;
+    ritualName: string;
+    devoteeName: string;
+    naal: string;
+    dob: string;
+    subscription: string;
+    quantity: number;
+}
+
+export interface EmployeeBooking {
+    _id: string;
+    name: string;
+    total_cost: number;
+    instances: RitualInstance[];
+    booked_by: string; // employee username
+    timestamp: string;
+}
+
+export interface PublicBooking {
+    _id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    total_cost: number;
+    instances: RitualInstance[];
+    booked_by?: string; // 'self' (default)
+    timestamp: string;
+}
+
+export interface Booking {
+    _id: string;
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    total_cost: number;
+    instances: RitualInstance[];
+}
+
 // Resolve base URL: prefer explicit env var, fallback to window location heuristic, then hardcoded dev default.
 // Vite exposes env vars prefixed with VITE_.
 // Provide a lightweight type guard for Vite's import.meta.env to appease TS without adding a global type file.
@@ -110,6 +152,11 @@ export const patch = <T = unknown, B = unknown>(url: string, body?: B, config?: 
 export const del = <T = unknown>(url: string, config?: AxiosRequestConfig) => api.delete<T>(url, config).then(r => r.data);
 
 export default api;
+
+// API functions
+export const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
+export const fetchPublicBookings = (): Promise<PublicBooking[]> => get<PublicBooking[]>('/bookings/');
+export const fetchEmployeeBookings = (): Promise<EmployeeBooking[]> => get<EmployeeBooking[]>('/employee-bookings/');
 
 // Usage examples (remove or comment out in prod):
 // import api from '@/api/api';

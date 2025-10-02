@@ -5,8 +5,8 @@ from typing import Dict, Any
 from datetime import datetime, date
 
 async def get_all_available_rituals():
-    """Get all available rituals with proper date filtering"""
-    cursor = available_rituals_collection.find({})
+    """Get all available rituals with proper date filtering (public) and excluding employee-only."""
+    cursor = available_rituals_collection.find({"employee_only": {"$ne": True}})
     rituals = [ritual async for ritual in cursor]
     
     # Filter rituals based on current date if they have date ranges
@@ -51,6 +51,11 @@ async def get_all_available_rituals():
 async def get_all_available_rituals_admin():
     """Get all rituals for admin without date filtering"""
     cursor = available_rituals_collection.find({})
+    return [ritual async for ritual in cursor]
+
+async def get_all_public_rituals_no_date():
+    """Get all rituals for public without date filtering and excluding employee-only."""
+    cursor = available_rituals_collection.find({"employee_only": {"$ne": True}})
     return [ritual async for ritual in cursor]
 
 async def create_ritual(ritual_data: AvailableRitualCreate):
@@ -101,7 +106,10 @@ async def delete_ritual_by_id(id: str) -> bool:
     return result.deleted_count == 1
 
 async def get_featured_rituals_for_home():
-    """Get up to 3 rituals marked show_on_home without date filtering (purely editorial selection)."""
+    """Get up to 3 rituals marked show_on_home without date filtering and excluding employee-only."""
     # Rely on DB limit for efficiency and predictable small payloads
-    cursor = available_rituals_collection.find({"show_on_home": True}).limit(3)
+    cursor = available_rituals_collection.find({
+        "show_on_home": True,
+        "employee_only": {"$ne": True}
+    }).limit(3)
     return [ritual async for ritual in cursor]

@@ -3,6 +3,7 @@ from typing import List
 from bson import ObjectId
 from .main_models import PyObjectId
 from .ritual_models import RitualInstance
+from datetime import datetime
 
 # --- Schema for Bookings (transactions) ---
 # Defines the base structure for a booking.
@@ -14,6 +15,7 @@ class BookingBase(BaseModel):
     total_cost: float = Field(..., gt=0, example=553.0)
     instances: List[RitualInstance]
     booked_by: str = Field(default="self", example="self")  # <-- added, defaults to 'self'
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when the booking was made")
 
 # Used when creating a new booking.
 class BookingCreate(BookingBase):

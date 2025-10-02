@@ -84,66 +84,56 @@ async def upload_profile_picture(
     Upload a new profile picture with constraints:
     - Max size 2 MB
     - Accept only image types (jpeg, png, gif, webp)
-    - Cooldown: can update at most once every 30 days
+    - Cooldown: can update at most once every 60 days
     Stores file in MinIO bucket under: {username}/{YYYY-MM-DD_HH-MM-SS_microseconds}/{filename}
     and updates admins.profile_picture with the MinIO URL and last_profile_update timestamp.
     """
     # Validate cooldown using fresh DB value to avoid serialization differences
     db_doc = await admins_collection.find_one({"_id": ObjectId(current_admin.get("_id"))}, {"last_profile_update": 1})
     last_update = db_doc.get("last_profile_update") if db_doc else None
-    if last_update is not None:
-        # Normalize last_update to datetime if possible
-        last_dt: Optional[datetime] = None
-        if isinstance(last_update, datetime):
-            last_dt = last_update
-        elif isinstance(last_update, str):
-            # handle ISO strings with optional Z suffix
-            s = last_update.rstrip("Z")
-            try:
-                last_dt = datetime.fromisoformat(s)
-            except Exception:
-                last_dt = None
-        # Enforce cooldown only if we successfully parsed a timestamp
-        if last_dt is not None:
-            from datetime import timedelta as _td
-            next_allowed = last_dt + _td(days=30)
-            now = datetime.utcnow()
-            if now < next_allowed:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail={
-                        "message": "Profile picture was updated recently. Please wait before changing again.",
-                        "next_allowed": next_allowed.isoformat() + "Z",
-                    },
-                )
+
+    # Ensure last_profile_update is handled correctly when null
+    if last_update is None:
+        last_update = datetime(1970, 1, 1)  # Default to epoch time
+
+    cooldown_period = 60 * 24 * 60 * 60  # 60 days in seconds
+    next_allowed = last_update.timestamp() + cooldown_period
+    current_time = datetime.utcnow().timestamp()
+    if current_time < next_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You can only update your profile picture once every 60 days. Next update allowed after {datetime.fromtimestamp(next_allowed).strftime('%Y-%m-%d %H:%M:%S')} UTC."
+        )
 
     # Read file in memory
     content = await file.read()
-    
+
     # Get username
     username = current_admin.get("username")
     if not username:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username missing")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username not found in the current session."
+        )
 
     # Upload to MinIO using the storage service
     try:
         object_path, public_url = storage_service.upload_profile_picture(username, file, content)
     except HTTPException:
-        raise  # Re-raise HTTPException from storage service
+        raise
     except Exception as e:
-        print(f"Unexpected error during upload: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload profile picture")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload profile picture: {str(e)}"
+        )
 
     # Prepare update data
     update_data = {
+        "profile_picture": public_url,
         "last_profile_update": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "updated_by": username,
     }
-    
-    # Only update profile_picture if upload was successful
-    if object_path:
-        update_data["profile_picture"] = public_url
 
     # Update admin document
     updated_admin = await admins_collection.find_one_and_update(
@@ -153,18 +143,11 @@ async def upload_profile_picture(
     )
 
     if not updated_admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile picture in the database."
+        )
 
-    # No password field to sanitize
-    
-    # Log activity
-    await create_activity(ActivityCreate(
-        username=current_admin["username"],
-        role=current_admin["role"],
-        activity="Updated profile picture.",
-        timestamp=datetime.utcnow()
-    ))
-    
     return updated_admin
 
 

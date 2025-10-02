@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Package, Image, TrendingUp, Flame, Star, DollarSign, Clock, MapPin } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import api, { get } from "../../api/api"
+import api, { get, fetchBookings, fetchEmployeeBookings, EmployeeBooking, Booking } from "../../api/api"
 import { toast } from "sonner"
 import { useAuth } from "../../contexts/AuthContext"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -16,15 +16,6 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } fro
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 // Define interfaces for the data we'll fetch
-interface Booking {
-  _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  total_cost: number;
-  instances: RitualInstance[];
-}
 
 interface RitualInstance {
   ritualId: string;
@@ -64,15 +55,6 @@ interface ActivityRec {
   timestamp: string; // ISO
 }
 
-// Define employee booking interface
-interface EmployeeBooking {
-  _id: string;
-  name: string;
-  total_cost: number;
-  instances: RitualInstance[];
-  booked_by: string;
-}
-
 // Define stock item interface
 interface StockItem {
   _id: string;
@@ -82,8 +64,6 @@ interface StockItem {
 }
 
 // Fetch bookings data
-const fetchBookings = (): Promise<Booking[]> => get<Booking[]>('/bookings/');
-const fetchEmployeeBookings = (): Promise<EmployeeBooking[]> => get<EmployeeBooking[]>('/employee-bookings/');
 
 // Fetch rituals data
 const fetchRituals = (): Promise<Ritual[]> => get<Ritual[]>('/rituals/');
@@ -474,15 +454,21 @@ const AdminDashboard = () => {
                 )}
               </CardDescription>
             </div>
-            <div className="flex w-full sm:w-auto items-center gap-2">
-              <ToggleGroup type="single" value={pieScope} onValueChange={(v) => v && setPieScope(v as any)}>
+            {/* Responsive controls container */}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <ToggleGroup 
+                type="single" 
+                value={pieScope} 
+                onValueChange={(v) => v && setPieScope(v as any)} 
+                className="[&>button]:flex-1 sm:[&>button]:flex-initial"
+              >
                 <ToggleGroupItem value="month">Month</ToggleGroupItem>
                 <ToggleGroupItem value="year">Year</ToggleGroupItem>
               </ToggleGroup>
-              {pieScope === 'month' && (
-                <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                {pieScope === 'month' && (
                   <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(Number(v))}>
-                    <SelectTrigger className="w-[9.5rem]">
+                    <SelectTrigger className="w-full sm:w-[9.5rem]">
                       <SelectValue placeholder="Select month" />
                     </SelectTrigger>
                     <SelectContent>
@@ -491,32 +477,19 @@ const AdminDashboard = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-                    <SelectTrigger className="w-[6.5rem]">
-                      <SelectValue placeholder="Year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const y = now.getFullYear() - 2 + i; // prev 2, current, next 2
-                        return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {pieScope === 'year' && (
+                )}
                 <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-                  <SelectTrigger className="w-[6.5rem]">
+                  <SelectTrigger className="w-full sm:w-[6.5rem]">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 5 }).map((_, i) => {
-                      const y = now.getFullYear() - 2 + i;
+                      const y = now.getFullYear() - 2 + i; // prev 2, current, next 2
                       return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
                     })}
                   </SelectContent>
                 </Select>
-              )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

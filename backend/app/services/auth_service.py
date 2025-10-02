@@ -3,6 +3,8 @@ from fastapi.security import OAuth2PasswordBearer
 from ..database import admins_collection
 from .jwt_security_service import jwt_security
 from ..models import AdminCreate
+from bson import ObjectId
+from datetime import datetime
 
 # Token URL is only used for docs; tokens are issued under /api/auth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -34,6 +36,15 @@ async def get_admin_by_mobile(mobile_number: str):
             ]
         }
     })
+
+async def update_last_login(admin_id: str):
+    """
+    Update the last login timestamp for the admin user.
+    """
+    await admins_collection.update_one(
+        {"_id": ObjectId(admin_id)},
+        {"$set": {"last_login": datetime.utcnow()}}
+    )
 
 # --- Dependency for protected routes ---
 async def get_current_admin(request: Request, token: str = Depends(oauth2_scheme)):
