@@ -205,6 +205,12 @@ const ManageBookings = () => {
                 console.warn('Could not load Malayalam font:', error);
             }
 
+            // Helper function to detect if text contains Malayalam characters
+            const containsMalayalam = (text: string): boolean => {
+                // Malayalam Unicode range: U+0D00 to U+0D7F
+                return /[\u0D00-\u0D7F]/.test(text);
+            };
+
             // Process bookings based on filter - flatten only if ritual filter is active
             let processedBookings: UnifiedBooking[];
             let totalRevenuePDF: number;
@@ -380,10 +386,13 @@ const ManageBookings = () => {
                         5: { cellWidth: 'auto' } // Subscription
                     },
                     didParseCell: function(data: any) {
-                        // Apply Malayalam font to Naal column (index 3) in body rows
-                        if (malayalamFontAvailable && data.section === 'body' && data.column.index === 3) {
-                            data.cell.styles.font = 'NotoSansMalayalam';
-                            data.cell.styles.fontStyle = 'normal';
+                        // Apply Malayalam font to any cell containing Malayalam text in body rows
+                        if (malayalamFontAvailable && data.section === 'body') {
+                            const cellText = data.cell.text ? data.cell.text.join('') : '';
+                            if (containsMalayalam(cellText)) {
+                                data.cell.styles.font = 'NotoSansMalayalam';
+                                data.cell.styles.fontStyle = 'normal';
+                            }
                         }
                     }
                 });
