@@ -5,6 +5,7 @@ import { get } from '@/api/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { resolveImageUrl } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
+import lotusFooterImage from '@/assets/lotusfooter.png'; // Import the image
 
 interface CommitteeMember {
   _id: string;
@@ -36,8 +37,14 @@ const CommitteeMembers = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-sacred py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-sacred py-20 relative overflow-hidden">
+      {/* Lotus footer image added as a background element */}
+      <img
+        src={lotusFooterImage}
+        alt="Lotus footer background"
+        className="absolute bottom-0 left-0 w-full z-0 opacity-30 transform scale-[0.8] pointer-events-none"
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="mb-12">
           <Link to={fromAdmin || "/"} state={undefined} className="inline-flex items-center text-primary hover:text-primary/80 mb-4">
             <ArrowLeft className="h-5 w-5 mr-2" />

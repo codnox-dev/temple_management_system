@@ -35,6 +35,67 @@ const sizeClass = (size: 'lg' | 'md' | 'sm') => {
   return 'col-span-1 row-span-1';
 };
 
+const LotusSvg = ({ className }: { className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 200 200"
+      aria-hidden="true"
+      className={className}
+    >
+      {/* Center circle (Brightest Red - red-400) */}
+      <circle cx="100" cy="100" r="10" fill="currentColor" />
+
+      {/* Inner petals (Brighter Red - red-500/600) */}
+      <g id="inner" fill="currentColor" stroke="currentColor" strokeWidth="1" transform="translate(100,100)">
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(0)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(30)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(60)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(90)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(120)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(150)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(180)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(210)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(240)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(270)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(300)" />
+        <path d="M0,-15 C5,-25, 15,-25, 0,-35 C-15,-25, -5,-25, 0,-15 Z" transform="rotate(330)" />
+      </g>
+
+      {/* Middle petals (Medium Red - red-600/700) */}
+      <g id="middle" fill="currentColor" stroke="currentColor" strokeWidth="1.5" transform="translate(100,100)">
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(15)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(45)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(75)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(105)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(135)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(165)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(195)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(225)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(255)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(285)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(315)" />
+        <path d="M0,-25 C10,-40, 25,-40, 0,-60 C-25,-40, -10,-40, 0,-25 Z" transform="rotate(345)" />
+      </g>
+
+      {/* Outer petals (Darkest Red - red-800/900) */}
+      <g id="outer" fill="currentColor" stroke="currentColor" strokeWidth="2" transform="translate(100,100)">
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(0)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(30)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(60)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(90)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(120)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(150)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(180)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(210)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(240)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(270)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(300)" />
+        <path d="M0,-40 C15,-60, 40,-60, 0,-90 C-40,-60, -15,-60, 0,-40 Z" transform="rotate(330)" />
+      </g>
+    </svg>
+);
+
+
 const FullGallery = () => {
   const location = useLocation() as any;
   const fromAdmin: string | undefined = location.state?.fromAdmin;
@@ -159,8 +220,10 @@ const FullGallery = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-sacred py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-sacred py-20 relative overflow-hidden bg-yellow-100/20">
+        <LotusSvg className="absolute -top-40 -right-40 w-[300px] h-[300px] md:w-[600px] md:h-[600px] opacity-20 z-0 animate-spin-slow text-red-700" />
+        <LotusSvg className="absolute -bottom-40 -left-40 w-[300px] h-[300px] md:w-[600px] md:h-[600px] opacity-20 z-0 animate-spin-slow text-yellow-400" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="mb-12">
           <Link to={fromAdmin || "/"} state={undefined} className="inline-flex items-center text-primary hover:text-primary/80 mb-4">
             <ArrowLeft className="h-5 w-5 mr-2" />
@@ -325,4 +388,3 @@ const FullGallery = () => {
 };
 
 export default FullGallery;
-
