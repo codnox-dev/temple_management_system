@@ -110,7 +110,7 @@ const RitualBrowsing = () => {
 											₹{ritual.price}
 										</div>
 										<div className="text-sm text-muted-foreground">
-											Duration: {ritual.duration}
+											Duration: {ritual.duration} hour(s)
 										</div>
 									</div>
 								</div>

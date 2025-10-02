@@ -9,7 +9,8 @@ type AuthContextType = {
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   loginWithGoogle: (idToken: string) => Promise<boolean>;
-  sendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number }>;
+  sendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }>;
+  resendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }>;
   verifyOTP: (mobileNumber: string, otp: string) => Promise<boolean>;
   logout: () => void;
 };
@@ -85,6 +86,10 @@ export const AuthProvider = ({ children }) => {
     return await enhancedJwtAuth.sendOTP(mobileNumber);
   };
 
+  const resendOTP = async (mobileNumber: string) => {
+    return await enhancedJwtAuth.resendOTP(mobileNumber);
+  };
+
   const verifyOTP = async (mobileNumber: string, otp: string) => {
     try {
       const success = await enhancedJwtAuth.verifyOTP(mobileNumber, otp);
@@ -121,6 +126,7 @@ export const AuthProvider = ({ children }) => {
     login,
     loginWithGoogle,
     sendOTP,
+    resendOTP,
     verifyOTP,
     logout,
   };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,8 +13,34 @@ const FuturisticTempleLogin: React.FC = () => {
   const [mobileNumber, setMobileNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const { sendOTP: authSendOTP, verifyOTP: authVerifyOTP } = useAuth() as any;
+  const [cooldownUntil, setCooldownUntil] = useState<Date | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number>(2);
+  const { sendOTP: authSendOTP, resendOTP: authResendOTP, verifyOTP: authVerifyOTP } = useAuth() as any;
   const navigate = useNavigate();
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (!cooldownUntil) {
+      setCooldownSeconds(0);
+      return;
+    }
+
+    const updateCooldown = () => {
+      const now = new Date();
+      const diff = Math.max(0, Math.floor((cooldownUntil.getTime() - now.getTime()) / 1000));
+      setCooldownSeconds(diff);
+
+      if (diff <= 0) {
+        setCooldownUntil(null);
+      }
+    };
+
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
 
   const handleSendOTP = async () => {
     if (!mobileNumber) {
@@ -34,9 +60,43 @@ const FuturisticTempleLogin: React.FC = () => {
       const data = await authSendOTP(cleanMobile);
       setOtpSent(true);
       setStep('otp');
+      
+      // Set cooldown if provided
+      if (data.cooldown_until) {
+        setCooldownUntil(new Date(data.cooldown_until));
+      } else {
+        // Default 3 minute cooldown on first send
+        setCooldownUntil(new Date(Date.now() + 3 * 60 * 1000));
+      }
+      
+      setAttemptsRemaining(data.attempts_remaining ?? 2);
       toast.success(`OTP sent to ${data.mobile_number}. Check the backend terminal for the code.`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (cooldownSeconds > 0) {
+      return; // Still in cooldown
+    }
+
+    setIsLoading(true);
+    try {
+      const cleanMobile = mobileNumber.replace(/\s/g, '');
+      const data = await authResendOTP(cleanMobile);
+      
+      // Set cooldown from response
+      if (data.cooldown_until) {
+        setCooldownUntil(new Date(data.cooldown_until));
+      }
+      
+      setAttemptsRemaining(data.attempts_remaining ?? 0);
+      toast.success(`OTP resent to ${data.mobile_number}. Check the backend terminal for the code.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend OTP');
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +128,22 @@ const FuturisticTempleLogin: React.FC = () => {
     setStep('mobile');
     setOtp('');
     setOtpSent(false);
+    setCooldownUntil(null);
+    setCooldownSeconds(0);
+  };
+
+  const formatCooldownTime = (seconds: number): string => {
+    if (seconds >= 3600) {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    } else if (seconds >= 60) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs}s`;
+    } else {
+      return `${seconds}s`;
+    }
   };
 
   return (
@@ -221,6 +297,40 @@ const FuturisticTempleLogin: React.FC = () => {
                       'Verify OTP'
                     )}
                   </Button>
+                  
+                  {/* Resend OTP Button */}
+                  <Button
+                    onClick={handleResendOTP}
+                    disabled={isLoading || cooldownSeconds > 0}
+                    variant="outline"
+                    className="w-full border-purple-500/50 text-purple-400 hover:bg-purple-900/20 disabled:opacity-50"
+                  >
+                    {cooldownSeconds > 0 ? (
+                      <>Resend OTP in {formatCooldownTime(cooldownSeconds)}</>
+                    ) : (
+                      <>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-2"
+                        >
+                          <path d="M21 2v6h-6" />
+                          <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                          <path d="M3 22v-6h6" />
+                          <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                        </svg>
+                        Resend OTP {attemptsRemaining > 0 ? `(${attemptsRemaining} left)` : ''}
+                      </>
+                    )}
+                  </Button>
+                  
                   <Button
                     onClick={handleBackToMobile}
                     disabled={isLoading}

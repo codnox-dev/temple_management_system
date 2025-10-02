@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit, Flame, DollarSign, Plus, XCircle } from 'lucide-react';
+import { Trash2, Edit, Flame, DollarSign, Plus, XCircle, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // --- Type Definitions ---
 interface RequiredStock {
     stock_item_id: string;
-    stock_item_name?: string; // For frontend display
+    stock_item_name?: string; // Used for frontend display
     quantity_required: number;
 }
 
@@ -26,12 +26,12 @@ interface Ritual {
     popular: boolean;
     icon_name: string;
     required_stock: RequiredStock[];
-    booking_start_time?: string;   // NEW
-    booking_end_time?: string;     // NEW
-    employee_only?: boolean;       // NEW
-    available_from?: string;       // NEW
-    available_to?: string;         // NEW
-    show_on_home?: boolean;        // NEW: featured on home
+    booking_start_time?: string;
+    booking_end_time?: string;
+    employee_only?: boolean;
+    available_from?: string;
+    available_to?: string;
+    show_on_home?: boolean; // Used for featuring on home
 }
 
 interface StockItem {
@@ -114,6 +114,12 @@ const ManageRituals = () => {
         toast.error(msg || 'An unexpected error occurred.');
     };
 
+    // --- Derived State for Dashboard ---
+    const totalRituals = rituals?.length || 0;
+    const popularRituals = rituals?.filter(r => r.popular).length || 0;
+    const averagePrice = totalRituals > 0 ? rituals.reduce((sum, r) => sum + r.price, 0) / totalRituals : 0;
+    const featuredCount = rituals?.filter(r => r.show_on_home).length || 0;
+
     // --- Mutations (Create/Update/Delete) ---
     const mutation = useMutation({
         mutationFn: (ritualPayload: any) => {
@@ -121,16 +127,15 @@ const ManageRituals = () => {
             const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 4) throw new Error('Not authorized for this action.');
             
-            // Enforce max 3 selected on client before sending
+            // Used to enforce max 3 selected on client before sending
             if (ritualPayload.show_on_home) {
-                const currentSelected = rituals?.filter(r => r.show_on_home).length || 0;
                 const isSelectingNew = !isEditing || (isEditing && !isEditing.show_on_home);
-                if (isSelectingNew && currentSelected >= 3) {
+                if (isSelectingNew && featuredCount >= 3) {
                     throw new Error('You can only feature up to 3 rituals on the home page.');
                 }
             }
 
-            // Sanitize required_stock before sending
+            // Used to sanitize required_stock before sending
             const payload = {
                 name: ritualPayload.name,
                 description: ritualPayload.description,
@@ -141,7 +146,7 @@ const ManageRituals = () => {
                 booking_start_time: ritualPayload.time_range_option === 'custom' ? ritualPayload.booking_start_time || null : null,
                 booking_end_time: ritualPayload.time_range_option === 'custom' ? ritualPayload.booking_end_time || null : null,
                 employee_only: !!ritualPayload.employee_only,
-                // Handle date range properly - null for all_time, actual dates for custom
+                // Used to handle date range properly - null for all_time, actual dates for custom
                 available_from: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_from || null : null,
                 available_to: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_to || null : null,
                 show_on_home: !!ritualPayload.show_on_home,
@@ -181,6 +186,47 @@ const ManageRituals = () => {
         onError: handleMutationError,
     });
 
+    const toggleShowOnHomeMutation = useMutation({
+        mutationFn: (ritualToToggle: Ritual) => {
+            const token = localStorage.getItem('token');
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 4) throw new Error('Not authorized for this action.');
+    
+            const isEnabling = !ritualToToggle.show_on_home;
+            if (isEnabling && featuredCount >= 3) {
+                throw new Error('You can only feature up to 3 rituals on the home page.');
+            }
+    
+            const payload = {
+                name: ritualToToggle.name,
+                description: ritualToToggle.description,
+                price: ritualToToggle.price,
+                duration: ritualToToggle.duration,
+                popular: !!ritualToToggle.popular,
+                icon_name: ritualToToggle.icon_name,
+                booking_start_time: ritualToToggle.booking_start_time || null,
+                booking_end_time: ritualToToggle.booking_end_time || null,
+                employee_only: !!ritualToToggle.employee_only,
+                available_from: ritualToToggle.available_from || null,
+                available_to: ritualToToggle.available_to || null,
+                show_on_home: isEnabling, // The toggled value
+                required_stock: ritualToToggle.required_stock.map(({ stock_item_id, quantity_required }) => ({
+                    stock_item_id,
+                    quantity_required: Number(quantity_required)
+                }))
+            };
+    
+            return api.put(`/rituals/${ritualToToggle._id}`, payload, config);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
+            queryClient.invalidateQueries({ queryKey: ['rituals'] });
+            queryClient.invalidateQueries({ queryKey: ['featuredRituals'] });
+            toast.success('Ritual visibility on home page updated!');
+        },
+        onError: handleMutationError,
+    });
+
     // --- Event Handlers ---
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -190,7 +236,7 @@ const ManageRituals = () => {
             return;
         }
         
-        // Validate custom date range
+        // Used to validate custom date range
         if (formData.date_range_option === 'custom') {
             if (!formData.available_from || !formData.available_to) {
                 toast.error("Both start and end dates are required for custom date range.");
@@ -206,7 +252,7 @@ const ManageRituals = () => {
             }
         }
         
-        // Validate custom time range
+        // Used to validate custom time range
         if (formData.time_range_option === 'custom') {
             if (!formData.booking_start_time || !formData.booking_end_time) {
                 toast.error("Both start and end times are required for custom time range.");
@@ -273,11 +319,6 @@ const ManageRituals = () => {
         toast.success("Stock quantity updated!");
     };
 
-    // --- Derived State for Dashboard ---
-    const totalRituals = rituals?.length || 0;
-    const popularRituals = rituals?.filter(r => r.popular).length || 0;
-    const averagePrice = totalRituals > 0 ? rituals.reduce((sum, r) => sum + r.price, 0) / totalRituals : 0;
-    const featuredCount = rituals?.filter(r => r.show_on_home).length || 0;
 
     return (
         <div className="space-y-6">
@@ -433,7 +474,7 @@ const ManageRituals = () => {
                                     setFormData({ 
                                         ...formData, 
                                         time_range_option: newValue,
-                                        // Clear times when switching to no_limit
+                                        // Used to clear times when switching to no_limit
                                         booking_start_time: newValue === 'no_limit' ? '' : formData.booking_start_time,
                                         booking_end_time: newValue === 'no_limit' ? '' : formData.booking_end_time
                                     });
@@ -506,7 +547,7 @@ const ManageRituals = () => {
                                     setFormData({ 
                                         ...formData, 
                                         date_range_option: newValue,
-                                        // Clear dates when switching to all_time
+                                        // Used to clear dates when switching to all_time
                                         available_from: newValue === 'all_time' ? '' : formData.available_from,
                                         available_to: newValue === 'all_time' ? '' : formData.available_to
                                     });
@@ -582,7 +623,7 @@ const ManageRituals = () => {
                                         {ritual.booking_start_time && ritual.booking_end_time
                                             ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
                                         {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
-                                        {ritual.show_on_home && <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200">Featured on Home</span>}
+                                        {ritual.show_on_home && <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200">Featured</span>}
                                     </p>
                                     {ritual.available_from && ritual.available_to ? (
                                         <p className="text-xs text-purple-400">
@@ -596,6 +637,24 @@ const ManageRituals = () => {
                                     </p>
                                 </div>
                                 <div className="flex gap-2 ml-4">
+                                    <Button
+                                        variant={ritual.show_on_home ? "default" : "outline"}
+                                        size="icon"
+                                        onClick={() => toggleShowOnHomeMutation.mutate(ritual)}
+                                        disabled={
+                                            roleId > 4 ||
+                                            (featuredCount >= 3 && !ritual.show_on_home) ||
+                                            toggleShowOnHomeMutation.isPending
+                                        }
+                                        className={
+                                            ritual.show_on_home
+                                                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600"
+                                                : "border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
+                                        }
+                                        title={ritual.show_on_home ? "Remove from Home" : "Show on Home"}
+                                    >
+                                        <Star className={`h-4 w-4 ${ritual.show_on_home ? 'fill-current' : ''}`} />
+                                    </Button>
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
                                     <Button size="icon"onClick={() => deleteMutation.mutate(ritual._id)}disabled={roleId > 4 || deleteMutation.isPending}className="bg-red-600 hover:bg-red-700 text-white border border-red-700 shadow-md"><Trash2 className="h-4 w-4" /></Button>
                                 </div>

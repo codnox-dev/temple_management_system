@@ -214,17 +214,50 @@ class EnhancedJWTAuthService {
   /**
    * Send OTP to mobile number
    */
-  async sendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number }> {
+  async sendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }> {
+    // Import and use simple device fingerprint
+    const { generateDeviceFingerprint } = await import('./deviceFingerprint');
+    const deviceFp = generateDeviceFingerprint();
+    
     const response = await fetch(`${this.getApiBaseUrl()}/api/auth/send-otp`, {
       method: 'POST',
       headers: this.getEnhancedHeaders(),
       credentials: 'include',
-      body: JSON.stringify({ mobile_number: mobileNumber }),
+      body: JSON.stringify({ 
+        mobile_number: mobileNumber,
+        device_fingerprint: deviceFp
+      }),
     });
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Failed to send OTP' }));
       throw new Error(errorData.detail || 'Failed to send OTP');
+    }
+    
+    return await response.json();
+  }
+
+  /**
+   * Resend OTP to mobile number
+   */
+  async resendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }> {
+    // Import and use simple device fingerprint
+    const { generateDeviceFingerprint } = await import('./deviceFingerprint');
+    const deviceFp = generateDeviceFingerprint();
+    
+    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/resend-otp`, {
+      method: 'POST',
+      headers: this.getEnhancedHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ 
+        mobile_number: mobileNumber,
+        device_fingerprint: deviceFp
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to resend OTP' }));
+      throw new Error(errorData.detail || 'Failed to resend OTP');
     }
     
     return await response.json();

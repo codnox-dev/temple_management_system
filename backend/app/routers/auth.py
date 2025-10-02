@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, status
 import os
 import re
 from fastapi.security import OAuth2PasswordBearer
@@ -10,6 +10,7 @@ import logging
 from ..services.jwt_security_service import jwt_security
 from ..services.auth_service import get_admin_by_username, get_admin_by_mobile, update_last_login
 from ..services.otp_service import otp_service
+from ..services.otp_rate_limit_service import otp_rate_limit_service, ip_rate_limit_service
 from ..services.activity_service import create_activity
 from ..models.otp_models import OTPSendRequest, OTPVerificationRequest, OTPResponse
 from ..models.activity_models import ActivityCreate
@@ -46,6 +47,7 @@ def _is_allowed_origin(origin: str) -> bool:
 # Handle CORS preflight requests for auth endpoints
 @router.options("/get-token")
 @router.options("/send-otp") 
+@router.options("/resend-otp")
 @router.options("/verify-otp")
 @router.options("/refresh-token")
 async def handle_cors_preflight(request: Request):
@@ -109,34 +111,64 @@ async def get_initial_token(request: Request):
 async def send_otp(request: Request, background_tasks: BackgroundTasks, payload: OTPSendRequest):
     """
     Send OTP to mobile number for authentication.
+    Rate limited by device fingerprint and IP address.
     """
-    # Fetch admin by mobile number
-    admin = await get_admin_by_mobile(payload.mobile_number)
-
-    if admin and admin.get("isRestricted", False):
-        raise HTTPException(
-            status_code=403,
-            detail="Your account has been restricted. Please contact the administrator for more details."
-        )
-
     try:
         # CSRF mitigation: validate Origin header explicitly
         origin = request.headers.get("origin", "")
         if not _is_allowed_origin(origin):
             raise HTTPException(status_code=403, detail="Invalid origin")
+        
+        # Get client IP address
+        client_ip = request.client.host if request.client else "unknown"
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        
+        # Check IP rate limit
+        ip_allowed, ip_error = await ip_rate_limit_service.check_ip_rate_limit(client_ip)
+        if not ip_allowed:
+            logger.warning(f"IP rate limit exceeded for {client_ip}")
+            raise HTTPException(status_code=429, detail=ip_error)
+        
+        # Check device rate limit
+        device_allowed, device_error, cooldown_until, attempts_remaining = await otp_rate_limit_service.check_device_rate_limit(
+            payload.device_fingerprint,
+            payload.mobile_number
+        )
+        
+        if not device_allowed:
+            logger.warning(f"Device rate limit exceeded for fingerprint {payload.device_fingerprint[:8]}...")
+            raise HTTPException(status_code=429, detail=device_error)
+        
+        # Fetch admin by mobile number
+        admin = await get_admin_by_mobile(payload.mobile_number)
+        if admin and admin.get("isRestricted", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Your account has been restricted. Please contact the administrator for more details."
+            )
 
         # Generate and send OTP
         plain_otp, otp_doc = await otp_service.create_otp(payload.mobile_number)
         
-        # Schedule cleanup of expired OTPs in background
-        background_tasks.add_task(otp_service.cleanup_expired_otps)
+        # Record the request
+        await otp_rate_limit_service.record_otp_request(payload.device_fingerprint, payload.mobile_number)
+        await ip_rate_limit_service.record_ip_request(client_ip)
         
-        logger.info(f"OTP sent to mobile number: {payload.mobile_number}")
+        # Schedule cleanup in background
+        background_tasks.add_task(otp_service.cleanup_expired_otps)
+        background_tasks.add_task(otp_rate_limit_service.cleanup_old_records)
+        background_tasks.add_task(ip_rate_limit_service.cleanup_old_blocks)
+        
+        logger.info(f"OTP sent to mobile number: {payload.mobile_number} from IP {client_ip}")
         
         return OTPResponse(
             message="OTP sent successfully",
             mobile_number=otp_doc.mobile_number,
-            expires_in=300  # 5 minutes
+            expires_in=300,  # 5 minutes
+            cooldown_until=cooldown_until,
+            attempts_remaining=attempts_remaining
         )
         
     except ValueError as e:
@@ -147,6 +179,80 @@ async def send_otp(request: Request, background_tasks: BackgroundTasks, payload:
     except Exception as e:
         logger.error(f"OTP send error: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP")
+
+@router.post("/resend-otp", response_model=OTPResponse)
+async def resend_otp(request: Request, background_tasks: BackgroundTasks, payload: OTPSendRequest):
+    """
+    Resend OTP to mobile number. Uses same rate limiting as send-otp.
+    Deletes existing OTP and generates a new one.
+    """
+    try:
+        # CSRF mitigation: validate Origin header explicitly
+        origin = request.headers.get("origin", "")
+        if not _is_allowed_origin(origin):
+            raise HTTPException(status_code=403, detail="Invalid origin")
+        
+        # Get client IP address
+        client_ip = request.client.host if request.client else "unknown"
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        
+        # Check IP rate limit
+        ip_allowed, ip_error = await ip_rate_limit_service.check_ip_rate_limit(client_ip)
+        if not ip_allowed:
+            logger.warning(f"IP rate limit exceeded for {client_ip} on resend")
+            raise HTTPException(status_code=429, detail=ip_error)
+        
+        # Check device rate limit
+        device_allowed, device_error, cooldown_until, attempts_remaining = await otp_rate_limit_service.check_device_rate_limit(
+            payload.device_fingerprint,
+            payload.mobile_number
+        )
+        
+        if not device_allowed:
+            logger.warning(f"Device rate limit exceeded for fingerprint {payload.device_fingerprint[:8]}... on resend")
+            raise HTTPException(status_code=429, detail=device_error)
+        
+        # Fetch admin by mobile number
+        admin = await get_admin_by_mobile(payload.mobile_number)
+        if admin and admin.get("isRestricted", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Your account has been restricted. Please contact the administrator for more details."
+            )
+
+        # Delete existing OTP and generate new one
+        # The create_otp method already handles deletion of existing OTPs
+        plain_otp, otp_doc = await otp_service.create_otp(payload.mobile_number)
+        
+        # Record the resend request
+        await otp_rate_limit_service.record_otp_request(payload.device_fingerprint, payload.mobile_number)
+        await ip_rate_limit_service.record_ip_request(client_ip)
+        
+        # Schedule cleanup in background
+        background_tasks.add_task(otp_service.cleanup_expired_otps)
+        background_tasks.add_task(otp_rate_limit_service.cleanup_old_records)
+        background_tasks.add_task(ip_rate_limit_service.cleanup_old_blocks)
+        
+        logger.info(f"OTP resent to mobile number: {payload.mobile_number} from IP {client_ip}")
+        
+        return OTPResponse(
+            message="OTP resent successfully",
+            mobile_number=otp_doc.mobile_number,
+            expires_in=300,  # 5 minutes
+            cooldown_until=cooldown_until,
+            attempts_remaining=attempts_remaining
+        )
+        
+    except ValueError as e:
+        logger.warning(f"OTP resend failed: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OTP resend error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to resend OTP")
 
 @router.post("/verify-otp", response_model=TokenResponse)
 async def verify_otp_login(request: Request, response: Response, payload: OTPVerificationRequest):

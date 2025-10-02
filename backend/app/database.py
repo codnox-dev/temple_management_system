@@ -42,6 +42,8 @@ events_section_collection = database.get_collection("events_section")
 calendar_collection = database.get_collection("calendar")
 calendar_audit_collection = database.get_collection("calendar_audit")
 otp_collection = database.get_collection("otp")
+otp_rate_limit_collection = database.get_collection("otp_rate_limit")
+ip_rate_limit_collection = database.get_collection("ip_rate_limit")
 
 # Enhanced Security Collections
 token_revocation_collection = database.get_collection("token_revocation")
@@ -97,6 +99,20 @@ async def ensure_indexes():
     # OTP indexes
     await otp_collection.create_index([("mobile_number", ASCENDING)], name="mobile_number")
     await otp_collection.create_index([("expires_at", ASCENDING)], expireAfterSeconds=0, name="expire_otps")  # TTL index
+
+    # OTP Rate Limiting indexes
+    await otp_rate_limit_collection.create_index(
+        [("device_fingerprint", ASCENDING), ("mobile_number", ASCENDING)],
+        unique=True,
+        name="uniq_device_mobile"
+    )
+    await otp_rate_limit_collection.create_index([("cooldown_until", ASCENDING)], name="cooldown_until_idx")
+    await otp_rate_limit_collection.create_index([("daily_reset_at", ASCENDING)], name="daily_reset_idx")
+
+    # IP Rate Limiting indexes
+    await ip_rate_limit_collection.create_index([("ip_address", ASCENDING)], unique=True, name="uniq_ip")
+    await ip_rate_limit_collection.create_index([("blocked_until", ASCENDING)], name="blocked_until_idx")
+    await ip_rate_limit_collection.create_index([("window_start", ASCENDING)], name="window_start_idx")
 
 # Note: The index creation is now within an async function.
 # This should be called during your application's startup event in main.py.

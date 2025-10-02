@@ -32,3 +32,4 @@ backend/profile/
 # Environment files
 backend/.env
 frontend/.env
+OTP_RESEND_FEATURE.md

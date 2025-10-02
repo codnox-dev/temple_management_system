@@ -31,9 +31,12 @@ class OTPVerificationRequest(BaseModel):
 class OTPSendRequest(BaseModel):
     """Schema for sending OTP request"""
     mobile_number: str = Field(..., example="+911234567890", description="Full mobile number with country code")
+    device_fingerprint: str = Field(..., description="Browser/device fingerprint for rate limiting")
 
 class OTPResponse(BaseModel):
     """Response after sending OTP"""
     message: str
     mobile_number: str
     expires_in: int = Field(..., description="Expiration time in seconds")
+    cooldown_until: Optional[datetime] = Field(None, description="Next allowed resend time")
+    attempts_remaining: int = Field(0, description="Remaining resend attempts before next cooldown")
