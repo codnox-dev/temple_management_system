@@ -33,3 +33,5 @@ backend/profile/
 backend/.env
 frontend/.env
 OTP_RESEND_FEATURE.md
+LOGOUT_COOLDOWN_SUMMARY.md
+LOGOUT_COOLDOWN_CLEAR.md
