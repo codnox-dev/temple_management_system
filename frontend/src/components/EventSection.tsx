@@ -132,13 +132,13 @@ const EventSection = () => {
     <section className="py-10 px-6">
       <div className="max-w-screen-2xl mx-auto bg-transparent border-2 border-red-500 rounded-xl p-6 sm:p-8 lg:p-12 relative overflow-hidden"> {/* Added 'relative' and 'overflow-hidden' */}
         
-        {/* --- GOLDEN LOTUS SVG ADJUSTED: Positioned at left-39% on mobile and left-44% on desktop, scaled for both --- */}
+        {/* --- GOLDEN LOTUS SVG ADJUSTED: left-38% on mobile, left-44% on desktop --- */}
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
           viewBox="0 0 200 200" 
           aria-hidden="true"
-          // left-[39%] for mobile/default. md:left-[44%] overrides for desktop view.
-          className="absolute top-5 left-[39%] md:left-[44%] transform -translate-x-1/2 w-[100px] h-[100px] md:w-[200px] md:h-[200px] opacity-[0.35] z-0 animate-spin-slow"
+          // left-[38%] for mobile/default. md:left-[44%] overrides for desktop view.
+          className="absolute top-5 left-[36%] md:left-[44%] transform -translate-x-1/2 w-[100px] h-[100px] md:w-[200px] md:h-[200px] opacity-[0.35] z-0 animate-spin-slow"
         >
           {/* Center circle (Brightest Red - red-400) */}
           <circle cx="100" cy="100" r="10" fill="#EF4444"/> 
