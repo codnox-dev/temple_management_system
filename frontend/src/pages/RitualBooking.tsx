@@ -198,7 +198,7 @@ const RitualBooking = () => {
 						<h1 className="text-4xl font-playfair font-bold text-foreground mb-2">Book Your <span className="text-primary">Sacred Ritual</span></h1>
 						<p className="text-muted-foreground">Fill in your details and select the rituals you wish to book</p>
 					</div>
-					<div className="sm:mt-10">
+					<div className="sm:mt-6">
 						<Button 
 							onClick={() => navigate('/ritual-browsing')}
 							className="px-8 py-4 shadow-lg btn-divine text-xl font-medium w-full sm:w-auto"
@@ -289,7 +289,7 @@ const RitualBooking = () => {
 								if (!r) return null;
 								return (
 									<div key={inst.id} className="rounded-md border border-primary/10 bg-background/50 p-4">
-										<div className="text-2xl font-bold text-primary mb-4 tracking-wide">{r.name} #{idx + 1}</div>
+										<div className="text-sm font-medium text-foreground mb-3">{r.name} #{idx + 1}</div>
 										<div className="space-y-3">
 											<div><Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label><Input id={`devotee-${inst.id}`} value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="mt-1" placeholder="Enter devotee name" required/></div>
 											<div>
@@ -330,7 +330,7 @@ const RitualBooking = () => {
                                                     />
                                                 </div>
 											</div>
-											<div className="flex items-center justify-between pt-3 border-t border-primary/20 mt-3"><div className="text-lg font-semibold text-foreground">Total: <span className="text-2xl font-bold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive text-base font-medium" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
+											<div className="flex items-center justify-between pt-2"><div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
 										</div>
 									</div>
 								);
@@ -372,3 +372,4 @@ const RitualBooking = () => {
 };
 
 export default RitualBooking;
+
