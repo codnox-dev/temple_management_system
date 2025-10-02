@@ -181,7 +181,7 @@ const ManageBookings = () => {
     const totalRituals = filteredBookings.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
 
     // Function to download bookings as PDF (sectioned, readable, and wrapped)
-    const downloadBookingsAsPDF = (bookings: UnifiedBooking[]) => {
+    const downloadBookingsAsPDF = async (bookings: UnifiedBooking[]) => {
         try {
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -190,29 +190,52 @@ const ManageBookings = () => {
             const marginX = 14;
             let cursorY = 18;
 
-            // Flatten bookings into individual ritual entities
-            // When ritual filter is active, only include matching rituals
-            const flattenedEntities = bookings.flatMap(booking => {
-                let ritualInstances = booking.instances;
-                
-                // If ritual search filter is active, only include matching rituals
-                if (searchRitual.trim()) {
-                    ritualInstances = ritualInstances.filter(instance => 
+            // Load Malayalam font for Naal column
+            let malayalamFontAvailable = false;
+            try {
+                const response = await fetch('/fonts/NotoSansMalayalam-Regular.ttf');
+                const fontArrayBuffer = await response.arrayBuffer();
+                const fontBase64 = btoa(
+                    new Uint8Array(fontArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                doc.addFileToVFS('NotoSansMalayalam-Regular.ttf', fontBase64);
+                doc.addFont('NotoSansMalayalam-Regular.ttf', 'NotoSansMalayalam', 'normal');
+                malayalamFontAvailable = true;
+            } catch (error) {
+                console.warn('Could not load Malayalam font:', error);
+            }
+
+            // Process bookings based on filter - flatten only if ritual filter is active
+            let processedBookings: UnifiedBooking[];
+            let totalRevenuePDF: number;
+            let totalRitualsPDF: number;
+            
+            if (searchRitual.trim()) {
+                // When ritual filter is active, flatten into individual entities
+                const flattenedEntities = bookings.flatMap(booking => {
+                    const ritualInstances = booking.instances.filter(instance => 
                         instance.ritualName.toLowerCase().includes(searchRitual.toLowerCase())
                     );
-                }
-                
-                // Create separate entity for each ritual instance with proper cost calculation
-                return ritualInstances.map(instance => ({
-                    ...booking,
-                    instances: [instance], // Only include this specific ritual
-                    total_cost: calculateRitualCost(instance, rituals || []) // Calculate actual cost for this ritual
-                }));
-            });
+                    
+                    return ritualInstances.map(instance => ({
+                        ...booking,
+                        instances: [instance],
+                        total_cost: calculateRitualCost(instance, rituals || [])
+                    }));
+                });
+                processedBookings = flattenedEntities;
+                totalRevenuePDF = flattenedEntities.reduce((sum, entity) => sum + entity.total_cost, 0);
+                totalRitualsPDF = flattenedEntities.reduce((sum, entity) => sum + entity.instances[0].quantity, 0);
+            } else {
+                // When no filter, keep bookings grouped by person
+                processedBookings = bookings;
+                totalRevenuePDF = bookings.reduce((sum, booking) => sum + booking.total_cost, 0);
+                totalRitualsPDF = bookings.reduce((sum, booking) => 
+                    sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0
+                );
+            }
 
-            const totalEntities = flattenedEntities.length;
-            const totalRevenuePDF = flattenedEntities.reduce((sum, entity) => sum + entity.total_cost, 0);
-            const totalRitualsPDF = flattenedEntities.reduce((sum, entity) => sum + entity.instances[0].quantity, 0);
+            const totalEntities = processedBookings.length;
 
             // Header
             doc.setFont('helvetica', 'bold');
@@ -271,8 +294,8 @@ const ManageBookings = () => {
                 }
             } as const;
 
-            // Render each ritual entity as a separate section
-            flattenedEntities.forEach((entity, idx) => {
+            // Render each booking entity as a separate section
+            processedBookings.forEach((entity, idx) => {
                 // Add space or page break if needed
                 const remaining = pageHeight - cursorY - 40; // keep footer space
                 if (remaining < 40) {
@@ -280,10 +303,8 @@ const ManageBookings = () => {
                     cursorY = 18;
                 }
 
-                const instance = entity.instances[0]; // Only one ritual per entity now
-
                 // Booking header panel
-                doc.setFillColor(255,255,255); 
+                doc.setFillColor(255, 255, 255); 
                 const panelWidth = pageWidth - marginX * 2;
                 const panelHeight = 14; // base height for header lines
                 doc.rect(marginX, cursorY, panelWidth, panelHeight, 'F');
@@ -311,15 +332,15 @@ const ManageBookings = () => {
 
                 cursorY += panelHeight + 2;
 
-                // Ritual instance table (single ritual per entity)
-                const body = [[
+                // Ritual instances table - handles both single and multiple rituals
+                const body = entity.instances.map((instance) => [
                     instance.ritualName || '-',
                     String(instance.quantity ?? '-'),
                     instance.devoteeName || '-',
                     instance.naal || '-',
                     instance.dob || '-',
                     instance.subscription || '-'
-                ]];
+                ]);
 
                 autoTable(doc, {
                     ...withPageDecorations,
@@ -333,15 +354,18 @@ const ManageBookings = () => {
                         font: 'helvetica',
                         fontSize: 9,
                         cellPadding: 2,
-                        overflow: 'linebreak'
+                        overflow: 'linebreak',
+                        fontStyle: 'normal'
                     },
                     headStyles: {
                         fillColor: [0, 0, 0],
                         textColor: [255, 255, 255],
-                        fontStyle: 'bold'
+                        fontStyle: 'bold',
+                        font: 'helvetica'
                     },
                     bodyStyles: {
-                        textColor: [30, 30, 30]
+                        textColor: [30, 30, 30],
+                        font: 'helvetica'
                     },
                     alternateRowStyles: {
                         fillColor: [248, 250, 252]
@@ -351,17 +375,24 @@ const ManageBookings = () => {
                         0: { cellWidth: 54 }, // Ritual
                         1: { cellWidth: 12, halign: 'center' }, // Qty
                         2: { cellWidth: 36 }, // Devotee
-                        3: { cellWidth: 22 }, // Naal
+                        3: { cellWidth: 28 }, // Naal - increased width for Malayalam text
                         4: { cellWidth: 22 }, // DOB
                         5: { cellWidth: 'auto' } // Subscription
                     },
+                    didParseCell: function(data: any) {
+                        // Apply Malayalam font to Naal column (index 3) in body rows
+                        if (malayalamFontAvailable && data.section === 'body' && data.column.index === 3) {
+                            data.cell.styles.font = 'NotoSansMalayalam';
+                            data.cell.styles.fontStyle = 'normal';
+                        }
+                    }
                 });
 
                 cursorY = (doc as any).lastAutoTable.finalY + 6;
             });
 
             // If no bookings, still ensure footer is drawn once
-            if (flattenedEntities.length === 0) {
+            if (processedBookings.length === 0) {
                 autoTable(doc, {
                     ...withPageDecorations,
                     startY: cursorY,
