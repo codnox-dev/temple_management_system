@@ -296,7 +296,10 @@ class EnhancedJWTAuthService {
    */
   async logout(): Promise<void> {
     try {
-      // Call backend logout endpoint
+      // Get device fingerprint to send with logout request
+      const deviceFp = this.deviceFingerprint;
+      
+      // Call backend logout endpoint with device fingerprint
       await fetch(`${this.getApiBaseUrl()}/api/auth/logout`, {
         method: 'POST',
         headers: {
@@ -304,6 +307,9 @@ class EnhancedJWTAuthService {
           'Authorization': `Bearer ${this.accessToken}`
         },
         credentials: 'include',
+        body: JSON.stringify({
+          device_fingerprint: deviceFp
+        })
       });
     } catch (error) {
       console.error('Logout request failed:', error);

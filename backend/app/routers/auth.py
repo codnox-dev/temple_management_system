@@ -408,12 +408,56 @@ async def refresh_token(request: Request, refresh_request: RefreshTokenRequest =
 @router.post("/logout")
 async def logout(request: Request, response: Response):
     """
-    Logout endpoint - clears refresh token cookie
+    Logout endpoint - clears refresh token cookie and OTP cooldown
     """
     # CSRF mitigation: validate Origin header explicitly
     origin = request.headers.get("origin", "")
     if not _is_allowed_origin(origin):
         raise HTTPException(status_code=403, detail="Invalid origin")
+
+    # Try to extract user info from token to clear their cooldown
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    
+    if token:
+        try:
+            # Get client info
+            client_info = jwt_security.get_client_info(request)
+            
+            # Verify and decode token
+            payload = jwt_security.verify_token(token, token_type="access", client_info=client_info)
+            
+            # Extract mobile number from token
+            username = payload.get("sub")
+            if username:
+                # Get admin to find mobile number
+                admin = await get_admin_by_username(username)
+                if admin:
+                    # Construct full mobile number
+                    mobile_prefix = admin.get("mobile_prefix", "+91")
+                    mobile_number_digits = str(admin.get("mobile_number", ""))
+                    full_mobile = f"{mobile_prefix}{mobile_number_digits}"
+                    
+                    # Get device fingerprint from request body if provided
+                    try:
+                        body = await request.json()
+                        device_fingerprint = body.get("device_fingerprint")
+                        
+                        if device_fingerprint:
+                            # Clear the cooldown for this device-mobile combination
+                            await otp_rate_limit_service.clear_cooldown_on_logout(
+                                device_fingerprint=device_fingerprint,
+                                mobile_number=full_mobile
+                            )
+                            logger.info(f"Cleared OTP cooldown for {username} on logout")
+                    except Exception as e:
+                        # If we can't parse body or clear cooldown, just log and continue
+                        logger.debug(f"Could not clear cooldown on logout: {e}")
+        except Exception as e:
+            # If token is invalid or expired, just log and continue with logout
+            logger.debug(f"Could not extract user info from token on logout: {e}")
 
     # Use the same attributes as when the cookie was set to ensure browsers remove it
     response.delete_cookie(
