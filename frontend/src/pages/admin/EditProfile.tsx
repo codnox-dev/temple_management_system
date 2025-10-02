@@ -260,6 +260,7 @@ const EditProfile: React.FC = () => {
           <div className="md:col-span-2 space-y-6">
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+              <div className="text-sm font-semibold text-orange-700 mb-1">Name</div>
               <input
                 type="text"
                 name="name"
@@ -295,12 +296,12 @@ const EditProfile: React.FC = () => {
                 disabled={!isEditing}
                 placeholder="Notification Email"
               />
-              <div className="text-xs text-neutral-600 mt-1">Used for notifications; sign-in uses your Authentication Email.</div>
             </div>
 
             {/* Phone split */}
             <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
               <div className="relative sm:col-span-1">
+                <div className="text-sm font-semibold text-orange-700 mb-1">Mobile Number</div>
                 <input
                   type="text"
                   name="mobile_prefix"

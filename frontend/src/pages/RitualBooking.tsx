@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api, { get } from '../api/api';
 import { toast } from 'sonner';
 import { ArrowLeft, Flame, Flower2, Heart, Star, ChevronDown, ChevronUp, LucideProps } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,9 +19,11 @@ interface ApiRitual {
   duration: string;
 	icon?: string;
 	icon_name?: string;
-  booking_start_time?: string; // NEW
-  booking_end_time?: string;   // NEW
-  employee_only?: boolean;     // NEW
+  booking_start_time?: string; 
+  booking_end_time?: string;   
+  employee_only?: boolean;     
+  available_from?: string;
+  available_to?: string;
 }
 interface Ritual extends ApiRitual {
   id: string; 
@@ -39,7 +41,6 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 const fetchRituals = async (): Promise<Ritual[]> => {
-	// Use the new public endpoint that returns all rituals without date filtering
 	const data = await get<ApiRitual[]>('/rituals/all');
 	return data.map(r => ({ ...r, id: r._id }));
 };
@@ -61,6 +62,7 @@ const frequencyMultipliers: Record<Subscription, number> = { 'one-time': 1, dail
 
 const RitualBooking = () => {
 	const navigate = useNavigate();
+	const [searchParams, setSearchParams] = useSearchParams();
     const { data: rituals = [], isLoading } = useQuery({ 
         queryKey: ['rituals'], 
         queryFn: fetchRituals,
@@ -71,6 +73,7 @@ const RitualBooking = () => {
 	const [instances, setInstances] = useState<RitualInstance[]>([]);
 	const [showAllRituals, setShowAllRituals] = useState(false);
 	const [gridCols, setGridCols] = useState(1);
+	const selectedEntriesRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		const updateCols = () => setGridCols(window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1);
@@ -79,13 +82,26 @@ const RitualBooking = () => {
 		return () => window.removeEventListener('resize', updateCols);
 	}, []);
 
+	useEffect(() => {
+		const scroll = searchParams.get('scroll');
+		const addRitual = searchParams.get('add');
+		if (scroll === 'selected' && addRitual) {
+			addInstance(addRitual);
+			// Clear the params
+			setSearchParams({});
+			// Scroll after a short delay to ensure the instance is added
+			setTimeout(() => {
+				selectedEntriesRef.current?.scrollIntoView({ behavior: 'smooth' });
+			}, 100);
+		}
+	}, [searchParams]);
+
 	const filteredRituals = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return rituals;
 		return rituals.filter(r => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
 	}, [search, rituals]);
 
-	// PUBLIC should not see employee_only rituals
 	const publicRituals = useMemo(() => filteredRituals.filter(r => !r.employee_only), [filteredRituals]);
 
 	const visibleRituals = useMemo(() => {
@@ -131,7 +147,6 @@ const RitualBooking = () => {
             toast.success("Booking successful! Thank you for your devotion.");
             setFormData({ name: '', email: '', phone: '', address: '' });
             setInstances([]);
-            // Optional: Redirect to a success page after a delay
             setTimeout(() => navigate('/'), 2000);
         },
         onError: () => {
@@ -144,8 +159,8 @@ const RitualBooking = () => {
         const bookingPayload = {
             ...formData,
             total_cost,
-            booked_by: 'self', // <-- mark as self-booked
-            instances: instances.map(({id, ...rest}) => ({ // remove client-side id before sending
+            booked_by: 'self',
+            instances: instances.map(({id, ...rest}) => ({
                 ...rest,
                 ritualName: ritualById(rest.ritualId)?.name || 'Unknown Ritual'
             }))
@@ -176,10 +191,21 @@ const RitualBooking = () => {
 	return (
 		<div className="min-h-screen bg-gradient-sacred py-20">
 			<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="mb-8">
-					<Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-4"><ArrowLeft className="h-5 w-5 mr-2" />Back to Home</Link>
-					<h1 className="text-4xl font-playfair font-bold text-foreground mb-2">Book Your <span className="text-primary">Sacred Ritual</span></h1>
-					<p className="text-muted-foreground">Fill in your details and select the rituals you wish to book</p>
+				{/* -- MODIFIED: Header now stacks on mobile -- */}
+				<div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6">
+					<div>
+						<Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-4"><ArrowLeft className="h-5 w-5 mr-2" />Back to Home</Link>
+						<h1 className="text-4xl font-playfair font-bold text-foreground mb-2">Book Your <span className="text-primary">Sacred Ritual</span></h1>
+						<p className="text-muted-foreground">Fill in your details and select the rituals you wish to book</p>
+					</div>
+					<div className="sm:mt-10">
+						<Button 
+							onClick={() => navigate('/ritual-browsing')}
+							className="px-8 py-4 shadow-lg btn-divine text-xl font-medium w-full sm:w-auto"
+						>
+							Browse All Rituals
+						</Button>
+					</div>
 				</div>
 
 				<Card className="card-divine p-6 mb-8">
@@ -217,11 +243,7 @@ const RitualBooking = () => {
 										<RitualIcon name={(ritual.icon_name || ritual.icon || 'Star') as string} className="h-5 w-5 text-primary" />
                                         <div className="text-lg font-medium text-foreground">{ritual.name}</div>
                                     </div>
-                                    <p className="text-sm text-muted-foreground mb-3 overflow-hidden line-clamp-3">
-                                        {ritual.description}
-                                    </p>
                                     <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-muted-foreground">Duration: {ritual.duration}</span>
                                         <span className="font-semibold text-primary">₹{ritual.price}</span>
                                     </div>
                                     {ritual.booking_start_time && ritual.booking_end_time && (
@@ -258,7 +280,7 @@ const RitualBooking = () => {
                     ) : null}
 				</Card>
 
-				<Card className="card-divine p-6 mb-8">
+				<Card ref={selectedEntriesRef} className="card-divine p-6 mb-8">
 					<h2 className="text-2xl font-playfair font-semibold mb-6 text-foreground">Selected Entries</h2>
 					{instances.length === 0 ? <p className="text-muted-foreground">Click a ritual above to add an entry.</p> : (
 						<div className="space-y-4">
@@ -267,7 +289,7 @@ const RitualBooking = () => {
 								if (!r) return null;
 								return (
 									<div key={inst.id} className="rounded-md border border-primary/10 bg-background/50 p-4">
-										<div className="text-sm font-medium text-foreground mb-3">{r.name} #{idx + 1}</div>
+										<div className="text-2xl font-bold text-primary mb-4 tracking-wide">{r.name} #{idx + 1}</div>
 										<div className="space-y-3">
 											<div><Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label><Input id={`devotee-${inst.id}`} value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="mt-1" placeholder="Enter devotee name" required/></div>
 											<div>
@@ -308,7 +330,7 @@ const RitualBooking = () => {
                                                     />
                                                 </div>
 											</div>
-											<div className="flex items-center justify-between pt-2"><div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
+											<div className="flex items-center justify-between pt-3 border-t border-primary/20 mt-3"><div className="text-lg font-semibold text-foreground">Total: <span className="text-2xl font-bold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive text-base font-medium" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
 										</div>
 									</div>
 								);
@@ -350,4 +372,3 @@ const RitualBooking = () => {
 };
 
 export default RitualBooking;
-

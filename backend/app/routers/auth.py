@@ -8,9 +8,11 @@ from datetime import datetime, timedelta
 import logging
 
 from ..services.jwt_security_service import jwt_security
-from ..services.auth_service import get_admin_by_username, get_admin_by_mobile
+from ..services.auth_service import get_admin_by_username, get_admin_by_mobile, update_last_login
 from ..services.otp_service import otp_service
+from ..services.activity_service import create_activity
 from ..models.otp_models import OTPSendRequest, OTPVerificationRequest, OTPResponse
+from ..models.activity_models import ActivityCreate
 from ..database import admins_collection
 
 router = APIRouter()
@@ -167,6 +169,16 @@ async def verify_otp_login(request: Request, response: Response, payload: OTPVer
             logger.warning(f"Login attempt by restricted admin: {admin_user.get('username')}")
             raise HTTPException(status_code=403, detail="Account is restricted")
 
+        # Update last login timestamp
+        await update_last_login(admin_user["_id"])
+
+        # Log activity
+        await create_activity(ActivityCreate(
+            username=admin_user["username"],
+            role=admin_user.get("role", "Unknown"),
+            activity="Logged in"
+        ))
+
         # Get client information for optional token binding
         client_info = jwt_security.get_client_info(request)
 
@@ -228,6 +240,13 @@ async def login(request: Request, response: Response):
 
     # Update last login timestamp
     await update_last_login(admin["_id"])
+
+    # Log activity
+    await create_activity(ActivityCreate(
+        username=admin["username"],
+        role=admin.get("role", "Unknown"),
+        activity="Logged in"
+    ))
 
     # Generate token
     token = jwt_security.create_access_token(data={"sub": username})

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit, Flame, DollarSign, Plus, XCircle, Home } from 'lucide-react';
+import { Trash2, Edit, Flame, DollarSign, Plus, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // --- Type Definitions ---
@@ -180,46 +180,6 @@ const ManageRituals = () => {
         },
         onError: handleMutationError,
     });
-
-    /**
-     * Used to toggle the 'show_on_home' status of a ritual.
-     * It includes a client-side check to prevent featuring more than 3 rituals.
-     */
-    const toggleHomeMutation = useMutation({
-        mutationFn: (ritual: Ritual) => {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            if (roleId > 4) throw new Error('Not authorized for this action.');
-
-            const isAddingToHome = !ritual.show_on_home;
-            if (isAddingToHome) {
-                const currentFeaturedCount = rituals?.filter(r => r.show_on_home).length || 0;
-                if (currentFeaturedCount >= 3) {
-                    toast.error('You can only feature up to 3 rituals on the home page.');
-                    // By throwing an error, we stop the mutation and trigger onError.
-                    throw new Error('Cannot feature more than 3 rituals.');
-                }
-            }
-            
-            // We only need to send the field we are updating
-            const payload = { show_on_home: isAddingToHome };
-
-            return api.put(`/rituals/${ritual._id}`, payload, config);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
-            queryClient.invalidateQueries({ queryKey: ['rituals'] });
-            queryClient.invalidateQueries({ queryKey: ['featuredRituals'] });
-            toast.success('Ritual home status updated!');
-        },
-        onError: (error: any) => {
-            // Avoid double-toasting for our specific "max 3" error
-            if (error.message !== 'Cannot feature more than 3 rituals.') {
-                handleMutationError(error);
-            }
-        },
-    });
-
 
     // --- Event Handlers ---
     const handleSubmit = (e: React.FormEvent) => {
@@ -637,18 +597,6 @@ const ManageRituals = () => {
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => toggleHomeMutation.mutate(ritual)}
-                                        disabled={roleId > 4 || toggleHomeMutation.isPending}
-                                        className={ritual.show_on_home
-                                            ? "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-900/50"
-                                            : "border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
-                                        }
-                                    >
-                                        <Home className="h-4 w-4" />
-                                    </Button>
                                     <Button size="icon"onClick={() => deleteMutation.mutate(ritual._id)}disabled={roleId > 4 || deleteMutation.isPending}className="bg-red-600 hover:bg-red-700 text-white border border-red-700 shadow-md"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             </div>

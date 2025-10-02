@@ -7,6 +7,7 @@ import AboutTemple from "./pages/AboutTemple";
 import CommitteeMembers from "./pages/CommitteeMembers";
 import NotFound from "./pages/NotFound";
 import RitualBooking from "./pages/RitualBooking";
+import RitualBrowsing from "./pages/RitualBrowsing";
 import EventDetails from "./pages/EventDetails";
 import FullEvents from "./pages/FullEvents";
 import FullGallery from "./pages/FullGallery";
@@ -60,6 +61,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/ritual-booking" element={<RitualBooking />} />
+            <Route path="/ritual-browsing" element={<RitualBrowsing />} />
             <Route path="/about" element={<AboutTemple />} />
             <Route path="/committee" element={<CommitteeMembers />} />
             <Route path="/events" element={<FullEvents />} />
