@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit, Flame, DollarSign, Plus, XCircle } from 'lucide-react';
+import { Trash2, Edit, Flame, DollarSign, Plus, XCircle, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // --- Type Definitions ---
@@ -31,6 +31,7 @@ interface Ritual {
     employee_only?: boolean;       // NEW
     available_from?: string;       // NEW
     available_to?: string;         // NEW
+    show_on_home?: boolean;        // NEW: featured on home
 }
 
 interface StockItem {
@@ -56,7 +57,8 @@ const ManageRituals = () => {
         name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
         required_stock: [] as RequiredStock[],
         booking_start_time: '', booking_end_time: '', employee_only: false,
-        available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit'
+        available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit',
+        show_on_home: false
     });
     const [selectedStockId, setSelectedStockId] = useState('');
     const [requiredQuantity, setRequiredQuantity] = useState('1');
@@ -89,12 +91,13 @@ const ManageRituals = () => {
                 available_from: isEditing.available_from || '',
                 available_to: isEditing.available_to || '',
                 date_range_option: (isEditing.available_from || isEditing.available_to) ? 'custom' : 'all_time',
-                time_range_option: (isEditing.booking_start_time || isEditing.booking_end_time) ? 'custom' : 'no_limit'
+                time_range_option: (isEditing.booking_start_time || isEditing.booking_end_time) ? 'custom' : 'no_limit',
+                show_on_home: !!isEditing.show_on_home
             });
         } else {
             setFormData({ name: '', description: '', price: '', duration: '', popular: false, icon_name: 'Star',
                 required_stock: [], booking_start_time: '', booking_end_time: '', employee_only: false,
-                available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit' });
+                available_from: '', available_to: '', date_range_option: 'all_time', time_range_option: 'no_limit', show_on_home: false });
         }
     }, [isEditing, stockMap]);
 
@@ -105,9 +108,10 @@ const ManageRituals = () => {
         const detail = resp?.data?.detail;
         if (resp && detail) {
             toast.error(typeof detail === 'string' ? detail : JSON.stringify(detail));
-        } else {
-            toast.error('An unexpected error occurred.');
+            return;
         }
+        const msg = (error as Error)?.message;
+        toast.error(msg || 'An unexpected error occurred.');
     };
 
     // --- Mutations (Create/Update/Delete) ---
@@ -117,6 +121,15 @@ const ManageRituals = () => {
             const config = { headers: { Authorization: `Bearer ${token}` } };
             if (roleId > 4) throw new Error('Not authorized for this action.');
             
+            // Enforce max 3 selected on client before sending
+            if (ritualPayload.show_on_home) {
+                const currentSelected = rituals?.filter(r => r.show_on_home).length || 0;
+                const isSelectingNew = !isEditing || (isEditing && !isEditing.show_on_home);
+                if (isSelectingNew && currentSelected >= 3) {
+                    throw new Error('You can only feature up to 3 rituals on the home page.');
+                }
+            }
+
             // Sanitize required_stock before sending
             const payload = {
                 name: ritualPayload.name,
@@ -131,6 +144,7 @@ const ManageRituals = () => {
                 // Handle date range properly - null for all_time, actual dates for custom
                 available_from: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_from || null : null,
                 available_to: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_to || null : null,
+                show_on_home: !!ritualPayload.show_on_home,
                 required_stock: ritualPayload.required_stock.map(({ stock_item_id, quantity_required }: RequiredStock) => ({
                     stock_item_id,
                     quantity_required: Number(quantity_required)
@@ -145,6 +159,7 @@ const ManageRituals = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
             queryClient.invalidateQueries({ queryKey: ['rituals'] });
+            queryClient.invalidateQueries({ queryKey: ['featuredRituals'] });
             toast.success(`Ritual ${isEditing ? 'updated' : 'added'} successfully!`);
             setIsEditing(null);
         },
@@ -159,10 +174,52 @@ const ManageRituals = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
+            queryClient.invalidateQueries({ queryKey: ['rituals'] });
+            queryClient.invalidateQueries({ queryKey: ['featuredRituals'] });
             toast.success('Ritual deleted!');
         },
         onError: handleMutationError,
     });
+
+    /**
+     * Used to toggle the 'show_on_home' status of a ritual.
+     * It includes a client-side check to prevent featuring more than 3 rituals.
+     */
+    const toggleHomeMutation = useMutation({
+        mutationFn: (ritual: Ritual) => {
+            const token = localStorage.getItem('token');
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (roleId > 4) throw new Error('Not authorized for this action.');
+
+            const isAddingToHome = !ritual.show_on_home;
+            if (isAddingToHome) {
+                const currentFeaturedCount = rituals?.filter(r => r.show_on_home).length || 0;
+                if (currentFeaturedCount >= 3) {
+                    toast.error('You can only feature up to 3 rituals on the home page.');
+                    // By throwing an error, we stop the mutation and trigger onError.
+                    throw new Error('Cannot feature more than 3 rituals.');
+                }
+            }
+            
+            // We only need to send the field we are updating
+            const payload = { show_on_home: isAddingToHome };
+
+            return api.put(`/rituals/${ritual._id}`, payload, config);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminRituals'] });
+            queryClient.invalidateQueries({ queryKey: ['rituals'] });
+            queryClient.invalidateQueries({ queryKey: ['featuredRituals'] });
+            toast.success('Ritual home status updated!');
+        },
+        onError: (error: any) => {
+            // Avoid double-toasting for our specific "max 3" error
+            if (error.message !== 'Cannot feature more than 3 rituals.') {
+                handleMutationError(error);
+            }
+        },
+    });
+
 
     // --- Event Handlers ---
     const handleSubmit = (e: React.FormEvent) => {
@@ -260,6 +317,7 @@ const ManageRituals = () => {
     const totalRituals = rituals?.length || 0;
     const popularRituals = rituals?.filter(r => r.popular).length || 0;
     const averagePrice = totalRituals > 0 ? rituals.reduce((sum, r) => sum + r.price, 0) / totalRituals : 0;
+    const featuredCount = rituals?.filter(r => r.show_on_home).length || 0;
 
     return (
         <div className="space-y-6">
@@ -279,6 +337,11 @@ const ManageRituals = () => {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-purple-300">Avg. Price</CardTitle><DollarSign className="h-4 w-4 text-amber-400" /></CardHeader>
                     <CardContent><div className="text-2xl font-bold text-white">₹{averagePrice.toFixed(2)}</div></CardContent>
                 </Card>
+            </div>
+
+            {/* Featured Counter */}
+            <div className="rounded-md border border-purple-500/20 bg-slate-900/60 p-3 text-sm text-purple-200">
+                Featured on Home: {featuredCount}/3
             </div>
 
             {/* Add/Edit Form */}
@@ -376,6 +439,26 @@ const ManageRituals = () => {
                         <div className="flex items-center space-x-2">
                             <Checkbox id="popular" checked={formData.popular} onCheckedChange={(checked) => setFormData({ ...formData, popular: !!checked })} className="border-purple-500/30 data-[state=checked]:bg-purple-600" />
                             <Label htmlFor="popular" className="text-purple-300">Mark as Popular</Label>
+                        </div>
+                        {/* Show on Home */}
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="show_on_home"
+                                checked={formData.show_on_home}
+                                onCheckedChange={(checked) => {
+                                    const want = !!checked;
+                                    if (want) {
+                                        const isSelectingNew = !isEditing || (isEditing && !isEditing.show_on_home);
+                                        if (isSelectingNew && featuredCount >= 3) {
+                                            toast.error('You can only feature up to 3 rituals on the home page.');
+                                            return;
+                                        }
+                                    }
+                                    setFormData({ ...formData, show_on_home: want });
+                                }}
+                                className="border-purple-500/30 data-[state=checked]:bg-purple-600"
+                            />
+                            <Label htmlFor="show_on_home" className="text-purple-300">Show on Home (max 3)</Label>
                         </div>
                         {/* Time Range Section */}
                         <div className="space-y-2 pt-4 border-t border-purple-500/20">
@@ -539,6 +622,7 @@ const ManageRituals = () => {
                                         {ritual.booking_start_time && ritual.booking_end_time
                                             ? `Window: ${ritual.booking_start_time} - ${ritual.booking_end_time}` : 'No window'}
                                         {ritual.employee_only && <span className="ml-2 text-amber-400">(Employee Only)</span>}
+                                        {ritual.show_on_home && <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200">Featured on Home</span>}
                                     </p>
                                     {ritual.available_from && ritual.available_to ? (
                                         <p className="text-xs text-purple-400">
@@ -553,6 +637,18 @@ const ManageRituals = () => {
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => toggleHomeMutation.mutate(ritual)}
+                                        disabled={roleId > 4 || toggleHomeMutation.isPending}
+                                        className={ritual.show_on_home
+                                            ? "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-900/50"
+                                            : "border-purple-500/30 text-purple-300 hover:bg-purple-900/50"
+                                        }
+                                    >
+                                        <Home className="h-4 w-4" />
+                                    </Button>
                                     <Button size="icon"onClick={() => deleteMutation.mutate(ritual._id)}disabled={roleId > 4 || deleteMutation.isPending}className="bg-red-600 hover:bg-red-700 text-white border border-red-700 shadow-md"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             </div>

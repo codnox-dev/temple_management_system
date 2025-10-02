@@ -17,7 +17,8 @@ interface ApiRitual {
   description: string;
   price: number;
   duration: string;
-  icon: string;
+	icon?: string;
+	icon_name?: string;
   booking_start_time?: string; // NEW
   booking_end_time?: string;   // NEW
   employee_only?: boolean;     // NEW
@@ -38,7 +39,8 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 };
 
 const fetchRituals = async (): Promise<Ritual[]> => {
-	const data = await get<ApiRitual[]>('/rituals/');
+	// Use the new public endpoint that returns all rituals without date filtering
+	const data = await get<ApiRitual[]>('/rituals/all');
 	return data.map(r => ({ ...r, id: r._id }));
 };
 
@@ -212,7 +214,7 @@ const RitualBooking = () => {
                                         focus:outline-none focus:ring-2 focus:ring-primary/40`}
                                 >
                                     <div className="flex items-center gap-2 mb-2">
-                                        <RitualIcon name={ritual.icon} className="h-5 w-5 text-primary" />
+										<RitualIcon name={(ritual.icon_name || ritual.icon || 'Star') as string} className="h-5 w-5 text-primary" />
                                         <div className="text-lg font-medium text-foreground">{ritual.name}</div>
                                     </div>
                                     <p className="text-sm text-muted-foreground mb-3 overflow-hidden line-clamp-3">

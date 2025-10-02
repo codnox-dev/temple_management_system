@@ -27,6 +27,8 @@ class AvailableRitualBase(BaseModel):
     # Date range for availability - using string format to avoid MongoDB serialization issues
     available_from: Optional[str] = Field(None, example="2023-01-01")
     available_to: Optional[str] = Field(None, example="2023-12-31")
+    # Whether this ritual should be shown on the home RitualSection (max 3 allowed)
+    show_on_home: Optional[bool] = Field(False, example=False)
 
     @field_validator('available_from', 'available_to')
     @classmethod

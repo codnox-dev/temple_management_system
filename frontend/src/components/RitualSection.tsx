@@ -10,14 +10,15 @@ import lampVideo from '../assets/lamp.mp4';
 interface Ritual {
   _id: string;
   name: string;
-  description: string;
   price: number;
-  duration: string;
-  icon: string;
+  // Backend uses icon_name; keep a fallback for legacy 'icon'
+  icon_name?: string;
+  icon?: string;
   popular?: boolean;
   booking_start_time?: string;
   booking_end_time?: string;
   employee_only?: boolean;
+  show_on_home?: boolean;
 }
 
 // --- Icon Mapping Utility ---
@@ -38,11 +39,24 @@ const RitualIcon = ({ name, ...props }: { name: string } & LucideProps) => {
 
 // --- API Fetching ---
 // Used to fetch the list of rituals from the API.
-const fetchRituals = () => get<Ritual[]>('/rituals/');
+// Prefer featured subset for home (max 3). Fallback to all if the endpoint is missing.
+const fetchRituals = async (): Promise<Ritual[]> => {
+  try {
+    const featured = await get<Ritual[]>('/rituals/featured');
+    // If API returns an empty array, still show nothing (respect selection)
+    return Array.isArray(featured) ? featured : [];
+  } catch (e) {
+    // Backward compatibility: fall back to all rituals filtered client-side if needed
+    const all = await get<Ritual[]>('/rituals/');
+    // If show_on_home exists, filter to those; otherwise just take first 3 to avoid overfill
+    const selected = all.filter(r => r.show_on_home).slice(0, 3);
+    return selected.length ? selected : all.slice(0, 3);
+  }
+};
 
 const RitualSection = () => {
   const { data: rituals, isLoading, isError } = useQuery<Ritual[]>({
-      queryKey: ['rituals'],
+    queryKey: ['featuredRituals'],
       queryFn: fetchRituals
   });
 
@@ -55,13 +69,16 @@ const RitualSection = () => {
     <div className="max-w-screen-xl mx-auto">
       <div className="max-w-7xl mx-auto">
         
-        {/* Main layout grid for desktop view */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 items-start">
+        {/* --- Main Content Grid --- */}
+        {/* On large screens (lg), this is a 2-column grid. 'lg:items-stretch' is used to make both columns */}
+        {/* equal in height, ensuring top and bottom alignment. Mobile view remains a single column. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start lg:items-stretch">
             
             {/* --- Left Column: Video --- */}
             {/* This column contains the lamp video and is sticky on large screens. */}
+            {/* The 'h-full' class on the inner div helps the stretching alignment. */}
             <div className="lg:col-span-1 lg:sticky lg:top-24">
-                <div className={`flex items-center justify-center ${headerVisible ? 'animate-fade-in-up' : ''}`} style={{ animationDelay: '0.2s' }}>
+                <div className={`flex items-center justify-center h-full ${headerVisible ? 'animate-fade-in-up' : ''}`} style={{ animationDelay: '0.2s' }}>
                     <video
                         src={lampVideo}
                         autoPlay
@@ -76,14 +93,14 @@ const RitualSection = () => {
             </div>
 
             {/* --- Right Column: Content --- */}
-            {/* This column stacks the text description, ritual list, and button vertically. */}
-            <div className="lg:col-span-2 flex flex-col gap-10">
-                {/* Text section */}
+            {/* This column now holds both the header text and the list of rituals. */}
+            <div className="lg:col-span-1 flex flex-col gap-10">
+                {/* --- Header Section (Moved into the right column) --- */}
                 <div ref={headerRef} className={`text-center lg:text-left ${headerVisible ? 'animate-fade-in-up' : ''}`}>
                     <h2 className="text-5xl md:text-6xl font-playfair font-bold mb-6 text-foreground">
                         Sacred <span className="text-primary">Rituals</span>
                     </h2>
-                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                    <p className="text-xl text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
                         Connect with the divine through our authentic spiritual ceremonies,
                         each designed to bring peace and blessings.
                     </p>
@@ -121,36 +138,32 @@ const RitualSection = () => {
                             </div>
                           )}
                         <div className="flex-shrink-0 p-3 bg-gradient-divine rounded-lg group-hover:scale-110 transition-transform duration-300">
-                            <RitualIcon name={ritual.icon} className="h-6 w-6 text-white" />
+                            <RitualIcon name={(ritual.icon_name || ritual.icon || 'Star') as string} className="h-6 w-6 text-white" />
                         </div>
 
                         <div className="flex-grow">
-                            <h3 className="text-md font-playfair font-semibold text-foreground">
+                            <h3 className="text-lg font-playfair font-semibold text-foreground">
                                 {ritual.name}
                             </h3>
-                            <p className="text-muted-foreground text-xs line-clamp-1">
-                                {ritual.description}
-                            </p>
                         </div>
 
                         <div className="flex-shrink-0 text-right ml-4">
-                            <p className="text-md font-playfair font-bold text-primary">
+                            <p className="text-lg font-playfair font-bold text-primary">
                                 ₹{ritual.price}
                             </p>
-                            <p className="text-xs text-muted-foreground">{ritual.duration}</p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                {/* Call to action button */}
-                <div className="text-center lg:text-left mt-6">
-                  <a href="/ritual-booking" className="btn-divine text-lg px-8 py-3">
-                    Book a Ritual
-                  </a>
-                </div>
             </div>
+        </div>
+        
+        {/* --- Call to action button (Moved out of grid and centered) --- */}
+        <div className="text-center mt-16">
+          <a href="/ritual-booking" className="btn-divine text-lg px-8 py-3">
+            Book a Ritual
+          </a>
         </div>
       </div>
     </div>

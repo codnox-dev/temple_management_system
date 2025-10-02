@@ -63,6 +63,13 @@ async def create_ritual(ritual_data: AvailableRitualCreate):
     if not ritual.get('available_to'):
         ritual['available_to'] = None
     
+    # Enforce maximum of 3 featured rituals if show_on_home is True
+    if ritual.get('show_on_home'):
+        current_featured_count = await available_rituals_collection.count_documents({"show_on_home": True})
+        if current_featured_count >= 3:
+            # Do not allow insertion as featured beyond limit
+            raise ValueError("Maximum of 3 rituals can be featured on home.")
+
     result = await available_rituals_collection.insert_one(ritual)
     new_ritual = await available_rituals_collection.find_one({"_id": result.inserted_id})
     return new_ritual
@@ -70,6 +77,16 @@ async def create_ritual(ritual_data: AvailableRitualCreate):
 async def update_ritual_by_id(id: str, ritual_data: Dict[str, Any]):
     if not ObjectId.is_valid(id):
         return None
+    # If toggling show_on_home to True, enforce cap of 3
+    if ritual_data.get('show_on_home') is True:
+        current_featured_count = await available_rituals_collection.count_documents({
+            "_id": {"$ne": ObjectId(id)},
+            "show_on_home": True
+        })
+        if current_featured_count >= 3:
+            # Reject update attempting to exceed cap
+            raise ValueError("Maximum of 3 rituals can be featured on home.")
+
     result = await available_rituals_collection.update_one(
         {"_id": ObjectId(id)}, {"$set": ritual_data}
     )
@@ -82,3 +99,9 @@ async def delete_ritual_by_id(id: str) -> bool:
         return False
     result = await available_rituals_collection.delete_one({"_id": ObjectId(id)})
     return result.deleted_count == 1
+
+async def get_featured_rituals_for_home():
+    """Get up to 3 rituals marked show_on_home without date filtering (purely editorial selection)."""
+    # Rely on DB limit for efficiency and predictable small payloads
+    cursor = available_rituals_collection.find({"show_on_home": True}).limit(3)
+    return [ritual async for ritual in cursor]
