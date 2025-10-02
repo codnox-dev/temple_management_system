@@ -228,7 +228,7 @@ const AddStock = () => {
         <div className="bg-slate-900/80 backdrop-blur-sm border border-amber-500/30 p-6 rounded-xl shadow-lg shadow-amber-500/10">
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-amber-300">Expiring Soon</p>
+                    <p className="text-amber-700 dark:text-amber-300">Expiring Soon</p>
                     <p className="text-3xl font-bold">{stockItems.filter(isExpiringSoon).length}</p>
                 </div>
                 <Calendar className="h-12 w-12 text-amber-400" />

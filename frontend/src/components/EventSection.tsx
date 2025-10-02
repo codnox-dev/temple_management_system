@@ -146,7 +146,7 @@ const EventSection = () => {
 
           {!isLoading && !isError && currentEvent && (
             <>
-              <div ref={eventsRef} className={`relative max-w-4xl mx-auto ${eventsVisible ? 'animate-fade-in' : ''}`}>
+              <div ref={eventsRef} className={`relative max-w-4xl lg:max-w-6xl mx-auto ${eventsVisible ? 'animate-fade-in' : ''}`}>
                 {/* The main event card now has transition properties for a smooth fade */}
                 <div className={`relative group overflow-hidden flex flex-col md:flex-row h-full rounded-xl border-4 border-amber-600/30 bg-amber-400/30 shadow-xl transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
                   <div className="relative overflow-hidden md:w-1/2 h-64 md:h-auto">
@@ -241,4 +241,3 @@ const EventSection = () => {
 };
 
 export default EventSection;
-

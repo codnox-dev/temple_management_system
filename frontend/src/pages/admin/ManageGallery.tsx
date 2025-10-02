@@ -277,7 +277,7 @@ const ManageGallery = () => {
                     <Button
                         variant="outline"
                         onClick={() => setHomePreviewOpen(true)}
-                        className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50"
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                     >
                         Configure Home Preview
                     </Button>
@@ -343,7 +343,12 @@ const ManageGallery = () => {
 
             {/* Slideshow Config Button */}
             <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setSlideConfigOpen(true)} className="border-purple-500/40 text-purple-100 hover:bg-purple-900/60">Configure Slideshow</Button>
+                <Button
+                    onClick={() => setSlideConfigOpen(true)}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                >
+                    Configure Slideshow
+                </Button>
             </div>
 
             {/* Inline Home Preview Config Section */}
@@ -544,7 +549,7 @@ const ManageGallery = () => {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <GalleryStaticLayoutManager images={images || []} />
+                        <GalleryStaticLayoutManager images={images || []} onSaveComplete={() => { setDesignerInlineOpen(false); setDesignerMode(null); }} />
                     </CardContent>
                 </Card>
             )}

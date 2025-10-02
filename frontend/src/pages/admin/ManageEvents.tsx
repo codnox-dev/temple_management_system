@@ -254,7 +254,7 @@ const ManageEvents = () => {
                                     </Button>
                                 </Link>
                                 <Link to={{ pathname: '/' }} state={{ fromAdmin: '/admin/events', scrollTo: 'events' }} className="inline-flex">
-                                    <Button variant="outline" className="border-amber-500/30 text-amber-300 hover:bg-amber-900/30">
+                                    <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50">
                                         View Events Section <ExternalLink className="ml-2 h-4 w-4" />
                                     </Button>
                                 </Link>
@@ -391,15 +391,19 @@ const ManageEvents = () => {
                                 >
                                     <Edit className="h-4 w-4 mr-2" />Edit
                                 </Button>
-                                <Button 
-                                    variant="destructive" 
-                                    size="sm" 
-                                    onClick={() => deleteMutation.mutate(event._id)}
-                                    disabled={roleId > 3}
-                                    className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"
+                                <Button
+                                size="sm"
+                                onClick={() => deleteMutation.mutate(event._id)}
+                                disabled={roleId > 3}
+                                className="bg-red-600 text-white font-semibold px-3 py-1.5 rounded-md 
+                                            border border-red-700 shadow-md
+                                            hover:bg-red-700 hover:shadow-lg hover:scale-105
+                                            focus:outline-none focus:ring-2 focus:ring-red-400
+                                            active:scale-95 transition-all duration-200"
                                 >
-                                    <Trash2 className="h-4 w-4 mr-2" />Delete
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
                                 </Button>
+
                                 <Button
                                     variant={featured?.event_id === event._id ? 'default' : 'outline'}
                                     size="sm"

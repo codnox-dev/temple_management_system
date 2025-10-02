@@ -147,7 +147,7 @@ const AdminManagement = () => {
 
       {/* Admin Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard icon={Users} title="Total Admins" value={totalAdmins} color="blue" />
+        <StatCard icon={Users} title="Total Admins" value={totalAdmins} color="indigo" />
         <StatCard icon={CheckCircle} title="Active Admins" value={activeAdmins} color="green" />
         <StatCard icon={Shield} title="Permission Types" value={permissionCount} color="purple" />
       </div>
@@ -683,9 +683,16 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         return;
       }
       // CREATE: must satisfy AdminCreate requirements
-      const payload: AdminCreationPayload = {
-        ...formData,
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        username: formData.username,
+        mobile_prefix: formData.mobile_prefix,
         mobile_number: Number(formData.mobile_number),
+        role: formData.role,
+        role_id: formData.role_id,
+        permissions: formData.permissions,
+        isRestricted: formData.isRestricted,
       } as AdminCreationPayload;
       mutation.mutate(payload);
     } else {
@@ -727,22 +734,24 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         ) : (
           <FormField label="Username" id="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
         )}
-        {/* Authentication Email for login */}
-        <FormField
-          label="Authentication Email (for login)"
-          id="google_email"
-          type="email"
-          value={formData.google_email}
-          onChange={(e) => {
-            const val = e.target.value;
-            setFormData((prev) => ({ ...prev, google_email: val, ...(emailTouched ? {} : { email: val }) }));
-          }}
-        />
+        {/* Authentication Email is not required for Create. Show only when editing an existing admin. */}
+        {adminToEdit && (
+          <FormField
+            label="Authentication Email (for login)"
+            id="google_email"
+            type="email"
+            value={formData.google_email}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, google_email: val }));
+            }}
+          />
+        )}
         {/* Name */}
         <FormField label="Name" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-        {/* Notification Email (defaults to Authentication email) */}
+        {/* Email */}
         <div>
-          <Label htmlFor="email" className="text-purple-300">Notification Email</Label>
+          <Label htmlFor="email" className="text-purple-300">Email</Label>
           <Input
             id="email"
             type="email"
@@ -750,7 +759,7 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
             value={formData.email}
             onChange={(e) => { setEmailTouched(true); setFormData({ ...formData, email: e.target.value }); }}
           />
-          <div className="text-xs text-gray-400 mt-1">Defaults to Authentication email; you can change it.</div>
+          <div className="text-xs text-gray-400 mt-1">This email will be used for notifications and contact.</div>
         </div>
         {/* Role select below identity fields */}
         <div className="col-span-2">

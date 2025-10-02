@@ -102,18 +102,27 @@ const StockAnalytics = () => {
           { title: "Low Stock Alerts", value: totalLowStock || 'N/A', change: "Across all months", Icon: AlertTriangle, color: "amber" },
           { title: "New Items Added", value: currentMonthData?.newItemsAdded || 'N/A', change: "in the latest period", Icon: TrendingUp, color: "pink" }
         ].map(card => (
-          <div key={card.title} className={`bg-slate-900/80 backdrop-blur-sm border border-${card.color}-500/30 p-6 rounded-xl shadow-lg shadow-${card.color}-500/10`}>
+          <div
+            key={card.title}
+            className={`bg-slate-900/80 backdrop-blur-sm border border-${card.color}-500/50 p-6 rounded-xl shadow-lg shadow-${card.color}-500/30`}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-${card.color}-300 text-sm`}>{card.title}</p>
-                <p className="text-3xl font-bold">{card.value}</p>
-                <p className={`text-${card.color}-400 text-xs mt-1`}>{card.change}</p>
+                <p className={`text-${card.color}-500 text-sm font-semibold`}>
+                  {card.title}
+                </p>
+                <p className="text-3xl font-bold text-white">{card.value}</p>
+                <p className={`text-${card.color}-400 text-xs mt-1`}>
+                  {card.change}
+                </p>
               </div>
               <card.Icon className={`h-12 w-12 text-${card.color}-400`} />
             </div>
           </div>
         ))}
       </div>
+
+
 
       {/* Dynamic Content based on filter */}
       {selectedPeriod !== 'category' && (
@@ -179,18 +188,40 @@ const StockAnalytics = () => {
       <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-purple-500/30">
         <h2 className="text-xl font-bold text-purple-400 mb-6">Trends & Insights</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4">
-            <div className="flex items-center mb-2"><TrendingUp className="h-5 w-5 text-green-400 mr-2" /><h3 className="font-semibold text-green-300">Stock Growth</h3></div>
-            <p className="text-sm text-green-400">Inventory value and item count can be tracked here over time.</p>
+          
+          {/* Stock Growth */}
+          <div className="bg-green-900/50 border border-green-500/50 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <TrendingUp className="h-5 w-5 text-green-300 mr-2" />
+              <h3 className="font-semibold text-green-100">Stock Growth</h3>
+            </div>
+            <p className="text-sm text-green-100">
+              Inventory value and item count can be tracked here over time.
+            </p>
           </div>
-          <div className="bg-amber-900/30 border border-amber-500/30 rounded-lg p-4">
-            <div className="flex items-center mb-2"><AlertTriangle className="h-5 w-5 text-amber-400 mr-2" /><h3 className="font-semibold text-amber-300">Low Stock Alert</h3></div>
-            <p className="text-sm text-amber-400">Items falling below their minimum stock levels are flagged for immediate attention.</p>
+          
+          {/* Low Stock Alert */}
+          <div className="bg-amber-900/50 border border-amber-500/50 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <AlertTriangle className="h-5 w-5 text-amber-300 mr-2" />
+              <h3 className="font-semibold text-amber-100">Low Stock Alert</h3>
+            </div>
+            <p className="text-sm text-amber-100">
+              Items falling below their minimum stock levels are flagged for immediate attention.
+            </p>
           </div>
-          <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4">
-            <div className="flex items-center mb-2"><BarChart3 className="h-5 w-5 text-blue-400 mr-2" /><h3 className="font-semibold text-blue-300">Peak Usage</h3></div>
-            <p className="text-sm text-blue-400">Observe consumption trends to anticipate needs for festivals and special events.</p>
+          
+          {/* Peak Usage */}
+          <div className="bg-blue-900/50 border border-blue-500/50 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <BarChart3 className="h-5 w-5 text-blue-300 mr-2" />
+              <h3 className="font-semibold text-blue-100">Peak Usage</h3>
+            </div>
+            <p className="text-sm text-blue-100">
+              Observe consumption trends to anticipate needs for festivals and special events.
+            </p>
           </div>
+
         </div>
       </div>
     </div>

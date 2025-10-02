@@ -51,7 +51,7 @@ const HeroSection = () => {
           {/* Right: Timings Card */}
           <aside className="w-full md:w-auto flex-shrink-0">
               {/* Changed bg-white/20 to bg-white/30 for more opacity */}
-              <div className="p-4 rounded-xl bg-white/30 backdrop-blur-md border border-white/30 shadow-lg max-w-xs mx-auto">
+              <div className="p-4 rounded-xl bg-white/55 backdrop-blur-md border border-white/30 shadow-lg max-w-xs mx-auto">
               <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white/10 rounded-full shadow-sm">
                   <Clock className="h-5 w-5 text-primary" />

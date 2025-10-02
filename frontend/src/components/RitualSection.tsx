@@ -113,7 +113,7 @@ const RitualSection = () => {
                   {/* Renders the list of rituals */}
                   {rituals?.map((ritual, index) => (
                     <div key={ritual._id} className={`w-full ${cardsVisible ? 'animate-fade-in-up' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
-                      <div className="rounded-xl border border-border/20 bg-card/10 backdrop-blur-sm p-4 group transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5 flex items-center gap-4 relative overflow-hidden">
+                      <div className="rounded-xl border-4 border-amber-600/30 bg-amber-400/30 shadow-xl p-4 group transition-all duration-300 flex items-center gap-4 relative overflow-hidden">
                         {ritual.popular && (
                             <div className="absolute top-0 right-0 bg-gradient-golden text-secondary-foreground px-3 py-1 text-xs font-medium z-10"
                                  style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 15% 50%)' }}>

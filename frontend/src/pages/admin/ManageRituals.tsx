@@ -411,9 +411,9 @@ const ManageRituals = () => {
                             
                             {formData.time_range_option === 'custom' && (
                                 <div className="space-y-3">
-                                    <div className="bg-blue-900/20 p-3 rounded-md border border-blue-500/30">
-                                        <p className="text-sm text-blue-300">
-                                            🕐 Set specific hours when this ritual can be booked.
+                                    <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-md border border-blue-300 dark:border-blue-700 shadow">
+                                        <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                                        🕐 Set specific hours when this ritual can be booked.
                                         </p>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -484,8 +484,8 @@ const ManageRituals = () => {
                             
                             {formData.date_range_option === 'custom' && (
                                 <div className="space-y-3">
-                                    <div className="bg-blue-900/20 p-3 rounded-md border border-blue-500/30">
-                                        <p className="text-sm text-blue-300">
+                                    <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-md border border-blue-300 dark:border-blue-700 shadow">
+                                            <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
                                             📅 Set specific start and end dates for this ritual's availability.
                                         </p>
                                     </div>
@@ -553,7 +553,7 @@ const ManageRituals = () => {
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(ritual)} disabled={roleId > 4} className="border-purple-500/30 text-purple-300 hover:bg-purple-900/50"><Edit className="h-4 w-4" /></Button>
-                                    <Button variant="destructive" size="icon" onClick={() => deleteMutation.mutate(ritual._id)} disabled={roleId > 4 || deleteMutation.isPending} className="bg-red-900/80 border-red-700/30 text-red-300 hover:bg-red-900"><Trash2 className="h-4 w-4" /></Button>
+                                    <Button size="icon"onClick={() => deleteMutation.mutate(ritual._id)}disabled={roleId > 4 || deleteMutation.isPending}className="bg-red-600 hover:bg-red-700 text-white border border-red-700 shadow-md"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             </div>
                             {ritual.required_stock?.length > 0 && (

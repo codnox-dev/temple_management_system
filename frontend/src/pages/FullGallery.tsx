@@ -28,9 +28,11 @@ const fetchGalleryImages = () => get<GalleryImage[]>('/gallery/');
 // Match the static layout manager's size rhythm
 const SIZE_PATTERN: Array<'lg' | 'md' | 'sm'> = ['lg', 'sm', 'sm', 'md', 'sm', 'lg', 'sm', 'md'];
 const sizeClass = (size: 'lg' | 'md' | 'sm') => {
-  if (size === 'lg') return 'h-64 md:h-72';
-  if (size === 'md') return 'h-52 md:h-60';
-  return 'h-40 md:h-48';
+  // Use column and row spans for a dynamic, professional masonry layout.
+  // This preserves visual variety while ensuring images have proper, non-distorted proportions.
+  if (size === 'lg') return 'col-span-2 row-span-2';
+  if (size === 'md') return 'row-span-2';
+  return 'col-span-1 row-span-1';
 };
 
 const FullGallery = () => {
@@ -223,13 +225,13 @@ const FullGallery = () => {
         {/* If a saved layout exists, render it scaled; otherwise fallback to grid */}
         {!isLoading && !isError && hasLayout ? (
           order && order.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 grid-flow-row-dense">
               {orderedImages.map((img, idx) => {
                 const size = SIZE_PATTERN[idx % SIZE_PATTERN.length];
                 return (
                 <div
                   key={img._id}
-                  className={`relative rounded-lg overflow-hidden bg-muted/40 border ${sizeClass(size)} group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition`}
+                  className={`relative rounded-lg overflow-hidden bg-muted/40 border group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition ${sizeClass(size)}`}
                   onClick={() => openViewer(img)}
                 >
                   <img
@@ -276,13 +278,13 @@ const FullGallery = () => {
           </div>
           )
         ) : (!isLoading && !isError) ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 grid-flow-row-dense">
             {galleryImages?.map((image, idx) => {
               const size = SIZE_PATTERN[idx % SIZE_PATTERN.length];
               return (
               <div
                 key={image._id}
-                className={`relative rounded-lg overflow-hidden bg-muted/40 border ${sizeClass(size)} group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition`}
+                className={`relative rounded-lg overflow-hidden bg-muted/40 border group cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition ${sizeClass(size)}`}
                 onClick={() => openViewer(image)}
               >
                 <img
