@@ -5,7 +5,6 @@ import { get } from '@/api/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { resolveImageUrl } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
-import lotusFooterImage from '@/assets/lotusfooter.png'; // Import the image
 
 interface CommitteeMember {
   _id: string;
@@ -37,14 +36,8 @@ const CommitteeMembers = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-sacred py-20 relative overflow-hidden">
-      {/* Lotus footer image added as a background element */}
-      <img
-        src={lotusFooterImage}
-        alt="Lotus footer background"
-        className="absolute bottom-0 left-0 w-full z-0 opacity-30 transform scale-[0.8] pointer-events-none"
-      />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <div className="min-h-screen bg-gradient-sacred py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-12">
           <Link to={fromAdmin || "/"} state={undefined} className="inline-flex items-center text-primary hover:text-primary/80 mb-4">
             <ArrowLeft className="h-5 w-5 mr-2" />
@@ -57,7 +50,7 @@ const CommitteeMembers = () => {
         </div>
 
             {isLoading ? (
-              <div>Loading committee members...</div>
+              <div className="text-center">Loading committee members...</div>
             ) : (
               (() => {
                 const sorted = (members ?? []).slice().sort((a, b) => {
@@ -66,14 +59,9 @@ const CommitteeMembers = () => {
                   if (ao !== bo) return ao - bo;
                   return a.name.localeCompare(b.name);
                 });
-                const featured = sorted[0];
+                const featured = sorted.length > 0 ? sorted[0] : null;
                 const rest = sorted.slice(1);
-                const chunk = <T,>(arr: T[], size: number): T[][] => {
-                  const rows: T[][] = [];
-                  for (let i = 0; i < arr.length; i += size) rows.push(arr.slice(i, i + size));
-                  return rows;
-                };
-                const rows = chunk(rest, 5);
+                
                 return (
                   <div className="space-y-10">
                     {featured && (
@@ -101,34 +89,30 @@ const CommitteeMembers = () => {
                         </Card>
                       </div>
                     )}
-                    {rows.length > 0 && (
-                      <div className="space-y-8">
-                        {rows.map((row, idx) => (
-                          <div key={idx} className="flex justify-center gap-8 flex-wrap">
-                            {row.map((member) => (
-                              <Card key={member._id} className="overflow-hidden card-divine w-64">
-                                {member.image && (
-                                  <div className="flex justify-center mt-6">
-                                    <img
-                                      src={resolveImageUrl(member.image)}
-                                      alt={member.name}
-                                      className="w-24 h-24 object-cover rounded-full border-4 border-primary/20"
-                                    />
-                                  </div>
-                                )}
-                                <CardHeader className="pb-2 text-center">
-                                  <CardTitle className="text-xl">{member.name}</CardTitle>
-                                  <p className="text-sm text-muted-foreground font-medium">{member.designation}</p>
-                                </CardHeader>
-                                <CardContent className="text-center">
-                                  <p className="text-sm mb-4">{member.profile_description}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    <strong>Phone:</strong> {(member.mobile_prefix ?? '+91') + ' ' + member.phone_number}
-                                  </p>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
+                    {rest.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center mt-10">
+                        {rest.map((member) => (
+                          <Card key={member._id} className="overflow-hidden card-divine w-full max-w-xs">
+                            {member.image && (
+                              <div className="flex justify-center mt-6">
+                                <img
+                                  src={resolveImageUrl(member.image)}
+                                  alt={member.name}
+                                  className="w-24 h-24 object-cover rounded-full border-4 border-primary/20"
+                                />
+                              </div>
+                            )}
+                            <CardHeader className="pb-2 text-center">
+                              <CardTitle className="text-xl">{member.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground font-medium">{member.designation}</p>
+                            </CardHeader>
+                            <CardContent className="text-center">
+                              <p className="text-sm mb-4">{member.profile_description}</p>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Phone:</strong> {(member.mobile_prefix ?? '+91') + ' ' + member.phone_number}
+                              </p>
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     )}

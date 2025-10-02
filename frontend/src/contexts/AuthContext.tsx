@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { enhancedJwtAuth } from '../lib/enhancedJwtAuth';
+import { authEventBus } from '../lib/authEvents';
+import { toast } from 'sonner';
 
 type AuthUser = { _id?: string; username: string; role_id?: number; role?: string } | null;
 type AuthContextType = {
@@ -40,19 +42,48 @@ export const AuthProvider = ({ children }) => {
               role: currentUser.role, 
               _id: currentUser.user_id 
             });
+          } else {
+            // Token exists but user verification failed - clear session
+            setIsAuthenticated(false);
+            setUser(null);
           }
         } else {
-          // Get initial token for app functionality
-          await enhancedJwtAuth.getInitialToken();
+          // Not authenticated - don't get initial token
+          // Public routes work without token, admin routes require authentication
+          setIsAuthenticated(false);
+          setUser(null);
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);
+        setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
     void init();
-  }, []);
+
+    // Listen for session expiration events
+    const handleSessionExpired = (data: any) => {
+      setIsAuthenticated(false);
+      setUser(null);
+      toast.error('Your session has expired. Please login again.');
+      navigate('/login');
+    };
+
+    const handleLogout = () => {
+      setIsAuthenticated(false);
+      setUser(null);
+    };
+
+    authEventBus.on('session-expired', handleSessionExpired);
+    authEventBus.on('logout', handleLogout);
+
+    return () => {
+      authEventBus.off('session-expired', handleSessionExpired);
+      authEventBus.off('logout', handleLogout);
+    };
+  }, [navigate]);
 
   const login = async (username, password) => {
     console.error('Password login disabled');

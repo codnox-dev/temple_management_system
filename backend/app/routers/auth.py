@@ -351,7 +351,7 @@ async def login(request: Request, response: Response):
     await create_activity(ActivityCreate(
         username=admin["username"],
         role=admin.get("role", "Unknown"),
-        activity="Logged in"
+        activity=f'{admin["username"]} logged in'
     ))
 
     # Generate token

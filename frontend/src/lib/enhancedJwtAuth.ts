@@ -41,6 +41,7 @@ class EnhancedJWTAuthService {
   private refreshTimer: NodeJS.Timeout | null = null;
   private deviceFingerprint: DeviceFingerprint | null = null;
   private currentLocation: GeolocationCoords | null = null;
+  private isUserAuthenticated: boolean = false; // Track if user is actually logged in
 
   constructor() {
     // Initialize token from session storage
@@ -203,7 +204,7 @@ class EnhancedJWTAuthService {
       }
 
       const tokenData: TokenResponse = await response.json();
-      this.setTokens(tokenData);
+      this.setTokens(tokenData, false); // false = not authenticated user
       return true;
     } catch (error) {
       console.error('Failed to get initial token:', error);
@@ -286,7 +287,7 @@ class EnhancedJWTAuthService {
     }
     
     const tokenData: TokenResponse = await response.json();
-    this.setTokens(tokenData);
+    this.setTokens(tokenData, true); // true = authenticated user
     return true;
   }
 
@@ -312,6 +313,9 @@ class EnhancedJWTAuthService {
       // Clear device fingerprint and location
       this.deviceFingerprint = null;
       this.currentLocation = null;
+      
+      // Mark as not authenticated
+      this.isUserAuthenticated = false;
       
       // Regenerate for next session
       this.generateDeviceFingerprint();
@@ -343,7 +347,10 @@ class EnhancedJWTAuthService {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return this.accessToken !== null && this.tokenExpiry !== null && this.tokenExpiry > new Date();
+    return this.isUserAuthenticated && 
+           this.accessToken !== null && 
+           this.tokenExpiry !== null && 
+           this.tokenExpiry > new Date();
   }
 
   /**
@@ -393,15 +400,17 @@ class EnhancedJWTAuthService {
       if (!response.ok) {
         // Refresh token is invalid, clear tokens and emit session expired event
         this.clearTokens();
+        this.isUserAuthenticated = false;
         authEventBus.emit('session-expired', { reason: 'refresh_token_expired' });
         throw new Error('Refresh token invalid');
       }
 
       const tokenData: TokenResponse = await response.json();
-      this.setTokens(tokenData);
+      this.setTokens(tokenData, this.isUserAuthenticated); // maintain current auth state
     } catch (error) {
       console.error('Token refresh failed:', error);
       this.clearTokens();
+      this.isUserAuthenticated = false;
       authEventBus.emit('session-expired', { reason: 'token_refresh_failed' });
       throw error;
     }
@@ -410,13 +419,15 @@ class EnhancedJWTAuthService {
   /**
    * Set tokens and manage expiry
    */
-  private setTokens(tokenData: TokenResponse): void {
+  private setTokens(tokenData: TokenResponse, isAuthenticated: boolean = false): void {
     this.accessToken = tokenData.access_token;
     this.tokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
+    this.isUserAuthenticated = isAuthenticated;
     
     // Store in session storage
     sessionStorage.setItem('access_token', this.accessToken);
     sessionStorage.setItem('token_expiry', this.tokenExpiry.toISOString());
+    sessionStorage.setItem('is_authenticated', isAuthenticated.toString());
 
     // Set up automatic refresh timer (refresh 1 minute before expiry)
     this.setRefreshTimer(tokenData.expires_in - 60);
@@ -429,10 +440,12 @@ class EnhancedJWTAuthService {
     this.accessToken = null;
     this.refreshToken = null;
     this.tokenExpiry = null;
+    this.isUserAuthenticated = false;
     
     // Clear session storage
     sessionStorage.removeItem('access_token');
     sessionStorage.removeItem('token_expiry');
+    sessionStorage.removeItem('is_authenticated');
 
     // Clear refresh timer
     if (this.refreshTimer) {
@@ -447,12 +460,14 @@ class EnhancedJWTAuthService {
   private loadTokenFromSession(): void {
     const token = sessionStorage.getItem('access_token');
     const expiry = sessionStorage.getItem('token_expiry');
+    const isAuth = sessionStorage.getItem('is_authenticated');
 
     if (token && expiry) {
       const expiryDate = new Date(expiry);
       if (expiryDate > new Date()) {
         this.accessToken = token;
         this.tokenExpiry = expiryDate;
+        this.isUserAuthenticated = isAuth === 'true';
         
         // Set refresh timer
         const secondsUntilRefresh = Math.max(0, (expiryDate.getTime() - Date.now()) / 1000 - 60);

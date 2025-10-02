@@ -135,10 +135,27 @@ api.interceptors.request.use(
 // Response interceptor for global error handling (401, etc.)
 api.interceptors.response.use(
 	(response: AxiosResponse) => response,
-	(error) => {
+	async (error) => {
 		if (error?.response?.status === 401) {
-			// Auto remove invalid token
+			// Token invalid or expired - clear authentication
 			setAuthToken(null);
+			
+			// Check if the request was to a protected admin endpoint
+			const isAdminEndpoint = error?.config?.url?.includes('/admin') || 
+			                       error?.config?.url?.includes('/profile') ||
+			                       error?.config?.url?.includes('/activity') ||
+			                       error?.config?.url?.includes('/bookings') ||
+			                       error?.config?.url?.includes('/employee-bookings');
+			
+			if (isAdminEndpoint) {
+				// Clear the enhanced JWT auth session
+				await enhancedJwtAuth.logout();
+				
+				// Redirect to login (if in browser context)
+				if (typeof window !== 'undefined') {
+					window.location.href = '/login';
+				}
+			}
 		}
 		return Promise.reject(error);
 	}
