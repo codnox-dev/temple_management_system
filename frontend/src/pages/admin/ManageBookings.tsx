@@ -18,7 +18,9 @@ import {
     AccordionItem,
     AccordionTrigger,
   } from "@/components/ui/accordion"
-import { Calendar, Users, DollarSign } from 'lucide-react';
+import { Calendar, Users, DollarSign, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Extend booking interfaces to include booked_by and support employee bookings
 interface RitualInstance {
@@ -130,10 +132,115 @@ const ManageBookings = () => {
     const totalRevenue = combined.reduce((sum, booking) => sum + booking.total_cost, 0);
     const totalRituals = combined.reduce((sum, booking) => sum + booking.instances.reduce((iSum, i) => iSum + i.quantity, 0), 0) || 0;
 
+    // Function to download all bookings as PDF
+    const downloadBookingsAsPDF = () => {
+        try {
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.setTextColor(139, 92, 246); // Purple color
+            doc.text('Temple Management System', 14, 20);
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('All Bookings Report', 14, 30);
+            
+            // Add summary statistics
+            doc.setFontSize(11);
+            doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`, 14, 40);
+            doc.text(`Total Bookings: ${totalBookings}`, 14, 47);
+            doc.text(`Total Revenue: ₹${totalRevenue.toFixed(2)}`, 14, 54);
+            doc.text(`Total Rituals: ${totalRituals}`, 14, 61);
+            
+            // Prepare table data
+            const tableData: any[] = [];
+            
+            combined.forEach((booking) => {
+                // Add main booking row
+                const mainRow = [
+                    booking.name,
+                    booking.booked_by === 'self' ? 'Self' : `Emp: ${booking.booked_by}`,
+                    booking.email || 'N/A',
+                    booking.phone || 'N/A',
+                    `₹${booking.total_cost.toFixed(2)}`,
+                    booking.instances.length.toString()
+                ];
+                tableData.push(mainRow);
+                
+                // Add ritual instances as sub-rows
+                booking.instances.forEach((instance, idx) => {
+                    const ritualRow = [
+                        `  └ ${instance.ritualName}`,
+                        `Qty: ${instance.quantity}`,
+                        `For: ${instance.devoteeName}`,
+                        `Naal: ${instance.naal}`,
+                        `DOB: ${instance.dob}`,
+                        instance.subscription
+                    ];
+                    tableData.push(ritualRow);
+                });
+                
+                // Add empty row for spacing
+                tableData.push(['', '', '', '', '', '']);
+            });
+            
+            // Add table with autoTable
+            autoTable(doc, {
+                startY: 70,
+                head: [['Customer', 'Booked By', 'Email', 'Phone', 'Cost', 'Rituals']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [139, 92, 246], // Purple
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold'
+                },
+                bodyStyles: {
+                    fontSize: 9,
+                    textColor: [50, 50, 50]
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 245, 255]
+                },
+                margin: { top: 70, left: 14, right: 14 },
+                didDrawPage: (data) => {
+                    // Add page numbers
+                    const pageCount = doc.internal.pages.length - 1;
+                    doc.setFontSize(10);
+                    doc.setTextColor(128);
+                    doc.text(
+                        `Page ${data.pageNumber} of ${pageCount}`,
+                        doc.internal.pageSize.getWidth() / 2,
+                        doc.internal.pageSize.getHeight() - 10,
+                        { align: 'center' }
+                    );
+                }
+            });
+            
+            // Save the PDF
+            doc.save(`temple_bookings_${new Date().toISOString().split('T')[0]}.pdf`);
+            toast.success('Bookings PDF downloaded successfully!');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF. Please try again.');
+        }
+    };
+
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Bookings</h1>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Manage Bookings</h1>
+                <button
+                    onClick={downloadBookingsAsPDF}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30 flex items-center space-x-2"
+                >
+                    <Download className="h-5 w-5" />
+                    <span>Download All as PDF</span>
+                </button>
+            </div>
             
             {/* Section for displaying key statistics about all bookings. */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
