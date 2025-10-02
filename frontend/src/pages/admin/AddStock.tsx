@@ -583,4 +583,3 @@ const AddStock = () => {
 };
 
 export default AddStock;
-
