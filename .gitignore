@@ -32,6 +32,10 @@ backend/profile/
 # Environment files
 backend/.env
 frontend/.env
+.env
+**/.env
+.env.*
+
 OTP_RESEND_FEATURE.md
 LOGOUT_COOLDOWN_SUMMARY.md
 LOGOUT_COOLDOWN_CLEAR.md
