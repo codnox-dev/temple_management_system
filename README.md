@@ -25,6 +25,7 @@ A comprehensive web application for managing temple operations, rituals, events,
 1. **Setup Environment Variables**
    - Copy `.env.example` to `.env` in both `backend/` and `frontend/` directories
    - Configure database URLs and API secret keys
+   - Set `CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@dmcras5t4` in `backend/.env` (and optionally override `CLOUDINARY_*_FOLDER` values) so media uploads use Cloudinary storage
 
 2. **Backend Setup**
    ```bash

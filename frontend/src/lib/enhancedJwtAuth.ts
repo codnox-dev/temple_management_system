@@ -296,8 +296,9 @@ class EnhancedJWTAuthService {
    */
   async logout(): Promise<void> {
     try {
-      // Get device fingerprint to send with logout request
-      const deviceFp = this.deviceFingerprint;
+      // Ensure we send the same rate-limit fingerprint used for OTP requests
+      const { generateDeviceFingerprint } = await import('./deviceFingerprint');
+      const deviceFingerprintId = generateDeviceFingerprint();
       
       // Call backend logout endpoint with device fingerprint
       await fetch(`${this.getApiBaseUrl()}/api/auth/logout`, {
@@ -308,7 +309,7 @@ class EnhancedJWTAuthService {
         },
         credentials: 'include',
         body: JSON.stringify({
-          device_fingerprint: deviceFp
+          device_fingerprint: deviceFingerprintId
         })
       });
     } catch (error) {

@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import ReturnDocument
 from ..services import auth_service
 from ..services.storage_service import storage_service
 from ..database import admins_collection
-from ..models.admin_models import AdminPublic # Corrected: Import AdminPublic from admin_models
+from ..models.admin_models import AdminPublic
 from pydantic import BaseModel, Field
 from typing import Optional
 from urllib.parse import unquote
 from ..services.activity_service import create_activity
 from ..models.activity_models import ActivityCreate
+from ..models.upload_models import SignedUploadRequest, SignedUploadResponse, UploadFinalizeRequest
 
 router = APIRouter()
 
@@ -75,78 +76,116 @@ async def update_my_profile(
     return updated_admin
 
 
-@router.post("/me/upload", response_model=AdminPublic)
-async def upload_profile_picture(
-    file: UploadFile = File(...),
+@router.post("/me/upload/authorize", response_model=SignedUploadResponse)
+async def authorize_profile_upload(
+    payload: SignedUploadRequest,
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
-    """
-    Upload a new profile picture with constraints:
-    - Max size 2 MB
-    - Accept only image types (jpeg, png, gif, webp)
-    - Cooldown: can update at most once every 60 days
-    Stores file in MinIO bucket under: {username}/{YYYY-MM-DD_HH-MM-SS_microseconds}/{filename}
-    and updates admins.profile_picture with the MinIO URL and last_profile_update timestamp.
-    """
-    # Validate cooldown using fresh DB value to avoid serialization differences
-    db_doc = await admins_collection.find_one({"_id": ObjectId(current_admin.get("_id"))}, {"last_profile_update": 1})
+    """Return a signed Cloudinary request for direct profile picture uploads."""
+    user_id = current_admin.get("_id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+
+    db_doc = await admins_collection.find_one(
+        {"_id": ObjectId(user_id)},
+        {"last_profile_update": 1}
+    )
     last_update = db_doc.get("last_profile_update") if db_doc else None
-
-    # Ensure last_profile_update is handled correctly when null
-    if last_update is None:
-        last_update = datetime(1970, 1, 1)  # Default to epoch time
-
-    cooldown_period = 60 * 24 * 60 * 60  # 60 days in seconds
-    next_allowed = last_update.timestamp() + cooldown_period
-    current_time = datetime.utcnow().timestamp()
-    if current_time < next_allowed:
+    cooldown = timedelta(days=60)
+    now = datetime.utcnow()
+    if last_update and now < last_update + cooldown:
+        next_allowed = last_update + cooldown
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"You can only update your profile picture once every 60 days. Next update allowed after {datetime.fromtimestamp(next_allowed).strftime('%Y-%m-%d %H:%M:%S')} UTC."
+            detail={
+                "message": "You can only update your profile picture once every 60 days.",
+                "next_allowed": next_allowed.isoformat(),
+            },
         )
 
-    # Read file in memory
-    content = await file.read()
-
-    # Get username
     username = current_admin.get("username")
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username not found in the current session."
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username not found in the current session.")
 
-    # Upload to MinIO using the storage service
-    try:
-        object_path, public_url = storage_service.upload_profile_picture(username, file, content)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload profile picture: {str(e)}"
-        )
+    signature = storage_service.prepare_signed_upload(
+        route_key="profile",
+        filename=payload.filename,
+        username=username,
+    )
 
-    # Prepare update data
+    await create_activity(
+        ActivityCreate(
+            username=username,
+            role=current_admin.get("role", ""),
+            activity=f"Authorised profile picture upload for '{payload.filename}'.",
+            timestamp=now,
+        )
+    )
+
+    return SignedUploadResponse(**signature)
+
+
+@router.post("/me/upload/finalize", response_model=AdminPublic)
+async def finalize_profile_upload(
+    metadata: UploadFinalizeRequest,
+    current_admin: dict = Depends(auth_service.get_current_admin)
+):
+    """Persist profile picture metadata after a successful direct upload to Cloudinary."""
+    user_id = current_admin.get("_id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+
+    username = current_admin.get("username")
+    if not username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username not found in the current session.")
+
+    expected_prefix = f"{username}/"
+    if not metadata.object_path.startswith(expected_prefix):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid upload path for this user")
+
+    expected_public_id = storage_service.build_public_id(storage_service.bucket_name, metadata.object_path)
+    if metadata.public_id != expected_public_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Upload verification failed")
+
+    db_doc = await admins_collection.find_one(
+        {"_id": ObjectId(user_id)},
+        {"profile_picture": 1, "last_profile_update": 1}
+    )
+    existing_profile_picture = db_doc.get("profile_picture") if db_doc else None
+
+    public_url = storage_service.get_public_url_for_bucket(storage_service.bucket_name, metadata.object_path)
+    now = datetime.utcnow()
+
     update_data = {
         "profile_picture": public_url,
-        "last_profile_update": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "last_profile_update": now,
+        "updated_at": now,
         "updated_by": username,
     }
 
-    # Update admin document
     updated_admin = await admins_collection.find_one_and_update(
-        {"_id": ObjectId(current_admin.get("_id"))},
+        {"_id": ObjectId(user_id)},
         {"$set": update_data},
-        return_document=ReturnDocument.AFTER
+        return_document=ReturnDocument.AFTER,
     )
 
     if not updated_admin:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update profile picture in the database."
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile picture in the database.")
+
+    if existing_profile_picture:
+        previous_path = storage_service.normalize_stored_path(existing_profile_picture, "profile")
+        new_path = storage_service.normalize_stored_path(public_url, "profile")
+        if previous_path and new_path and previous_path != new_path:
+            storage_service.delete_profile_asset(existing_profile_picture)
+
+    await create_activity(
+        ActivityCreate(
+            username=username,
+            role=current_admin.get("role", ""),
+            activity="Finalized profile picture update via direct upload.",
+            timestamp=now,
         )
+    )
 
     return updated_admin
 
@@ -154,22 +193,21 @@ async def upload_profile_picture(
 @router.get("/files/{object_path:path}")
 async def serve_profile_file(object_path: str):
     """
-    Serve files from MinIO bucket with proper content types and caching headers.
+    Serve files from Cloudinary-backed storage with proper content types and caching headers.
     """
     try:
         # Decode the URL-encoded object path
         decoded_path = unquote(object_path)
         
-        # Get file from MinIO
-        content, content_type, metadata = storage_service.get_file(decoded_path)
+    # Get secure URL from Cloudinary
+        url = storage_service.get_secure_url_for_bucket(storage_service.bucket_name, decoded_path)
         
-        # Return file with proper headers
-        return Response(
-            content=content,
-            media_type=content_type,
+        # Redirect to Cloudinary URL with caching headers
+        return RedirectResponse(
+            url,
+            status_code=302,
             headers={
                 "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
-                "ETag": f'"{decoded_path}"',
             }
         )
         

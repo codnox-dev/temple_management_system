@@ -12,6 +12,7 @@ import { get } from '@/api/api';
 import api from '@/api/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveImageUrl } from '@/lib/utils';
+import { requestSignedUpload, uploadFileToCloudinary } from '@/lib/cloudinary';
 
 // Define the shape of an event object
 interface Event {
@@ -184,22 +185,18 @@ const ManageEvents = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const form = new FormData();
-                form.append('file', selectedFile);
-                const res = await api.post('/events/upload', form, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+                const signed = await requestSignedUpload('/events/upload', selectedFile);
 
-                if (res.status !== 200) {
-                    const err = res.data || {};
-                    throw new Error(err?.detail || 'Upload failed');
+                if (selectedFile.size > signed.max_file_bytes) {
+                    throw new Error('Image exceeds the 2 MB limit.');
                 }
-                
-                imageUrl = res.data.url;
+
+                await uploadFileToCloudinary(signed, selectedFile);
+                imageUrl = signed.asset_url;
                 toast.success('Image uploaded');
             } catch (err: any) {
                 console.error(err);
-                const errorMsg = err.response?.data?.detail || err.message || 'Upload failed';
+                const errorMsg = err?.response?.data?.detail || err?.message || 'Upload failed';
                 setUploadError(errorMsg);
                 toast.error(`Image upload failed: ${errorMsg}`);
                 setUploading(false);

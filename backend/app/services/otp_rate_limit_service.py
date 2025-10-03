@@ -154,10 +154,13 @@ class OTPRateLimitService:
     async def clear_cooldown_on_logout(device_fingerprint: str, mobile_number: str):
         """
         Clear cooldown when user logs out voluntarily.
-        Resets cooldown but keeps the cooldown level to maintain some abuse protection.
+        This fully resets the cooldown level and counters so users can immediately
+        request a new OTP after logout.
         """
         now = datetime.utcnow()
-        
+
+        next_reset = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
         result = await otp_rate_limit_collection.update_one(
             {
                 "device_fingerprint": device_fingerprint,
@@ -166,15 +169,27 @@ class OTPRateLimitService:
             {
                 "$set": {
                     "cooldown_until": None,
+                    "cooldown_level": 0,
                     "request_count": 0,
-                    "last_request_at": now
+                    "last_request_at": now,
+                    "daily_reset_at": next_reset
                 }
             }
         )
-        
+
         if result.modified_count > 0:
-            logger.info(f"Cleared cooldown on logout for device {device_fingerprint[:8]}... mobile {mobile_number}")
-        
+            logger.info(
+                "Cleared OTP cooldown on logout for device %s mobile %s",
+                device_fingerprint[:8] + "...",
+                mobile_number
+            )
+        else:
+            logger.debug(
+                "No OTP cooldown record found to clear for device %s mobile %s",
+                device_fingerprint[:8] + "...",
+                mobile_number
+            )
+
         return result.modified_count > 0
     
     @staticmethod

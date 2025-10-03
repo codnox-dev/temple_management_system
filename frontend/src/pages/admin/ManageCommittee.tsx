@@ -13,6 +13,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { Trash2, Edit, Plus, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { resolveImageUrl } from '@/lib/utils';
+import { requestSignedUpload, uploadFileToCloudinary } from '@/lib/cloudinary';
 
 interface CommitteeMember {
     _id: string;
@@ -127,16 +128,17 @@ const ManageCommittee = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const formDataUpload = new FormData();
-                formDataUpload.append('file', selectedFile);
+                const signed = await requestSignedUpload('/committee/upload', selectedFile);
 
-                const response = await post<{ path: string; url: string }, FormData>('/committee/upload', formDataUpload, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+                if (selectedFile.size > signed.max_file_bytes) {
+                    throw new Error('Image exceeds the 2 MB limit.');
+                }
 
-                imageUrl = response.path;
+                await uploadFileToCloudinary(signed, selectedFile);
+                imageUrl = signed.asset_url;
                 toast.success('Image uploaded successfully!');
             } catch (error) {
+                console.error('Committee image upload failed:', error);
                 setUploadError('Failed to upload image.');
                 toast.error('Failed to upload image.');
                 setUploading(false);

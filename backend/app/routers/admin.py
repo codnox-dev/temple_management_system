@@ -5,6 +5,7 @@ from bson import ObjectId
 from typing import List
 from pymongo import ReturnDocument
 from ..services import auth_service
+from ..services.storage_service import storage_service
 from typing import Optional
 from ..models.admin_models import AdminCreate, AdminCreateInput, AdminUpdate, AdminInDB, AdminPublic, Token
 from ..database import admins_collection
@@ -303,6 +304,8 @@ async def delete_admin_user(
 
     if delete_result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Admin not found")
+
+    storage_service.delete_profile_asset(target.get("profile_picture"))
     
     # Log activity
     activity = ActivityCreate(

@@ -6,3 +6,9 @@ from .gallery_models import GalleryImageBase, GalleryImageCreate, GalleryImageIn
 from .ritual_models import AvailableRitualBase, AvailableRitualCreate, AvailableRitualInDB, RitualInstance
 from .otp_models import OTPBase, OTPCreate, OTPInDB, OTPVerificationRequest, OTPSendRequest, OTPResponse
 from .main_models import PyObjectId
+from .upload_models import (
+	UploadTarget,
+	SignedUploadRequest,
+	SignedUploadResponse,
+	UploadFinalizeRequest,
+)

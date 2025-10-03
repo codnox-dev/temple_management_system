@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, User, Phone, Save, X, Loader2, Pencil, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { get, put, API_BASE_URL } from '../../api/api'; // Corrected relative import path
+import { get, put, post, API_BASE_URL } from '../../api/api';
 import { UserProfile } from '../../components/Profile'; // Corrected relative import path
 import { toast } from 'sonner';
-import { enhancedJwtAuth } from '../../lib/enhancedJwtAuth';
+import { requestSignedUpload, uploadFileToCloudinary } from '../../lib/cloudinary';
 
 // This interface matches the ProfileUpdate Pydantic model from your FastAPI backend
 export interface ProfileUpdatePayload {
@@ -64,10 +64,9 @@ const EditProfile: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Client-side checks: size <= 2MB & image type
       const maxBytes = 2 * 1024 * 1024;
       if (file.size > maxBytes) {
         setError('File too large. Max 2 MB allowed.');
@@ -77,11 +76,12 @@ const EditProfile: React.FC = () => {
         setError('Unsupported file type. Please upload an image.');
         return;
       }
+      setError(null);
       setSelectedFile(file);
       setImagePreview(URL.createObjectURL(file));
     }
   };
-  
+
   const preCheckAndOpenPicker = () => {
     if (lastProfileUpdate) {
       const lastDt = new Date(lastProfileUpdate);
@@ -89,20 +89,20 @@ const EditProfile: React.FC = () => {
       const now = new Date();
       if (now < nextAllowed) {
         const ms = nextAllowed.getTime() - now.getTime();
-        const days = Math.floor(ms / (24 * 60 * 60 * 1000));
-        const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const days = Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+        const hours = Math.max(0, Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)));
         toast.error(`60-day cooldown active. You can change your profile picture on ${nextAllowed.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
         return;
       }
     }
     fileInputRef.current?.click();
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
-    
+
     const payload: ProfileUpdatePayload = {
       name: formData.name,
       email: formData.email,
@@ -112,64 +112,69 @@ const EditProfile: React.FC = () => {
     };
 
     if (isNaN(payload.mobile_number!)) {
-        setError("Phone number must be a valid number.");
+      setError('Phone number must be a valid number.');
+      setIsSaving(false);
+      return;
+    }
+
+    if (selectedFile) {
+      try {
+        const signed = await requestSignedUpload('/profile/me/upload/authorize', selectedFile);
+
+        if (selectedFile.size > signed.max_file_bytes) {
+          throw new Error('Selected image exceeds the 2 MB limit.');
+        }
+
+        const cloudinaryResult = await uploadFileToCloudinary(signed, selectedFile);
+
+        const finalizePayload = {
+          object_path: signed.object_path,
+          public_id: cloudinaryResult.public_id,
+          secure_url: cloudinaryResult.secure_url,
+          format: cloudinaryResult.format,
+          bytes: cloudinaryResult.bytes,
+          version: cloudinaryResult.version ? String(cloudinaryResult.version) : undefined,
+        };
+
+        const updated = await post<UserProfile, typeof finalizePayload>('/profile/me/upload/finalize', finalizePayload);
+        const pic = updated?.profile_picture || null;
+        setImagePreview(pic ? (String(pic).startsWith('/static') || String(pic).startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
+        setSavedProfile(updated);
+        setLastProfileUpdate((updated as any)?.last_profile_update || null);
+      } catch (uploadErr: any) {
+        console.error('Failed to upload profile picture:', uploadErr);
+        const detail = uploadErr?.response?.data?.detail || uploadErr?.message || 'Upload failed';
+        if (typeof detail === 'object' && detail?.next_allowed) {
+          const na = new Date(detail.next_allowed);
+          const now = new Date();
+          const ms = na.getTime() - now.getTime();
+          const days = Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+          const hours = Math.max(0, Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)));
+          toast.error(`60-day cooldown active. You can change your profile picture on ${na.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
+        } else {
+          toast.error(typeof detail === 'string' ? detail : 'Failed to upload profile picture.');
+          if (typeof detail === 'string') {
+            setError(detail);
+          }
+        }
         setIsSaving(false);
         return;
+      }
     }
 
     try {
-      // If a new file is selected, upload it first
-      if (selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        // Use fetch here to send multipart since our api.ts defaults JSON
-        const token = await enhancedJwtAuth.getAccessToken();
-        const res = await fetch(`${API_BASE_URL}/api/profile/me/upload`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        if (!res.ok) {
-          let msg = 'Upload failed';
-          try {
-            const errJson = await res.json();
-            const detail = (errJson && errJson.detail) || errJson;
-            if (detail?.next_allowed) {
-              const na = new Date(detail.next_allowed);
-              const now = new Date();
-              const ms = na.getTime() - now.getTime();
-              const days = Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
-              const hours = Math.max(0, Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)));
-              toast.error(`60-day cooldown active. You can change your profile picture on ${na.toLocaleString()} (in ${days} day(s) ${hours} hour(s)).`);
-              return;
-            }
-            if (typeof detail === 'string') msg = detail;
-            else if (detail?.message) msg = detail.message;
-          } catch (_) {
-            const errText = await res.text();
-            msg = errText || msg;
-          }
-          throw new Error(msg);
-        }
-        const updated = await res.json();
-        const p = updated?.profile_picture || null;
-        setImagePreview(p ? (String(p).startsWith('/static') || String(p).startsWith('/api/') ? `${API_BASE_URL}${p}` : p) : null);
-      }
-      
-      const updated = await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);
+      const updatedProfile = await put<UserProfile, ProfileUpdatePayload>('/profile/me', payload);
       toast.success('Profile updated successfully!');
-      if (updated) {
-        setSavedProfile(updated);
-        const pic = updated.profile_picture || null;
+      if (updatedProfile) {
+        setSavedProfile(updatedProfile);
+        const pic = updatedProfile.profile_picture || null;
         setImagePreview(pic ? (String(pic).startsWith('/static') || String(pic).startsWith('/api/') ? `${API_BASE_URL}${pic}` : String(pic)) : imagePreview);
       }
       setSelectedFile(null);
-      setIsEditing(false); // Exit editing mode after saving
+      setIsEditing(false);
     } catch (err) {
-      console.error("Failed to update profile:", err);
-      setError("Failed to save changes. Please check your input and try again. If uploading a new photo, ensure it's an image under 2 MB and you haven't changed it in the last 60 days.");
+      console.error('Failed to update profile:', err);
+      setError('Failed to save changes. Please check your input and try again. If uploading a new photo, ensure it\'s an image under 2 MB and you haven\'t changed it in the last 60 days.');
     } finally {
       setIsSaving(false);
     }
