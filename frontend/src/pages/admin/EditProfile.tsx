@@ -119,7 +119,7 @@ const EditProfile: React.FC = () => {
 
     if (selectedFile) {
       try {
-        const signed = await requestSignedUpload('/profile/me/upload/authorize', selectedFile);
+        const signed = await requestSignedUpload('/profile/me/get_signed_upload', selectedFile);
 
         if (selectedFile.size > signed.max_file_bytes) {
           throw new Error('Selected image exceeds the 2 MB limit.');
@@ -136,7 +136,7 @@ const EditProfile: React.FC = () => {
           version: cloudinaryResult.version ? String(cloudinaryResult.version) : undefined,
         };
 
-        const updated = await post<UserProfile, typeof finalizePayload>('/profile/me/upload/finalize', finalizePayload);
+        const updated = await post<UserProfile, typeof finalizePayload>('/profile/me/finalize_upload', finalizePayload);
         const pic = updated?.profile_picture || null;
         setImagePreview(pic ? (String(pic).startsWith('/static') || String(pic).startsWith('/api/') ? `${API_BASE_URL}${pic}` : pic) : null);
         setSavedProfile(updated);
@@ -304,56 +304,58 @@ const EditProfile: React.FC = () => {
             </div>
 
             {/* Phone split */}
-            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
-              <div className="relative sm:col-span-1">
-                <div className="text-sm font-semibold text-orange-700 mb-1">Mobile Number</div>
-                <input
-                  type="text"
-                  name="mobile_prefix"
-                  value={formData.mobile_prefix}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/[^0-9]/g, '');
-                    setFormData(prev => ({ ...prev, mobile_prefix: '+' + digits }));
-                  }}
-                  onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
-                  onPaste={(e) => {
-                    const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
-                    e.preventDefault();
-                    setFormData(prev => ({ ...prev, mobile_prefix: '+' + text }));
-                  }}
-                  onDrop={(e) => e.preventDefault()}
-                  placeholder="+91"
-                  className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
-                  disabled={!isEditing}
-                />
-              </div>
-              <div className="relative sm:col-span-2">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
-                <input
-                  type="tel"
-                  name="mobile_number"
-                  value={formData.mobile_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, mobile_number: (e.target.value || '').replace(/\D/g, '') }))}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
-                  onKeyDown={(e) => {
-                    if (e.ctrlKey || e.metaKey) return;
-                    const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
-                    if (allowed.includes(e.key)) return;
-                    if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                  }}
-                  onPaste={(e) => {
-                    const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
-                    e.preventDefault();
-                    setFormData(prev => ({ ...prev, mobile_number: String(prev.mobile_number || '').concat(text).slice(0, 15) }));
-                  }}
-                  onDrop={(e) => e.preventDefault()}
-                  maxLength={15}
-                  className={`w-full bg-white border border-orange-300 rounded-full py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all`}
-                  placeholder="Phone Number"
-                  disabled={!isEditing}
-                />
+            <div>
+              <div className="text-sm font-semibold text-orange-700 mb-1">Mobile Number</div>
+              <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${!isEditing ? 'opacity-70 pointer-events-none select-none' : ''}`}>
+                <div className="relative sm:col-span-1">
+                  <input
+                    type="text"
+                    name="mobile_prefix"
+                    value={formData.mobile_prefix}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData(prev => ({ ...prev, mobile_prefix: '+' + digits }));
+                    }}
+                    onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+                    onPaste={(e) => {
+                      const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                      e.preventDefault();
+                      setFormData(prev => ({ ...prev, mobile_prefix: '+' + text }));
+                    }}
+                    onDrop={(e) => e.preventDefault()}
+                    placeholder="+91"
+                    className={`w-full bg-white border border-orange-300 rounded-full py-3 px-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all ${!isEditing ? 'opacity-70' : ''}`}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="relative sm:col-span-2">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+                  <input
+                    type="tel"
+                    name="mobile_number"
+                    value={formData.mobile_number}
+                    onChange={(e) => setFormData(prev => ({ ...prev, mobile_number: (e.target.value || '').replace(/\D/g, '') }))}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    onBeforeInput={(e: any) => { if (e?.data && /\D/.test(e.data)) e.preventDefault(); }}
+                    onKeyDown={(e) => {
+                      if (e.ctrlKey || e.metaKey) return;
+                      const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'];
+                      if (allowed.includes(e.key)) return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onPaste={(e) => {
+                      const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+                      e.preventDefault();
+                      setFormData(prev => ({ ...prev, mobile_number: String(prev.mobile_number || '').concat(text).slice(0, 15) }));
+                    }}
+                    onDrop={(e) => e.preventDefault()}
+                    maxLength={15}
+                    className={`w-full bg-white border border-orange-300 rounded-full py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all`}
+                    placeholder="Phone Number"
+                    disabled={!isEditing}
+                  />
+                </div>
               </div>
             </div>
 

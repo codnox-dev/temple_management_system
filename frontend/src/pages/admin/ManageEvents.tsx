@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, Calendar, MapPin, Clock, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { get } from '@/api/api';
+import { get, post } from '@/api/api';
 import api from '@/api/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveImageUrl } from '@/lib/utils';
@@ -185,14 +185,25 @@ const ManageEvents = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const signed = await requestSignedUpload('/events/upload', selectedFile);
+                const signed = await requestSignedUpload('/events/get_signed_upload', selectedFile);
 
                 if (selectedFile.size > signed.max_file_bytes) {
                     throw new Error('Image exceeds the 2 MB limit.');
                 }
 
-                await uploadFileToCloudinary(signed, selectedFile);
-                imageUrl = signed.asset_url;
+                const cloudinaryResult = await uploadFileToCloudinary(signed, selectedFile);
+
+                const finalizePayload = {
+                    object_path: signed.object_path,
+                    public_id: cloudinaryResult.public_id,
+                    secure_url: cloudinaryResult.secure_url,
+                    format: cloudinaryResult.format,
+                    bytes: cloudinaryResult.bytes,
+                    version: cloudinaryResult.version ? String(cloudinaryResult.version) : undefined,
+                };
+
+                const finalizeResponse = await post<{ public_url: string }, typeof finalizePayload>('/events/finalize_upload', finalizePayload);
+                imageUrl = finalizeResponse.public_url;
                 toast.success('Image uploaded');
             } catch (err: any) {
                 console.error(err);

@@ -54,7 +54,7 @@ const ManageGallery = () => {
     const { data: images, isLoading } = useQuery<GalleryImage[]>({ queryKey: ['adminGallery'], queryFn: fetchGalleryImages });
     const imagesById = useMemo(() => Object.fromEntries((images || []).map(i => [i._id, i])), [images]);
 
-    // Load existing Home Preview config on mount
+    // Load existing Home Preview config on mount.
     useEffect(() => {
         (async () => {
             try {
@@ -137,9 +137,12 @@ const ManageGallery = () => {
     // Slideshow config
     const [slideConfigOpen, setSlideConfigOpen] = useState(false);
     const [slides, setSlides] = useState<string[]>([]);
-    const [intervalMs, setIntervalMs] = useState(4000);
-    const [transitionMs, setTransitionMs] = useState(600);
+    const [intervalMs, setIntervalMs] = useState<number | string>(4000);
+    const [transitionMs, setTransitionMs] = useState<number | string>(600);
     const [aspectRatio, setAspectRatio] = useState<'16:9' | '4:3' | '1:1' | '21:9'>('16:9');
+    const [intervalError, setIntervalError] = useState<string | null>(null);
+    const [transitionError, setTransitionError] = useState<string | null>(null);
+
 
     useEffect(() => {
         (async () => {
@@ -211,14 +214,25 @@ const ManageGallery = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const signed = await requestSignedUpload('/gallery/upload', selectedFile);
+                const signed = await requestSignedUpload('/gallery/get_signed_upload', selectedFile);
 
                 if (selectedFile.size > signed.max_file_bytes) {
                     throw new Error('Image exceeds the 2 MB limit.');
                 }
 
-                await uploadFileToCloudinary(signed, selectedFile);
-                imageUrl = signed.asset_url;
+                const cloudinaryResult = await uploadFileToCloudinary(signed, selectedFile);
+
+                const finalizePayload = {
+                    object_path: signed.object_path,
+                    public_id: cloudinaryResult.public_id,
+                    secure_url: cloudinaryResult.secure_url,
+                    format: cloudinaryResult.format,
+                    bytes: cloudinaryResult.bytes,
+                    version: cloudinaryResult.version ? String(cloudinaryResult.version) : undefined,
+                };
+
+                const finalizeResponse = await api.post<{ public_url: string }>('/gallery/finalize_upload', finalizePayload);
+                imageUrl = finalizeResponse.data.public_url;
                 toast.success('Image uploaded');
             } catch (err: any) {
                 console.error(err);
@@ -260,6 +274,115 @@ const ManageGallery = () => {
             setSelectedFileName('');
         }
     };
+    
+    // Handlers for slideshow interval and transition inputs.
+    // Provides real-time validation and allows the field to be cleared.
+    const handleIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setIntervalMs(value);
+
+        if (value === '') {
+            setIntervalError('Interval is required.');
+            return;
+        }
+
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue)) {
+            setIntervalError('Please enter a valid number.');
+        } else if (numValue < 1000) {
+            setIntervalError('Minimum interval is 1000ms.');
+        } else if (numValue > 60000) {
+            setIntervalError('Maximum interval is 60000ms.');
+        } else {
+            setIntervalError(null);
+        }
+    };
+    
+    // Corrects the interval value if it's invalid when the user clicks away.
+    const handleIntervalBlur = () => {
+        let numValue = typeof intervalMs === 'string' ? parseInt(intervalMs, 10) : intervalMs;
+
+        if (intervalMs === '' || isNaN(numValue) || numValue < 1000) {
+            numValue = 1000;
+        } else if (numValue > 60000) {
+            numValue = 60000;
+        }
+        setIntervalMs(numValue);
+        setIntervalError(null);
+    };
+
+    // Handles changes for the slideshow transition time.
+    const handleTransitionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setTransitionMs(value);
+
+        if (value === '') {
+            setTransitionError('Transition is required.');
+            return;
+        }
+
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue)) {
+            setTransitionError('Please enter a valid number.');
+        } else if (numValue < 600) {
+            setTransitionError('Minimum transition is 600ms.');
+        } else if (numValue > 5000) {
+            setTransitionError('Maximum transition is 5000ms.');
+        } else {
+            setTransitionError(null);
+        }
+    };
+
+    // Corrects the transition value on blur.
+    const handleTransitionBlur = () => {
+        let numValue = typeof transitionMs === 'string' ? parseInt(transitionMs, 10) : transitionMs;
+
+        if (transitionMs === '' || isNaN(numValue) || numValue < 600) {
+            numValue = 600;
+        } else if (numValue > 5000) {
+            numValue = 5000;
+        }
+        setTransitionMs(numValue);
+        setTransitionError(null);
+    };
+
+    // Saves the slideshow configuration after final validation.
+    const handleSaveSlideshow = async () => {
+        if (isReadOnly) {
+            toast.error('You are not authorized to modify slideshow.');
+            return;
+        }
+
+        let finalInterval = typeof intervalMs === 'string' ? parseInt(intervalMs, 10) : intervalMs;
+        let finalTransition = typeof transitionMs === 'string' ? parseInt(transitionMs, 10) : transitionMs;
+        
+        let hasError = false;
+        if (isNaN(finalInterval) || finalInterval < 1000 || finalInterval > 60000) {
+            toast.error('Interval must be between 1000 and 60000ms.');
+            hasError = true;
+        }
+        if (isNaN(finalTransition) || finalTransition < 600 || finalTransition > 5000) {
+            toast.error('Transition must be between 600 and 5000ms.');
+            hasError = true;
+        }
+
+        if (hasError) return;
+
+        try {
+            await api.post('/slideshow/', {
+                image_ids: slides,
+                interval_ms: finalInterval,
+                transition_ms: finalTransition,
+                aspect_ratio: aspectRatio
+            });
+            toast.success('Slideshow updated');
+            setSlideConfigOpen(false);
+        } catch (e) {
+            console.error(e);
+            toast.error('Failed to update slideshow');
+        }
+    };
+
 
     // Calculate stats
     const totalImages = images?.length || 0;
@@ -415,23 +538,7 @@ const ManageGallery = () => {
                         <CardTitle className="text-lg font-semibold text-purple-100">Configure Slideshow</CardTitle>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => setSlideConfigOpen(false)} className="border-purple-500/40 text-purple-900 bg-white hover:bg-purple-50">Close</Button>
-                            <Button onClick={async () => {
-                                if (isReadOnly) { toast.error('You are not authorized to modify slideshow.'); return; }
-                                try {
-                                    // CORRECTED: Replaced fetch with api.post
-                                    await api.post('/slideshow/', {
-                                        image_ids: slides, 
-                                        interval_ms: intervalMs, 
-                                        transition_ms: transitionMs, 
-                                        aspect_ratio: aspectRatio 
-                                    });
-                                    toast.success('Slideshow updated');
-                                    setSlideConfigOpen(false);
-                                } catch (e) {
-                                    console.error(e);
-                                    toast.error('Failed to update slideshow');
-                                }
-                            }} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">Save</Button>
+                            <Button onClick={handleSaveSlideshow} disabled={isReadOnly} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">Save</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -519,18 +626,50 @@ const ManageGallery = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 items-center">
-                            <label className="text-sm text-slate-800 col-span-1">Interval (ms)</label>
-                            <Input type="number" value={intervalMs} onChange={(e) => setIntervalMs(Math.max(1000, Math.min(60000, parseInt(e.target.value || '0', 10) || 4000)))} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 w-full" />
-                            <label className="text-sm text-slate-800 col-span-1">Transition (ms)</label>
-                            <Input type="number" value={transitionMs} onChange={(e) => setTransitionMs(Math.max(100, Math.min(5000, parseInt(e.target.value || '0', 10) || 600)))} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 w-full" />
-                            <label className="text-sm text-slate-800 col-span-1">Aspect Ratio</label>
-                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value as any)} disabled={isReadOnly} className="bg-white border-purple-500/30 text-slate-800 rounded px-2 py-2 w-full">
-                                <option value="16:9">16:9</option>
-                                <option value="4:3">4:3</option>
-                                <option value="1:1">1:1</option>
-                                <option value="21:9">21:9</option>
-                            </select>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                                <label htmlFor="interval-ms" className="text-sm font-medium text-purple-100/90">Interval (ms)</label>
+                                <Input
+                                    id="interval-ms"
+                                    type="number"
+                                    value={intervalMs}
+                                    onChange={handleIntervalChange}
+                                    onBlur={handleIntervalBlur}
+                                    disabled={isReadOnly}
+                                    className={`bg-white border-purple-500/30 text-slate-800 w-full ${intervalError ? 'border-red-500' : ''}`}
+                                    placeholder="e.g., 4000"
+                                />
+                                {intervalError && <p className="text-sm text-red-400">{intervalError}</p>}
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="transition-ms" className="text-sm font-medium text-purple-100/90">Transition (ms)</label>
+                                <Input
+                                    id="transition-ms"
+                                    type="number"
+                                    value={transitionMs}
+                                    onChange={handleTransitionChange}
+                                    onBlur={handleTransitionBlur}
+                                    disabled={isReadOnly}
+                                    className={`bg-white border-purple-500/30 text-slate-800 w-full ${transitionError ? 'border-red-500' : ''}`}
+                                    placeholder="e.g., 600"
+                                />
+                                {transitionError && <p className="text-sm text-red-400">{transitionError}</p>}
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="aspect-ratio" className="text-sm font-medium text-purple-100/90">Aspect Ratio</label>
+                                <select
+                                    id="aspect-ratio"
+                                    value={aspectRatio}
+                                    onChange={(e) => setAspectRatio(e.target.value as any)}
+                                    disabled={isReadOnly}
+                                    className="bg-white border-purple-500/30 text-slate-800 rounded px-2 py-1.5 w-full h-[40px]"
+                                >
+                                    <option value="16:9">16:9</option>
+                                    <option value="4:3">4:3</option>
+                                    <option value="1:1">1:1</option>
+                                    <option value="21:9">21:9</option>
+                                </select>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

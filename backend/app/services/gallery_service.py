@@ -11,10 +11,9 @@ def _normalize_gallery_src(doc: Dict[str, Any]) -> Dict[str, Any]:
     src = doc.get("src")
     if not src:
         return doc
-    if isinstance(src, str) and (src.startswith("/api/gallery/files/") or src.startswith("http://") or src.startswith("https://")):
-        return doc
-    if isinstance(src, str) and not urlparse(src).scheme:
-        doc["src"] = f"/api/gallery/files/{src}"
+    object_path = storage_service.normalize_stored_path(src, "gallery")
+    if object_path:
+        doc["src"] = storage_service.get_signed_url_for_bucket(storage_service.gallery_bucket, object_path)
     return doc
 
 async def get_all_gallery_images():

@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from typing import List
 from ..services import gallery_service, auth_service
 from ..models import GalleryImageCreate, GalleryImageInDB
-from ..models.upload_models import SignedUploadRequest, SignedUploadResponse
+from ..models.upload_models import SignedUploadRequest, SignedUploadResponse, UploadFinalizeRequest
 from ..services.activity_service import create_activity
 from ..models.activity_models import ActivityCreate
 from datetime import datetime
@@ -20,8 +20,8 @@ async def list_all_gallery_images():
     """
     return await gallery_service.get_all_gallery_images()
 
-@router.post("/upload", response_description="Authorize a direct gallery upload", response_model=SignedUploadResponse)
-async def authorize_gallery_upload(
+@router.post("/get_signed_upload", response_description="Get signed upload for gallery image", response_model=SignedUploadResponse)
+async def get_signed_upload_for_gallery(
     payload: SignedUploadRequest,
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
@@ -42,13 +42,39 @@ async def authorize_gallery_upload(
 
     return SignedUploadResponse(**signature)
 
+@router.post("/finalize_upload", response_model=dict)
+async def finalize_gallery_upload(
+    metadata: UploadFinalizeRequest,
+    current_admin: dict = Depends(auth_service.get_current_admin)
+):
+    """Validate and return the public URL for an uploaded gallery image."""
+    if int(current_admin.get("role_id", 99)) > 3:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to upload gallery images")
+
+    expected_public_id = storage_service.build_public_id(storage_service.gallery_bucket, metadata.object_path)
+    if metadata.public_id != expected_public_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Upload verification failed")
+
+    public_url = metadata.object_path
+
+    await create_activity(
+        ActivityCreate(
+            username=current_admin["username"],
+            role=current_admin["role"],
+            activity=f"Finalized gallery image upload for '{metadata.object_path}'.",
+            timestamp=datetime.utcnow(),
+        )
+    )
+
+    return {"public_url": public_url}
+
 @router.get("/files/{object_path:path}")
 async def serve_gallery_file(object_path: str):
     """
     Serve gallery images from Cloudinary-backed storage with proper headers.
     """
     decoded_path = unquote(object_path)
-    url = storage_service.get_secure_url_for_bucket(storage_service.gallery_bucket, decoded_path)
+    url = storage_service.get_signed_url_for_bucket(storage_service.gallery_bucket, decoded_path)
     return RedirectResponse(
         url,
         status_code=302,

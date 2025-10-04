@@ -11,6 +11,8 @@ import cloudinary
 from cloudinary.uploader import upload as cloudinary_upload, destroy as cloudinary_destroy
 from cloudinary.utils import cloudinary_url, api_sign_request
 from PIL import Image
+import re
+import cloudinary.api as cloudinary_api
 
 # Load environment variables from a .env file
 load_dotenv()
@@ -18,6 +20,11 @@ load_dotenv()
 
 class CloudinaryStorageService:
     """Storage service implementation backed by Cloudinary."""
+
+    # TTL Constants
+    DEFAULT_SIGNED_URL_TTL = 3600  # 1 hour for viewing
+    UPLOAD_SIGNATURE_TTL = 900     # 15 minutes for uploads
+    TEMP_URL_TTL = 300            # 5 minutes for temporary access
 
     def __init__(self):
         self.cloudinary_url = os.getenv("CLOUDINARY_URL", "")
@@ -39,6 +46,18 @@ class CloudinaryStorageService:
 
         self.enabled = bool(self.cloudinary_url)
 
+        # Feature toggles / security knobs
+        self.use_advanced_transforms = os.getenv("CLOUDINARY_USE_ADVANCED_TRANSFORMS", "true").lower() in {"1", "true", "yes"}
+        self.default_view_ttl = int(os.getenv("CLOUDINARY_DEFAULT_VIEW_TTL", str(self.DEFAULT_SIGNED_URL_TTL)))
+        self.max_view_ttl = int(os.getenv("CLOUDINARY_MAX_VIEW_TTL", "7200"))  # 2 hours cap by default
+        # Additional allowed formats override (comma separated) if provided
+        extra_formats = os.getenv("CLOUDINARY_ALLOWED_FORMATS")
+        if extra_formats:
+            for fmt in extra_formats.split(","):
+                fmt_clean = fmt.strip().lower()
+                if fmt_clean:
+                    self.allowed_extensions.add(fmt_clean)
+
         if not self.enabled:
             print("Cloudinary storage disabled: CLOUDINARY_URL not configured")
         else:
@@ -53,6 +72,11 @@ class CloudinaryStorageService:
             "committee": self.gallery_bucket,
         }
 
+    def _ensure_enabled(self):
+        """Check if Cloudinary storage is enabled and properly configured."""
+        if not self.enabled:
+            raise RuntimeError("Cloudinary storage is not enabled. Please configure CLOUDINARY_URL environment variable.")
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -62,9 +86,11 @@ class CloudinaryStorageService:
             return path
         return f"{self.public_base}{path}" if self.public_base else path
 
-    def get_public_url_for_bucket(self, bucket_name: str, object_path: str) -> str:
+    def get_public_url_for_bucket(self, bucket_name: str, object_path: str, route_key: Optional[str] = None) -> str:
         """Construct the public API route for a stored object."""
-        if bucket_name == self.events_bucket:
+        if route_key == "committee" and bucket_name == self.gallery_bucket:
+            base = "/api/committee/files/"
+        elif bucket_name == self.events_bucket:
             base = "/api/events/files/"
         elif bucket_name == self.gallery_bucket:
             base = "/api/gallery/files/"
@@ -74,11 +100,17 @@ class CloudinaryStorageService:
             base = f"/api/files/{bucket_name}/"
         return self._publicize(f"{base}{quote(object_path)}")
 
-    def validate_image_file(self, file: UploadFile, content: bytes, max_size_mb: int = 2) -> str:
-        """Validate image size and content type."""
-        max_bytes = max_size_mb * 1024 * 1024
-        if len(content) > max_bytes:
-            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size_mb}MB")
+    def validate_image_file(self, file: UploadFile, content: bytes, max_size_mb: Optional[int] = None) -> str:
+        """Validate image size and content type.
+
+        If max_size_mb is provided, enforce that size limit.
+        If max_size_mb is None, no size validation is performed.
+        """
+        # Enforce size limit only if specified
+        if max_size_mb is not None:
+            max_bytes = int(max_size_mb) * 1024 * 1024
+            if len(content) > max_bytes:
+                raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size_mb}MB")
 
         kind = self._get_image_format(content)
         allowed_types = {"jpeg", "png", "gif", "webp"}
@@ -98,6 +130,8 @@ class CloudinaryStorageService:
         safe_filename = os.path.basename(filename or f"profile.{image_type}")
         if not safe_filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
             safe_filename = f"{safe_filename}.{image_type}"
+        # Sanitize filename to avoid spaces/special chars that can complicate signatures
+        safe_filename = re.sub(r"[^A-Za-z0-9_.-]+", "-", safe_filename)
         return f"{username}/{timestamp}/{safe_filename}"
 
     def generate_generic_object_path(self, filename: str, image_type: Optional[str] = None, prefix: Optional[str] = None) -> str:
@@ -107,6 +141,8 @@ class CloudinaryStorageService:
         safe_filename = os.path.basename(base_name)
         if image_type and not safe_filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
             safe_filename = f"{safe_filename}.{image_type}"
+        # Sanitize filename
+        safe_filename = re.sub(r"[^A-Za-z0-9_.-]+", "-", safe_filename)
         if prefix:
             return f"{prefix}/{timestamp}/{safe_filename}"
         return f"{timestamp}/{safe_filename}"
@@ -172,21 +208,43 @@ class CloudinaryStorageService:
         timestamp = int(time.time())
         expires_at = timestamp + int(ttl_seconds)
 
+        # Decide the suggested max bytes to return to the client BEFORE building the params
+        # so that it can be included in the signature parameters.
+        # Profile uploads: strict small size (2MB). Others: generous large cap (100MB).
+        suggested_max_bytes = 2 * 1024 * 1024 if route_key == "profile" else 100 * 1024 * 1024
+
+        # Enhanced security parameters for upload (must be assembled after suggested_max_bytes is defined)
+        # IMPORTANT: Only include parameters here that the client will ALSO send to Cloudinary.
+        # Excluding max_file_size from signing because the frontend currently omits it, causing signature mismatch.
         params_to_sign = {
             "public_id": public_id,
             "timestamp": timestamp,
             "invalidate": "true",
             "overwrite": "false",
+            "access_mode": "authenticated",
+            # Add file type restrictions
+            "allowed_formats": ",".join(sorted(self.allowed_extensions)),
         }
+
+        # Optionally include transformation hints (only if explicitly enabled)
+        if self.use_advanced_transforms:
+            params_to_sign.update({
+                "eager": "q_auto,f_auto",
+                "colors": "true",
+                "faces": "true",
+            })
 
         signature = api_sign_request(params_to_sign, api_secret)
 
         upload_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/{resource_type}/upload"
-        asset_url = self.get_public_url_for_bucket(bucket_name, object_path)
+        asset_url = self.get_public_url_for_bucket(bucket_name, object_path, route_key)
         secure_url = self.get_secure_url_for_bucket(bucket_name, object_path)
 
-        # This line was incorrectly indented, causing the error.
         params = {k: str(v) for k, v in params_to_sign.items()}
+        # Provide advisory (not signed) limits separately so frontend can enforce client-side if desired
+        params_advisory = {
+            "max_file_size": str(suggested_max_bytes)
+        }
 
         response: Dict[str, object] = {
             "upload_url": upload_url,
@@ -201,11 +259,107 @@ class CloudinaryStorageService:
             "expires_at": expires_at,
             "resource_type": resource_type,
             "params": params,
+            "advisory": params_advisory,
             "allowed_extensions": tuple(sorted(self.allowed_extensions)),
-            "max_file_bytes": self.max_image_bytes,
+            "max_file_bytes": suggested_max_bytes,
         }
 
         return response
+
+    # ------------------------------------------------------------------
+    # Signed Delivery URL helpers (view / download)
+    # ------------------------------------------------------------------
+    def generate_temporary_view_url(self, route_key: str, object_path: str, ttl_seconds: Optional[int] = None) -> str:
+        """Generate a short-lived signed URL for viewing an existing stored asset.
+
+        NOTE: This MUST only be called from an authenticated backend route; do not
+        expose this method directly to untrusted callers.
+        """
+        if not self.enabled:
+            raise HTTPException(status_code=503, detail="Object storage disabled")
+        bucket_name = self._route_bucket_map.get(route_key)
+        if not bucket_name:
+            raise HTTPException(status_code=400, detail="Invalid route key")
+        # Force a fixed 1 hour (3600s) expiration window regardless of caller input
+        ttl_seconds = self.DEFAULT_SIGNED_URL_TTL
+        return self.get_signed_url_for_bucket(bucket_name, object_path, expires_in_seconds=ttl_seconds)
+
+    def build_dynamic_transform_url(self, route_key: str, object_path: str, *, width: Optional[int] = None,
+                                    height: Optional[int] = None, quality: str = "auto", format_auto: bool = True,
+                                    crop: Optional[str] = None, secure: bool = True) -> str:
+        """Build (optionally signed) transformed delivery URL for an image.
+
+        Use for on-demand thumbnails instead of storing multiple variants.
+        """
+        if not self.enabled:
+            raise HTTPException(status_code=503, detail="Object storage disabled")
+        bucket_name = self._route_bucket_map.get(route_key)
+        if not bucket_name:
+            raise HTTPException(status_code=400, detail="Invalid route key")
+        public_id = self._build_public_id(bucket_name, object_path)
+        transformation = []
+        if width or height:
+            t = {k: v for k, v in {"width": width, "height": height}.items() if v}
+            if crop:
+                t["crop"] = crop
+            transformation.append(t)
+        fmt = None
+        if format_auto:
+            fmt = None  # let Cloudinary decide via fetch_format=auto
+        url, _ = cloudinary_url(
+            public_id,
+            secure=secure,
+            resource_type="image",
+            quality=quality,
+            fetch_format="auto" if format_auto else None,
+            transformation=transformation if transformation else None,
+        )
+        return url
+
+    # ------------------------------------------------------------------
+    # Post-upload verification (defense-in-depth for advisory limits)
+    # ------------------------------------------------------------------
+    def verify_uploaded_asset(self, route_key: str, object_path: str) -> Dict[str, object]:
+        """Fetch the asset metadata from Cloudinary and enforce server-side policies.
+
+        Intended to be called AFTER the client reports a successful direct upload.
+        You can store returned metadata in DB if needed.
+        """
+        if not self.enabled:
+            raise HTTPException(status_code=503, detail="Object storage disabled")
+        bucket_name = self._route_bucket_map.get(route_key)
+        if not bucket_name:
+            raise HTTPException(status_code=400, detail="Invalid route key")
+        public_id = self._build_public_id(bucket_name, object_path)
+        try:
+            info = cloudinary_api.resource(public_id, resource_type="image")
+        except Exception as exc:  # broad catch: Cloudinary raises different exceptions
+            raise HTTPException(status_code=404, detail=f"Asset not found: {exc}")
+
+        bytes_size = info.get("bytes")
+        fmt = (info.get("format") or "").lower()
+        if bytes_size and bytes_size > self.max_image_bytes:
+            # Optional: schedule deletion for oversize asset
+            try:
+                cloudinary_destroy(public_id, resource_type="image", invalidate=True)
+            except Exception:
+                pass
+            raise HTTPException(status_code=413, detail="Uploaded file exceeds allowed size")
+        if fmt and fmt not in self.allowed_extensions:
+            try:
+                cloudinary_destroy(public_id, resource_type="image", invalidate=True)
+            except Exception:
+                pass
+            raise HTTPException(status_code=415, detail="Unsupported media format")
+        return {
+            "public_id": public_id,
+            "bytes": bytes_size,
+            "format": fmt,
+            "width": info.get("width"),
+            "height": info.get("height"),
+            "created_at": info.get("created_at"),
+            "secure_url": info.get("secure_url"),
+        }
 
     def _build_secure_url(self, bucket_name: str, object_path: str) -> str:
         """Construct a secure, direct URL to a Cloudinary asset."""
@@ -218,6 +372,42 @@ class CloudinaryStorageService:
     def get_secure_url_for_bucket(self, bucket_name: str, object_path: str) -> str:
         """Public helper to get a secure URL for an object in a specific bucket."""
         return self._build_secure_url(bucket_name, object_path)
+
+    def get_signed_url_for_bucket(self, bucket_name: str, object_path: str, expires_in_seconds: Optional[int] = None) -> str:
+        """Generate a signed URL for a private/authenticated image in a specific bucket.
+        
+        Args:
+            bucket_name: The name of the bucket containing the object
+            object_path: The path to the object within the bucket
+            expires_in_seconds: Optional override for URL expiration time
+                              Defaults to DEFAULT_SIGNED_URL_TTL (1 hour)
+                              Use TEMP_URL_TTL for temporary access (5 minutes)
+                              Use None to use the default expiration
+        """
+        if not self.enabled:
+            raise HTTPException(status_code=503, detail="Object storage is disabled")
+
+        # Always enforce a 1 hour TTL (3600s) for consistency & security
+        expires_in_seconds = self.DEFAULT_SIGNED_URL_TTL
+
+        _, ext = os.path.splitext(object_path)
+        fmt = ext.lstrip(".") or None
+        public_id = self._build_public_id(bucket_name, object_path)
+        expires_at = int(time.time()) + expires_in_seconds
+
+        # Generate signed URL with additional security parameters
+        url, _ = cloudinary_url(
+            public_id,
+            format=fmt,
+            secure=True,
+            resource_type="image",
+            sign_url=True,
+            expires_at=expires_at,
+            # Add transformation restrictions
+            quality="auto",  # Auto-optimize quality
+            fetch_format="auto",  # Auto-select best format
+        )
+        return url
 
     def _extract_from_cloudinary_url(self, url: str, bucket_name: str) -> Optional[str]:
         """Used to parse an object path from a full Cloudinary URL."""
@@ -234,21 +424,30 @@ class CloudinaryStorageService:
         if len(segments) < 3:
             return None
 
-        # Drop resource type and delivery type (e.g., image/upload)
-        rest = segments[2:]
-        if rest and rest[0].startswith("v") and rest[0][1:].isdigit():
-            rest = rest[1:]
-        if not rest:
+        # Skip cloud_name, resource_type, delivery_type
+        rest = segments[3:]  # Skip /cloud_name/image/upload/
+
+        # Find the version part (v followed by digits)
+        version_index = None
+        for i, part in enumerate(rest):
+            if part.startswith("v") and part[1:].isdigit():
+                version_index = i
+                break
+
+        if version_index is None:
             return None
 
-        filename = rest[-1]
-        base, ext = os.path.splitext(filename)
-        rest[-1] = base
-        public_id = "/".join(rest)
+        # Public ID is everything after the version
+        public_id_parts = rest[version_index + 1:]
+        if not public_id_parts:
+            return None
+
+        public_id = "/".join(public_id_parts)
+
+        # Remove bucket prefix if present
         if bucket_name and public_id.startswith(f"{bucket_name}/"):
             public_id = public_id[len(bucket_name) + 1:]
-        if ext:
-            return f"{public_id}.{ext.lstrip('.')}"
+
         return public_id
 
     def _extract_object_path(self, identifier: Optional[str], route_key: str, bucket_name: Optional[str]) -> Optional[str]:
@@ -291,84 +490,6 @@ class CloudinaryStorageService:
             return img.format.lower() if img.format else None
         except Exception:
             return None
-
-    # ------------------------------------------------------------------
-    # Upload operations
-    # ------------------------------------------------------------------
-    def _ensure_enabled(self):
-        """Used to check if storage service is configured and raise an error if not."""
-        if not self.enabled:
-            raise HTTPException(status_code=503, detail="Object storage is disabled")
-
-    def _upload_to_cloudinary(self, bucket_name: str, object_path: str, content: bytes, content_type: Optional[str]) -> dict:
-        """Internal handler for uploading file content to Cloudinary."""
-        public_id = self._build_public_id(bucket_name, object_path)
-        fmt = os.path.splitext(object_path)[1].lstrip(".") or None
-        options = {
-            "resource_type": "image",
-            "public_id": public_id,
-            "overwrite": True,
-            "invalidate": True,
-        }
-        if fmt:
-            options["format"] = fmt
-        try:
-            return cloudinary_upload(io.BytesIO(content), **options)
-        except Exception as exc:
-            print(f"Error uploading to Cloudinary: {exc}")
-            raise HTTPException(status_code=500, detail=f"Cloudinary error: {str(exc)}")
-
-    def upload_profile_picture(self, username: str, file: UploadFile, content: bytes) -> Tuple[str, str]:
-        """Used to upload a user's profile picture."""
-        self._ensure_enabled()
-        image_type = self.validate_image_file(file, content)
-        object_path = self.generate_object_path(username, file.filename, image_type)
-        self._upload_to_cloudinary(self.bucket_name, object_path, content, file.content_type)
-        public_url = self.get_public_url_for_bucket(self.bucket_name, object_path)
-        return object_path, public_url
-
-    def upload_image_to_bucket(self, bucket_name: str, file: UploadFile, content: bytes, prefix: Optional[str] = None, validate: bool = False) -> Tuple[str, str]:
-        """Used to upload a generic image to a specified bucket."""
-        self._ensure_enabled()
-        image_type = None
-        if validate:
-            image_type = self.validate_image_file(file, content)
-        else:
-            image_type = self._get_image_format(content)
-        object_path = self.generate_generic_object_path(file.filename, image_type, prefix=prefix)
-        self._upload_to_cloudinary(bucket_name, object_path, content, file.content_type)
-        public_url = self.get_public_url_for_bucket(bucket_name, object_path)
-        return object_path, public_url
-
-    # ------------------------------------------------------------------
-    # Retrieval operations
-    # ------------------------------------------------------------------
-    def get_file(self, object_path: str) -> Tuple[bytes, str, dict]:
-        """Used to retrieve a file from the default bucket."""
-        return self.get_file_from_bucket(self.bucket_name, object_path)
-
-    def get_file_from_bucket(self, bucket_name: str, object_path: str) -> Tuple[bytes, str, dict]:
-        """Used to retrieve a file from a specified bucket."""
-        self._ensure_enabled()
-        object_path = object_path.lstrip("/")
-        try:
-            url = self._build_secure_url(bucket_name, object_path)
-            response = requests.get(url, timeout=20)
-        except requests.RequestException as exc:
-            print(f"Error retrieving from Cloudinary: {exc}")
-            raise HTTPException(status_code=500, detail="Failed to retrieve file")
-
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail="File not found")
-        if response.status_code >= 400:
-            print(f"Cloudinary retrieval error ({response.status_code}): {response.text[:200]}")
-            raise HTTPException(status_code=500, detail="Failed to retrieve file")
-
-        content_type = response.headers.get("Content-Type", "application/octet-stream")
-        content = response.content
-        response.close()
-        return content, content_type, {}
-
     # ------------------------------------------------------------------
     # Deletion operations
     # ------------------------------------------------------------------

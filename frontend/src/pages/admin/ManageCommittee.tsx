@@ -128,14 +128,25 @@ const ManageCommittee = () => {
             setUploading(true);
             setUploadError(null);
             try {
-                const signed = await requestSignedUpload('/committee/upload', selectedFile);
+                const signed = await requestSignedUpload('/committee/get_signed_upload', selectedFile);
 
                 if (selectedFile.size > signed.max_file_bytes) {
                     throw new Error('Image exceeds the 2 MB limit.');
                 }
 
-                await uploadFileToCloudinary(signed, selectedFile);
-                imageUrl = signed.asset_url;
+                const cloudinaryResult = await uploadFileToCloudinary(signed, selectedFile);
+
+                const finalizePayload = {
+                    object_path: signed.object_path,
+                    public_id: cloudinaryResult.public_id,
+                    secure_url: cloudinaryResult.secure_url,
+                    format: cloudinaryResult.format,
+                    bytes: cloudinaryResult.bytes,
+                    version: cloudinaryResult.version ? String(cloudinaryResult.version) : undefined,
+                };
+
+                const finalizeResponse = await post<{ public_url: string }, typeof finalizePayload>('/committee/finalize_upload', finalizePayload);
+                imageUrl = finalizeResponse.public_url;
                 toast.success('Image uploaded successfully!');
             } catch (error) {
                 console.error('Committee image upload failed:', error);

@@ -14,7 +14,7 @@ class AdminBase(BaseModel):
     role_id: int = Field(..., example=1)
     mobile_number: int = Field(..., example=1234567890)
     mobile_prefix: str = Field(..., example="+91")
-    profile_picture: Optional[str] = Field(None, example="https://example.com/profile.jpg")
+    profile_picture: Optional[str] = Field(None, example="https://res.cloudinary.com/.../signed_url")
     dob: Optional[str] = Field(None, example="1990-01-01")
     last_login: Optional[datetime] = Field(None)
     permissions: List[str] = Field(default_factory=list)

@@ -30,6 +30,14 @@ async def get_my_profile(current_admin: dict = Depends(auth_service.get_current_
     """
     Fetches the profile information for the currently authenticated admin.
     """
+    # Generate signed URL for profile picture if it exists
+    profile_picture = current_admin.get("profile_picture")
+    if profile_picture:
+        # Normalize to get the object path
+        object_path = storage_service.normalize_stored_path(profile_picture, "profile")
+        if object_path:
+            signed_url = storage_service.get_signed_url_for_bucket(storage_service.bucket_name, object_path)
+            current_admin["profile_picture"] = signed_url
     return current_admin
 
 @router.put("/me", response_model=AdminPublic) # This will also work correctly now
@@ -61,6 +69,14 @@ async def update_my_profile(
     if not updated_admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin user not found")
 
+    # Generate signed URL for profile picture if it exists
+    profile_picture = updated_admin.get("profile_picture")
+    if profile_picture:
+        object_path = storage_service.normalize_stored_path(profile_picture, "profile")
+        if object_path:
+            signed_url = storage_service.get_signed_url_for_bucket(storage_service.bucket_name, object_path)
+            updated_admin["profile_picture"] = signed_url
+
     # No password field to sanitize
     
     # Build a human-readable summary of what changed
@@ -76,8 +92,8 @@ async def update_my_profile(
     return updated_admin
 
 
-@router.post("/me/upload/authorize", response_model=SignedUploadResponse)
-async def authorize_profile_upload(
+@router.post("/me/get_signed_upload", response_model=SignedUploadResponse)
+async def get_signed_upload_for_profile(
     payload: SignedUploadRequest,
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
@@ -125,7 +141,7 @@ async def authorize_profile_upload(
     return SignedUploadResponse(**signature)
 
 
-@router.post("/me/upload/finalize", response_model=AdminPublic)
+@router.post("/me/finalize_upload", response_model=AdminPublic)
 async def finalize_profile_upload(
     metadata: UploadFinalizeRequest,
     current_admin: dict = Depends(auth_service.get_current_admin)
@@ -147,13 +163,26 @@ async def finalize_profile_upload(
     if metadata.public_id != expected_public_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Upload verification failed")
 
+    # Enforce 2MB limit for profile pictures
+    max_profile_size_bytes = 2 * 1024 * 1024
+    if metadata.bytes and metadata.bytes > max_profile_size_bytes:
+        # Delete the uploaded asset since it exceeds the limit
+        try:
+            storage_service.delete_profile_asset(metadata.secure_url or f"{storage_service.bucket_name}/{metadata.object_path}")
+        except Exception:
+            pass  # Non-fatal, but log if possible
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Profile picture exceeds the maximum allowed size of 2MB. Uploaded size: {metadata.bytes} bytes."
+        )
+
     db_doc = await admins_collection.find_one(
         {"_id": ObjectId(user_id)},
         {"profile_picture": 1, "last_profile_update": 1}
     )
     existing_profile_picture = db_doc.get("profile_picture") if db_doc else None
 
-    public_url = storage_service.get_public_url_for_bucket(storage_service.bucket_name, metadata.object_path)
+    public_url = metadata.object_path
     now = datetime.utcnow()
 
     update_data = {
@@ -171,6 +200,12 @@ async def finalize_profile_upload(
 
     if not updated_admin:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile picture in the database.")
+
+    # Generate signed URL for the new profile picture
+    profile_picture = updated_admin.get("profile_picture")
+    if profile_picture:
+        signed_url = storage_service.get_signed_url_for_bucket(storage_service.bucket_name, profile_picture)
+        updated_admin["profile_picture"] = signed_url
 
     if existing_profile_picture:
         previous_path = storage_service.normalize_stored_path(existing_profile_picture, "profile")
@@ -199,8 +234,8 @@ async def serve_profile_file(object_path: str):
         # Decode the URL-encoded object path
         decoded_path = unquote(object_path)
         
-    # Get secure URL from Cloudinary
-        url = storage_service.get_secure_url_for_bucket(storage_service.bucket_name, decoded_path)
+        # Get signed URL from Cloudinary for private image
+        url = storage_service.get_signed_url_for_bucket(storage_service.bucket_name, decoded_path)
         
         # Redirect to Cloudinary URL with caching headers
         return RedirectResponse(
