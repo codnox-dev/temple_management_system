@@ -129,8 +129,8 @@ const EventSection = () => {
   }, [displayedEvents.length, handleNext]);
 
   return (
-    <section className="py-10 px-6">
-      <div className="max-w-screen-2xl mx-auto bg-transparent border-2 border-red-500 rounded-xl p-6 sm:p-8 lg:p-12 relative overflow-hidden"> {/* Added 'relative' and 'overflow-hidden' */}
+    <section className="py-8 px-4 md:py-14 md:px-8">
+      <div className="max-w-screen-2xl mx-auto temple-glass-surface no-pad overflow-hidden relative"> {/* unified hero style glass */}
         
         {/* --- GOLDEN LOTUS SVG ADJUSTED: left-38% on mobile, left-44% on desktop --- */}
         <svg 
@@ -194,12 +194,14 @@ const EventSection = () => {
         {/* ---------------------------------- */}
 
         <div className="max-w-7xl mx-auto relative z-10"> {/* Added 'relative z-10' to keep content above SVG */}
-          <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
-            <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
-              Upcoming <span className="text-amber-900">Events</span>
+          <div ref={headerRef} className={`text-center mb-14 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
+            <h2 className="temple-section-heading">
+              <span className="sub">Upcoming</span>
+              Sacred Events
             </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Join our spiritual community in celebrating divine festivals, daily prayers, and special ceremonies.
+            <div className="temple-section-heading-divider" />
+            <p className="text-base md:text-lg text-[hsl(30_25%_90%)]/85 max-w-3xl mx-auto mt-6 tracking-[0.25px]">
+              Join our spiritual community as we celebrate festivals, daily rituals and special ceremonies filled with devotion, rhythm and light.
             </p>
           </div>
           {/* ... rest of the component remains unchanged ... */}
@@ -209,8 +211,8 @@ const EventSection = () => {
           {!isLoading && !isError && currentEvent && (
             <>
               <div ref={eventsRef} className={`relative max-w-4xl lg:max-w-6xl mx-auto ${eventsVisible ? 'animate-fade-in' : ''}`}>
-                {/* The main event card now has transition properties for a smooth fade */}
-                <div className={`relative group overflow-hidden flex flex-col md:flex-row h-full rounded-xl border-4 border-amber-600/30 bg-amber-400/30 shadow-xl transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
+                {/* Main event card - glass variant */}
+                <div className={`relative group overflow-hidden flex flex-col md:flex-row h-full rounded-3xl border border-amber-300/35 bg-[rgba(80,40,10,0.25)]/40 backdrop-blur-xl shadow-[0_10px_40px_-18px_rgba(0,0,0,0.65)] transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
                   <div className="relative overflow-hidden md:w-1/2 h-64 md:h-auto">
                     <ImageWithBlur
                       src={resolveImageUrl(currentEvent.image)}
@@ -223,28 +225,28 @@ const EventSection = () => {
                       </span>
                     )}
                   </div>
-                  <div className="p-6 md:p-8 flex flex-col flex-grow md:w-1/2 md:border-l-8 md:border-amber-700/30">
+                  <div className="p-6 md:p-8 flex flex-col flex-grow md:w-1/2 md:border-l md:border-amber-200/25 backdrop-blur-sm">
                     <div className="flex-grow">
-                      <h3 className="text-3xl text-black font-playfair font-semibold group-hover:text-gray-800 transition-colors mb-4">
+                      <h3 className="text-2xl md:text-3xl font-semibold font-playfair mb-4 gold-glow-text">
                         {currentEvent.title}
                       </h3>
                       <div className="space-y-3 text-sm">
-                        <div className="text-gray-800 flex items-center">
+                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
                           <Calendar className="h-4 w-4 mr-3 text-primary" />
                           {new Date(currentEvent.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
-                        <div className="text-gray-800 flex items-center">
+                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
                           <Clock className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.time}
                         </div>
-                        <div className="text-gray-800 flex items-center">
+                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
                           <MapPin className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.location}
                         </div>
                       </div>
                     </div>
                     <div className="mt-auto pt-6">
-                      <Link to={`/events/${currentEvent._id}`} className="w-full md:w-auto inline-flex items-center justify-center rounded-md px-6 py-3 bg-amber-800 hover:bg-amber-900 text-white font-semibold shadow-md transform hover:scale-105 transition-transform duration-300">
+                      <Link to={`/events/${currentEvent._id}`} className="temple-btn-primary w-full md:w-auto inline-flex items-center justify-center">
                         Event Details
                       </Link>
                     </div>

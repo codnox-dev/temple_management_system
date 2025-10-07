@@ -111,9 +111,16 @@ const Navigation = () => {
       </style>
       <header className="fixed top-0 z-50 w-full p-2 sm:p-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <nav
-          className={`desktop-trapezoid max-w-7xl mx-auto transition-all duration-300 ease-in-out rounded-lg md:rounded-none overflow-hidden ${
-            isScrolled ? 'bg-yellow-950 shadow-lg' : 'bg-yellow-950/60 backdrop-blur-md'
+          className={`desktop-trapezoid max-w-7xl mx-auto transition-all duration-500 ease-in-out rounded-lg md:rounded-none overflow-hidden relative ${
+            isScrolled ? 'shadow-xl' : 'shadow-md'
           }`}
+          style={{
+            background: isScrolled
+              ? 'linear-gradient(90deg,#3a1d06,#5a320c 35%,#744310)'
+              : 'linear-gradient(90deg,rgba(60,28,6,0.85),rgba(110,60,10,0.75) 40%,rgba(140,80,25,0.75))',
+            backdropFilter: isScrolled ? 'blur(6px)' : 'blur(10px)',
+            border: '1px solid rgba(255,210,120,0.25)'
+          }}
         >
           {/* Padding is now responsive: smaller on mobile, larger on desktop */}
           <div className={`relative flex items-center justify-between w-full px-4 md:px-20 transition-all duration-300 ${isScrolled ? 'h-16' : 'h-20'}`}>
@@ -121,7 +128,7 @@ const Navigation = () => {
               {/* --- Desktop Layout (CSS Grid for guaranteed centering) --- */}
               <div className="hidden md:grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-6">
                 {/* Left Items (spaced out) */}
-                <div className="flex items-center justify-around">
+                <div className="flex items-center justify-around gap-x-6">
                   {leftNavItems.map((item) => <NavLink item={item} key={item.path}/>)}
                 </div>
                 
@@ -131,12 +138,12 @@ const Navigation = () => {
                 </div>
 
                 {/* Right Items (spaced out with an added left margin) */}
-                <div className="flex items-center justify-around gap-x-4 ml-8">
+                <div className="flex items-center justify-around gap-x-6 ml-8">
                   {rightNavItems.map((item) => <NavLink item={item} key={item.path}/>)}
                   <button
                     type="button"
                     onClick={() => navigate('/ritual-booking')}
-                    className="bg-yellow-500 text-white py-2 px-5 rounded-full font-semibold shadow-md hover:bg-yellow-600 transition-colors duration-300 whitespace-nowrap" // Changed button colors to yellow
+                    className="temple-btn-primary whitespace-nowrap"
                   >
                     Book Now
                   </button>
@@ -163,7 +170,7 @@ const Navigation = () => {
 
           {/* The mobile menu dropdown */}
           {isMobileMenuOpen && (
-            <div className="md:hidden bg-yellow-950/95 backdrop-blur-sm shadow-xl">
+            <div className="md:hidden shadow-xl" style={{background:'linear-gradient(180deg,rgba(60,28,6,0.95),rgba(110,60,10,0.92))', border:'1px solid rgba(255,210,120,0.25)'}}>
               <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                 {navItems.map((item) => (
                   <a
