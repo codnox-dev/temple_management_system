@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // --- Type Definitions ---
 interface ApiRitual {
@@ -84,14 +86,211 @@ const EmployeeRitualBooking = () => {
 
 	const calculateTotal = () => instances.reduce((sum, i) => sum + calcInstanceTotal(i), 0);
 
+    // Helper function to format timestamp as dd/mm/yyyy hh:mm
+    const formatTimestamp = (timestamp: string) => {
+        const date = new Date(timestamp);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    };
+
+    // Function to auto-download booking receipt as PDF
+    const downloadBookingReceiptAsPDF = async (bookingData: any) => {
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginX = 14;
+            let cursorY = 18;
+
+            // Load Malayalam font
+            let malayalamFontAvailable = false;
+            try {
+                const response = await fetch('/fonts/NotoSansMalayalam-Regular.ttf');
+                const fontArrayBuffer = await response.arrayBuffer();
+                const fontBase64 = btoa(
+                    new Uint8Array(fontArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                doc.addFileToVFS('NotoSansMalayalam-Regular.ttf', fontBase64);
+                doc.addFont('NotoSansMalayalam-Regular.ttf', 'NotoSansMalayalam', 'normal');
+                malayalamFontAvailable = true;
+            } catch (error) {
+                console.warn('Could not load Malayalam font:', error);
+            }
+
+            // Helper function to detect Malayalam characters
+            const containsMalayalam = (text: string): boolean => {
+                return /[\u0D00-\u0D7F]/.test(text);
+            };
+
+            // Header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Temple Management System', marginX, cursorY);
+
+            cursorY += 8;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Booking Receipt', marginX, cursorY);
+
+            cursorY += 8;
+            // Summary line
+            doc.setFontSize(10);
+            doc.setTextColor(60);
+            const generatedOn = `${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`;
+            doc.text(`Generated on: ${generatedOn}`, marginX, cursorY);
+
+            cursorY += 6;
+            doc.setTextColor(0);
+            doc.text(`Total Rituals: ${bookingData.instances.length}`, marginX, cursorY);
+            doc.text(`Total Revenue: Rs. ${bookingData.total_cost.toFixed(2)}`, marginX + 60, cursorY);
+
+            cursorY += 8;
+
+            // Footer renderer
+            const drawFooter = (pageNumber: number) => {
+                doc.setFontSize(9);
+                doc.setTextColor(120);
+                doc.text('Booking Receipt', pageWidth / 2, pageHeight - 8, { align: 'center' });
+            };
+
+            const withPageDecorations = {
+                didDrawPage: (data: any) => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('Booking Receipt', marginX, 10);
+                    drawFooter(data.pageNumber);
+                }
+            } as const;
+
+            // Check if booking has enough space
+            const remaining = pageHeight - cursorY - 40;
+            if (remaining < 40) {
+                doc.addPage();
+                cursorY = 18;
+            }
+
+            // Booking header panel
+            doc.setFillColor(255, 255, 255);
+            const panelWidth = pageWidth - marginX * 2;
+            const panelHeight = 14;
+            doc.rect(marginX, cursorY, panelWidth, panelHeight, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(40);
+            doc.text(`${bookingData.name}  (Employee: ${bookingData.booked_by})`, marginX + 2, cursorY + 5.5);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(70);
+            const contactLine = `Booked: ${formatTimestamp(new Date().toISOString())}`;
+            doc.text(contactLine, marginX + 2, cursorY + 10.5);
+
+            // Total cost badge on the right
+            const costText = `Total: Rs. ${bookingData.total_cost.toFixed(2)}`;
+            const costTextWidth = doc.getTextWidth(costText) + 6;
+            const costX = marginX + panelWidth - costTextWidth - 2;
+            doc.setFillColor(229, 231, 235);
+            doc.roundedRect(costX, cursorY + 3, costTextWidth, 8, 2, 2, 'F');
+            doc.setTextColor(0);
+            doc.text(costText, costX + 3, cursorY + 9);
+
+            cursorY += panelHeight + 2;
+
+            // Ritual instances table
+            const body = bookingData.instances.map((instance: any) => [
+                instance.ritualName || '-',
+                String(instance.quantity ?? '-'),
+                instance.devoteeName || '-',
+                instance.naal || '-',
+                instance.dob || '-',
+                instance.subscription || '-'
+            ]);
+
+            autoTable(doc, {
+                ...withPageDecorations,
+                startY: cursorY,
+                head: [[
+                    'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
+                ]],
+                body,
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 9,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    fontStyle: 'normal'
+                },
+                headStyles: {
+                    fillColor: [0, 0, 0],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    font: 'helvetica'
+                },
+                bodyStyles: {
+                    textColor: [30, 30, 30],
+                    font: 'helvetica'
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                margin: { left: marginX, right: marginX },
+                columnStyles: {
+                    0: { cellWidth: 54 }, // Ritual
+                    1: { cellWidth: 12, halign: 'center' }, // Qty
+                    2: { cellWidth: 36 }, // Devotee
+                    3: { cellWidth: 28 }, // Naal
+                    4: { cellWidth: 22 }, // DOB
+                    5: { cellWidth: 'auto' } // Subscription
+                },
+                didParseCell: function(data: any) {
+                    // Apply Malayalam font to any cell containing Malayalam text
+                    if (malayalamFontAvailable && data.section === 'body') {
+                        const cellText = data.cell.text ? data.cell.text.join('') : '';
+                        if (containsMalayalam(cellText)) {
+                            data.cell.styles.font = 'NotoSansMalayalam';
+                            data.cell.styles.fontStyle = 'normal';
+                        }
+                    }
+                }
+            });
+
+            const fileName = `booking_receipt_${bookingData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+            console.log('PDF downloaded successfully!');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        }
+    };
+
 	const bookingMutation = useMutation({
 		mutationFn: (newBooking: any) => {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
             return api.post('/employee-bookings/', newBooking, config)
         },
-        onSuccess: () => {
+        onSuccess: (response, variables) => {
             toast.success("Booking created successfully!");
+            
+            // Generate and download PDF receipt with booking data
+            const bookingData = {
+                name: variables.name,
+                instances: variables.instances,
+                total_cost: variables.total_cost,
+                booked_by: variables.booked_by,
+                timestamp: new Date().toISOString()
+            };
+            downloadBookingReceiptAsPDF(bookingData);
+
             queryClient.invalidateQueries({ queryKey: ['stockItems'] }); // Refetch stock
             setFormData({ name: '' });
             setInstances([]);
