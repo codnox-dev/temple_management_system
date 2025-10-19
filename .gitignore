@@ -28,6 +28,9 @@ __pycache__/
 
 # Folers
 backend/profile/
+backend/backups/
+backend/mongodb-database-tools-debian10-x86_64-100.13.0.deb
+
 
 # Environment files
 backend/.env
