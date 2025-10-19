@@ -106,24 +106,13 @@ app.add_middleware(
 # --- Startup Event to Populate Database ---
 @app.on_event("startup")
 async def startup_db_client():
-    # --- Create Backups Directory ---
-    try:
-        import os
-        from pathlib import Path
-        backup_dir = Path(__file__).parent.parent / "backups"
-        backup_dir.mkdir(exist_ok=True)
-        print(f"✓ Backups directory ready: {backup_dir}")
-    except Exception as e:
-        print(f"⚠ Warning: Could not create backups directory: {e}")
+    # ========================================
+    # STEP 1: DATABASE SYNCHRONIZATION (MUST BE FIRST!)
+    # ========================================
+    print("=" * 60)
+    print("STARTUP SEQUENCE: Database Sync (Priority 1)")
+    print("=" * 60)
     
-    # --- Ensure Unique Indexes ---
-    try:
-        await ensure_indexes()
-        print("Ensured required indexes (admins, calendar)")
-    except Exception as e:
-        # Will fail if duplicates exist; surface a warning so it can be resolved
-        print(f"Warning: Could not ensure indexes: {e}")
-
     # --- Initialize Sync Manager and Network Monitor ---
     try:
         from .services.sync_manager_service import get_sync_manager
@@ -146,14 +135,15 @@ async def startup_db_client():
             await start_network_monitoring()
             print("✓ Network monitoring started (checks every 5 minutes)")
             
-            # Optional: Perform initial sync on startup if online
+            # CRITICAL: Perform initial sync on startup BEFORE any other operations
             try:
-                if sync_manager.config and sync_manager.config.autoSyncEnabled:
-                    print("🔄 Performing initial sync...")
-                    await sync_manager.sync_all_collections(trigger="automatic")
-                    print("✓ Initial sync completed")
+                print("🔄 Performing INITIAL DATABASE SYNC (blocking)...")
+                print("   This ensures local database is up-to-date before proceeding...")
+                await sync_manager.sync_all_collections(trigger="startup")
+                print("✅ Initial database sync completed successfully!")
             except Exception as sync_error:
-                print(f"⚠ Initial sync failed (will retry on schedule): {sync_error}")
+                print(f"❌ CRITICAL: Initial sync failed: {sync_error}")
+                print("   Application will continue but data may be out of sync!")
         else:
             print("⚠ Sync not configured:")
             print("   - Set PRIMARY_DATABASE=local in .env to enable sync")
@@ -161,8 +151,43 @@ async def startup_db_client():
             print("   Working in local-only mode.")
     
     except Exception as e:
-        print(f"⚠ Warning: Could not initialize sync system: {e}")
+        print(f"❌ CRITICAL: Could not initialize sync system: {e}")
         print("   Application will continue without sync features.")
+    
+    print("=" * 60)
+    print("STARTUP SEQUENCE: Database Sync Complete ✅")
+    print("=" * 60)
+    print()
+    
+    # ========================================
+    # STEP 2: INFRASTRUCTURE SETUP
+    # ========================================
+    print("STARTUP SEQUENCE: Infrastructure Setup...")
+    
+    # --- Create Backups Directory ---
+    try:
+        import os
+        from pathlib import Path
+        backup_dir = Path(__file__).parent.parent / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        print(f"✓ Backups directory ready: {backup_dir}")
+    except Exception as e:
+        print(f"⚠ Warning: Could not create backups directory: {e}")
+    
+    # --- Ensure Unique Indexes ---
+    try:
+        await ensure_indexes()
+        print("✓ Ensured required indexes (admins, calendar)")
+    except Exception as e:
+        # Will fail if duplicates exist; surface a warning so it can be resolved
+        print(f"⚠ Warning: Could not ensure indexes: {e}")
+    
+    print()
+    
+    # ========================================
+    # STEP 3: DATA INITIALIZATION (After Sync)
+    # ========================================
+    print("STARTUP SEQUENCE: Data Initialization...")
 
     # --- Populate Rituals ---
     if await available_rituals_collection.count_documents({}) == 0:
