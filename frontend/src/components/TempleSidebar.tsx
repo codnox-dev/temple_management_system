@@ -211,6 +211,12 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
                 </NavLink>
                 )}
                 {roleId <= 1 && (
+                <NavLink to="/admin/security" className={subNavLinkClass}>
+                    <Shield className="h-4 w-4" />
+                    <span>Security Overview</span>
+                </NavLink>
+                )}
+                {roleId <= 1 && (
                 <NavLink to="/admin/backup" className={subNavLinkClass}>
                     <Database className="h-4 w-4" />
                     <span>Backup Management</span>
