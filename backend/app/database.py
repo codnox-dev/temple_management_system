@@ -41,9 +41,7 @@ events_featured_collection = database.get_collection("events_featured")
 events_section_collection = database.get_collection("events_section")
 calendar_collection = database.get_collection("calendar")
 calendar_audit_collection = database.get_collection("calendar_audit")
-otp_collection = database.get_collection("otp")
-otp_rate_limit_collection = database.get_collection("otp_rate_limit")
-ip_rate_limit_collection = database.get_collection("ip_rate_limit")
+login_attempts_collection = database.get_collection("login_attempts")
 
 # Enhanced Security Collections
 token_revocation_collection = database.get_collection("token_revocation")
@@ -75,44 +73,18 @@ async def ensure_indexes():
     await calendar_collection.create_index([("malayalam_year", ASCENDING), ("dateISO", ASCENDING)], name="malayalamYear_dateISO")
     await calendar_collection.create_index([("year", ASCENDING), ("month", ASCENDING), ("day", ASCENDING)], name="ymd")
 
-    # Audit indexes
-    await calendar_audit_collection.create_index([("dateISO", ASCENDING), ("timestamp", ASCENDING)], name="audit_date_time")
-
-    # Enhanced Security Indexes
-    # Token revocation indexes
-    await token_revocation_collection.create_index([("jti", ASCENDING)], unique=True, name="uniq_jti")
-    await token_revocation_collection.create_index([("revoked_at", ASCENDING)], name="revoked_at_idx")
-    
-    # Device fingerprints indexes
-    await device_fingerprints_collection.create_index([("user_id", ASCENDING)], unique=True, name="uniq_user_device")
-    await device_fingerprints_collection.create_index([("last_seen", ASCENDING)], name="last_seen_idx")
-    
-    # Security events indexes
-    await security_events_collection.create_index([("user_id", ASCENDING), ("timestamp", ASCENDING)], name="user_security_events")
-    await security_events_collection.create_index([("event_type", ASCENDING), ("timestamp", ASCENDING)], name="event_type_time")
-    await security_events_collection.create_index([("ip_address", ASCENDING), ("timestamp", ASCENDING)], name="ip_security_events")
-    
+    # Login attempt rate limit indexes
+    await login_attempts_collection.create_index(
+        [("ip_address", ASCENDING), ("device_identifier", ASCENDING)],
+        unique=True,
+        name="uniq_ip_device_attempt"
+    )
+    await login_attempts_collection.create_index([( "window_start", ASCENDING)], name="login_window_idx")
+    await login_attempts_collection.create_index([( "blocked_until", ASCENDING)], name="login_block_idx")
     # User sessions indexes
     await user_sessions_collection.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], name="user_sessions")
     await user_sessions_collection.create_index([("expires_at", ASCENDING)], name="session_expiry")
 
-    # OTP indexes
-    await otp_collection.create_index([("mobile_number", ASCENDING)], name="mobile_number")
-    await otp_collection.create_index([("expires_at", ASCENDING)], expireAfterSeconds=0, name="expire_otps")  # TTL index
-
-    # OTP Rate Limiting indexes
-    await otp_rate_limit_collection.create_index(
-        [("device_fingerprint", ASCENDING), ("mobile_number", ASCENDING)],
-        unique=True,
-        name="uniq_device_mobile"
-    )
-    await otp_rate_limit_collection.create_index([("cooldown_until", ASCENDING)], name="cooldown_until_idx")
-    await otp_rate_limit_collection.create_index([("daily_reset_at", ASCENDING)], name="daily_reset_idx")
-
-    # IP Rate Limiting indexes
-    await ip_rate_limit_collection.create_index([("ip_address", ASCENDING)], unique=True, name="uniq_ip")
-    await ip_rate_limit_collection.create_index([("blocked_until", ASCENDING)], name="blocked_until_idx")
-    await ip_rate_limit_collection.create_index([("window_start", ASCENDING)], name="window_start_idx")
 
 # Note: The index creation is now within an async function.
 # This should be called during your application's startup event in main.py.

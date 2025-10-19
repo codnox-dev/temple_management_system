@@ -18,8 +18,8 @@ class EnhancedJWTAuthMiddleware(BaseHTTPMiddleware):
         # Paths that don't require JWT authentication
         self.exclude_paths = exclude_paths or [
             "/docs", "/redoc", "/openapi.json", "/", 
-            "/api/auth/login", "/api/auth/register", "/api/auth/get-token", 
-            "/api/auth/refresh-token", "/api/auth/send-otp", "/api/auth/verify-otp", 
+            "/api/auth/login", "/api/auth/register", 
+            "/api/auth/refresh-token", "/api/auth/logout", 
             "/api/auth/enhanced", "/api"
         ]
         

@@ -1,9 +1,9 @@
 import os
 import random
+from datetime import datetime
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section
-
 # Conditional imports for resource optimization
 security_level = os.getenv("SECURITY_LEVEL", "standard").lower()
 from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
@@ -52,7 +52,7 @@ app.add_middleware(
         "/docs", "/redoc", "/openapi.json", "/", "/api",
         # Public auth endpoints only (verify-token should be protected)
         "/api/auth/login", "/api/auth/register",
-        "/api/auth/get-token", "/api/auth/refresh-token", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/resend-otp"
+        "/api/auth/refresh-token", "/api/auth/logout"
     ]
 )
 
@@ -144,8 +144,9 @@ async def startup_db_client():
         print("Roles collection populated.")
 
     # --- Create Default Admin User from .env ---
-    if await admins_collection.count_documents({}) == 0:
-        print("Creating default admin user from .env file...")
+    existing_super_admin = await admins_collection.find_one({"role_id": 0})
+    if not existing_super_admin:
+        print("No super admin found. Creating default super admin from .env values...")
         admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
         admin_name = os.getenv("DEFAULT_ADMIN_NAME", "Administrator")
         admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
@@ -156,6 +157,9 @@ async def startup_db_client():
         super_role = await roles_collection.find_one({"role_id": 0})
         role_name = (super_role or {}).get("role_name", "Super Admin")
         role_perms = (super_role or {}).get("basic_permissions", ["*"])
+
+        default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "ChangeMeNow123!")
+        hashed_password = auth_service.hash_password(default_password)
 
         admin_user = AdminCreate(
             name=admin_name,
@@ -171,10 +175,65 @@ async def startup_db_client():
             last_profile_update=None,
             permissions=role_perms,
             notification_preference=["email", "whatsapp"],
+            hashed_password=hashed_password,
         )
-        # Use the create_admin function from the auth_service
         await auth_service.create_admin(admin_user)
-        print(f"Default admin created with username '{admin_username}' and mobile {admin_mobile_prefix}{admin_mobile}.")
+        print(
+            "Default super admin created with username '%s'. Please update DEFAULT_ADMIN_PASSWORD immediately." % admin_username
+        )
+    else:
+        print(
+            "Super admin '%s' already present. Validating against environment defaults..." % existing_super_admin.get("username", "unknown")
+        )
+
+        # Synchronize critical defaults only if environment provides values
+        updates = {}
+        admin_username = os.getenv("DEFAULT_ADMIN_USERNAME")
+        admin_name = os.getenv("DEFAULT_ADMIN_NAME")
+        admin_email = os.getenv("DEFAULT_ADMIN_EMAIL")
+        admin_mobile = os.getenv("DEFAULT_ADMIN_MOBILE")
+        admin_mobile_prefix = os.getenv("DEFAULT_ADMIN_MOBILE_PREFIX")
+        default_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+
+        if admin_name and admin_name != existing_super_admin.get("name"):
+            updates["name"] = admin_name
+        if admin_email and admin_email != existing_super_admin.get("email"):
+            updates["email"] = admin_email
+        if admin_username and admin_username != existing_super_admin.get("username"):
+            updates["username"] = admin_username
+        if admin_mobile_prefix and admin_mobile_prefix != existing_super_admin.get("mobile_prefix"):
+            updates["mobile_prefix"] = admin_mobile_prefix
+        if admin_mobile:
+            try:
+                mobile_int = int(admin_mobile)
+                if mobile_int != existing_super_admin.get("mobile_number"):
+                    updates["mobile_number"] = mobile_int
+            except ValueError:
+                print("Warning: DEFAULT_ADMIN_MOBILE must be numeric. Skipping mobile sync.")
+
+        # Only reset password automatically if the default account hasn't been used yet
+        if default_password:
+            passwords_match = auth_service.verify_password(
+                default_password,
+                existing_super_admin.get("hashed_password")
+            )
+            if not passwords_match:
+                if existing_super_admin.get("last_login") is None:
+                    print("Default super admin password differs from .env; resetting to environment value.")
+                    updates["hashed_password"] = auth_service.hash_password(default_password)
+                else:
+                    print("Super admin password differs from .env but account has been used; skipping automatic reset.")
+
+        if updates:
+            updates["updated_at"] = datetime.utcnow()
+            updates["updated_by"] = "system"
+            await admins_collection.update_one(
+                {"_id": existing_super_admin["_id"]},
+                {"$set": updates}
+            )
+            print("Super admin defaults synchronized from environment.")
+        else:
+            print("Super admin already aligned with environment overrides; no changes made.")
 
 
 # --- API Routers ---

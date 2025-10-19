@@ -19,6 +19,18 @@ def _is_super_admin(doc: dict) -> bool:
     role_flag = str(doc.get("role", "")).lower()
     return doc.get("role_id") == 0 or role_flag in {"super_admin", "super admin"}
 
+
+def _validate_password_strength(password: str) -> None:
+    """Ensure admin passwords meet basic complexity requirements."""
+    if len(password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters long")
+    if not any(ch.isalpha() for ch in password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must include at least one letter")
+    if not any(ch.isdigit() for ch in password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must include at least one digit")
+    if not any(ch in "!@#$%^&*()_-+=[]{}|:;\",.<>?/" for ch in password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must include at least one special character")
+
 def _can_view_admin_mgmt(actor: dict) -> bool:
     """Super Admin (0), Admin (1), Privileged (2) can view admin management."""
     return int(actor.get("role_id", 99)) in (0, 1, 2)
@@ -91,9 +103,7 @@ async def create_new_admin(
     admin_data: AdminCreateInput,
     current_admin: dict = Depends(auth_service.get_current_admin)
 ):
-    """
-    Creates a new admin user. Actor must have a lower role_id than the new user. Cannot create Super Admin.
-    """
+    """Create a new admin user after validating role and password policy."""
     if not _can_view_admin_mgmt(current_admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -119,8 +129,16 @@ async def create_new_admin(
 
     # Compose full create model on server: set created_by/created_at from token user
     payload = admin_data.model_dump()
+    plain_password = payload.pop("password", None)
+    if not plain_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required for new admin accounts")
+
+    _validate_password_strength(plain_password)
+    hashed_password = auth_service.hash_password(plain_password)
+
     full_create = AdminCreate(
         **payload,
+        hashed_password=hashed_password,
         created_by=current_admin["username"],
         created_at=datetime.utcnow(),
     )
@@ -208,11 +226,15 @@ async def update_admin_user(
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mobile number already registered to another admin")
 
     update_data = payload
+    plain_password = update_data.pop("password", None)
+    password_was_changed = False
+    if plain_password:
+        _validate_password_strength(plain_password)
+        update_data["hashed_password"] = auth_service.hash_password(plain_password)
+        password_was_changed = True
+
     update_data["updated_at"] = datetime.utcnow()
     update_data["updated_by"] = current_admin["username"]
-
-    # Remove password update path in Google Sign-In migration
-    update_data.pop("hashed_password", None)
 
     updated_admin = await admins_collection.find_one_and_update(
         {"_id": ObjectId(user_id)},
@@ -249,7 +271,8 @@ async def update_admin_user(
     if "permissions" in update_data:
         change_msgs.append("updated permissions")
     # Password change
-    # Skip password-related messages
+    if password_was_changed:
+        change_msgs.append("reset account password")
     # Profile-like fields
     profile_fields = [
         f for f in ("name","email","mobile_number","mobile_prefix","profile_picture","dob","notification_preference","notification_list")

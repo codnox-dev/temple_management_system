@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,141 +7,34 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 const FuturisticTempleLogin: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [cooldownUntil, setCooldownUntil] = useState<Date | null>(null);
-  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number>(2);
-  const { sendOTP: authSendOTP, resendOTP: authResendOTP, verifyOTP: authVerifyOTP } = useAuth() as any;
-  const navigate = useNavigate();
+  const { login } = useAuth() as any;
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Cooldown timer effect
-  useEffect(() => {
-    if (!cooldownUntil) {
-      setCooldownSeconds(0);
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!username.trim()) {
+      toast.error('Please enter your username');
       return;
     }
 
-    const updateCooldown = () => {
-      const now = new Date();
-      const diff = Math.max(0, Math.floor((cooldownUntil.getTime() - now.getTime()) / 1000));
-      setCooldownSeconds(diff);
-
-      if (diff <= 0) {
-        setCooldownUntil(null);
-      }
-    };
-
-    updateCooldown();
-    const interval = setInterval(updateCooldown, 1000);
-
-    return () => clearInterval(interval);
-  }, [cooldownUntil]);
-
-  const handleSendOTP = async () => {
-    if (!mobileNumber) {
-      toast.error('Please enter your mobile number');
+    if (!password) {
+      toast.error('Please enter your password');
       return;
     }
 
-    // Basic validation
-    const cleanMobile = mobileNumber.replace(/\s/g, '');
-    if (!cleanMobile.match(/^\+\d{10,15}$/)) {
-      toast.error('Please enter a valid mobile number with country code (e.g., +911234567890)');
-      return;
-    }
-
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
-      const data = await authSendOTP(cleanMobile);
-      setOtpSent(true);
-      setStep('otp');
-      
-      // Set cooldown if provided
-      if (data.cooldown_until) {
-        setCooldownUntil(new Date(data.cooldown_until));
-      } else {
-        // Default 3 minute cooldown on first send
-        setCooldownUntil(new Date(Date.now() + 3 * 60 * 1000));
-      }
-      
-      setAttemptsRemaining(data.attempts_remaining ?? 2);
-      toast.success(`OTP sent to ${data.mobile_number}. Check the backend terminal for the code.`);
+      await login(username.trim(), password);
+      toast.success('Welcome back!');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
+      const message = error?.message || 'Invalid credentials. Please try again.';
+      toast.error(message);
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    if (cooldownSeconds > 0) {
-      return; // Still in cooldown
-    }
-
-    setIsLoading(true);
-    try {
-      const cleanMobile = mobileNumber.replace(/\s/g, '');
-      const data = await authResendOTP(cleanMobile);
-      
-      // Set cooldown from response
-      if (data.cooldown_until) {
-        setCooldownUntil(new Date(data.cooldown_until));
-      }
-      
-      setAttemptsRemaining(data.attempts_remaining ?? 0);
-      toast.success(`OTP resent to ${data.mobile_number}. Check the backend terminal for the code.`);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to resend OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 6) {
-      toast.error('Please enter the 6-digit OTP');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const success = await authVerifyOTP(mobileNumber.replace(/\s/g, ''), otp);
-      if (success) {
-        toast.success('Login successful! Redirecting...');
-        // Navigation will be handled by the auth context
-      } else {
-        toast.error('Login failed');
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Invalid OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBackToMobile = () => {
-    setStep('mobile');
-    setOtp('');
-    setOtpSent(false);
-    setCooldownUntil(null);
-    setCooldownSeconds(0);
-  };
-
-  const formatCooldownTime = (seconds: number): string => {
-    if (seconds >= 3600) {
-      const hours = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      return `${hours}h ${mins}m`;
-    } else if (seconds >= 60) {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}m ${secs}s`;
-    } else {
-      return `${seconds}s`;
+      setIsSubmitting(false);
     }
   };
 
@@ -151,11 +43,11 @@ const FuturisticTempleLogin: React.FC = () => {
       className="flex items-center justify-center min-h-screen w-full bg-gray-900 text-white p-4"
       style={{
         backgroundImage:
-          `url('https://www.transparenttextures.com/patterns/az-subtle.png'), linear-gradient(to right bottom, #1a202c, #2d3748, #4a5568)`,
+          "url('https://www.transparenttextures.com/patterns/az-subtle.png'), linear-gradient(to right bottom, #1a202c, #2d3748, #4a5568)",
         backgroundAttachment: 'fixed',
       }}
     >
-      <div className="absolute inset-0 bg-black opacity-50 z-0"></div>
+      <div className="absolute inset-0 bg-black opacity-50 z-0" />
 
       <Card className="w-full max-w-md bg-slate-900/80 backdrop-blur-sm border-purple-500/30 shadow-2xl shadow-purple-500/10 z-10">
         <CardHeader className="text-center">
@@ -172,181 +64,75 @@ const FuturisticTempleLogin: React.FC = () => {
               strokeLinejoin="round"
               className="text-purple-400"
             >
-              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-              <path d="M2 17l10 5 10-5"></path>
-              <path d="M2 12l10 5 10-5"></path>
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
             </svg>
           </div>
           <CardTitle className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
             Sanctum Access
           </CardTitle>
           <CardDescription className="text-gray-400">
-            {step === 'mobile' ? 'Enter your mobile number to receive OTP' : 'Enter the OTP sent to your mobile'}
+            Sign in with your administrator credentials to continue.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <div className="space-y-6">
-            {step === 'mobile' ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="mobile" className="text-gray-300">
-                    Mobile Number
-                  </Label>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    placeholder="+911234567890"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
-                    className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 focus:border-purple-500"
-                    disabled={isLoading}
-                  />
-                  <div className="text-xs text-gray-400">
-                    Enter your mobile number with country code (e.g., +91 for India)
-                  </div>
-                </div>
-                <Button
-                  onClick={handleSendOTP}
-                  disabled={isLoading || !mobileNumber}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3"
-                >
-                  {isLoading ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Sending OTP...
-                    </>
-                  ) : (
-                    'Send OTP'
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="otp" className="text-gray-300">
-                    Enter OTP
-                  </Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 focus:border-purple-500 text-center text-2xl tracking-widest"
-                    disabled={isLoading}
-                    maxLength={6}
-                  />
-                  <div className="text-xs text-gray-400">
-                    Enter the 6-digit OTP sent to {mobileNumber}
-                  </div>
-                  <div className="text-xs text-yellow-400">
-                    Check the backend terminal for the OTP (debug mode)
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <Button
-                    onClick={handleVerifyOTP}
-                    disabled={isLoading || otp.length !== 6}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3"
-                  >
-                    {isLoading ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Verifying OTP...
-                      </>
-                    ) : (
-                      'Verify OTP'
-                    )}
-                  </Button>
-                  
-                  {/* Resend OTP Button */}
-                  <Button
-                    onClick={handleResendOTP}
-                    disabled={isLoading || cooldownSeconds > 0}
-                    variant="outline"
-                    className="w-full border-purple-500/50 text-purple-400 hover:bg-purple-900/20 disabled:opacity-50"
-                  >
-                    {cooldownSeconds > 0 ? (
-                      <>Resend OTP in {formatCooldownTime(cooldownSeconds)}</>
-                    ) : (
-                      <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-2"
-                        >
-                          <path d="M21 2v6h-6" />
-                          <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-                          <path d="M3 22v-6h6" />
-                          <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-                        </svg>
-                        Resend OTP {attemptsRemaining > 0 ? `(${attemptsRemaining} left)` : ''}
-                      </>
-                    )}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleBackToMobile}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full border-slate-600 text-gray-300 hover:bg-slate-800"
-                  >
-                    ← Back to Mobile Number
-                  </Button>
-                </div>
-              </>
-            )}
-            
-            <div className="text-center text-xs text-gray-500">
-              Having trouble? Contact your administrator to ensure your mobile number is registered.
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-gray-300">
+                Username
+              </Label>
+              <Input
+                id="username"
+                type="text"
+                autoComplete="username"
+                placeholder="admin"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                disabled={isSubmitting}
+                className="bg-slate-800/60 border-purple-500/40 focus:border-purple-400 focus:ring-purple-400 text-white placeholder:text-gray-400"
+              />
             </div>
-          </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-gray-300">
+                Password
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="••••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={isSubmitting}
+                  className="bg-slate-800/60 border-purple-500/40 focus:border-purple-400 focus:ring-purple-400 pr-12 text-white placeholder:text-gray-400"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute inset-y-0 right-1 flex items-center text-xs text-purple-300 hover:text-purple-100"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Passwords expire every 24 hours. You will be prompted to sign in again after that window.
+              </p>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Authenticating…' : 'Sign In Securely'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

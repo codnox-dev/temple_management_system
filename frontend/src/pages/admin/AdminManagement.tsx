@@ -217,6 +217,11 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [modalEditing, setModalEditing] = useState(false);
   const [snapshot, setSnapshot] = useState<{ name: string; username: string; email: string; mobile_prefix: string; mobile_number: string; dob: string } | null>(null);
+  // Password change dialog state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [superAdminPassword, setSuperAdminPassword] = useState('');
   // inline edit states
   const [editingEmail, setEditingEmail] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -233,6 +238,7 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
   const myRoleId: number = user?.role_id ?? 99;
   const myId: string | undefined = user?._id;
   const isSuperAdmin = admin.role_id === 0;
+  const isCurrentUserSuperAdmin = myRoleId === 0;
   // Align with backend: cannot modify Super Admin, must have strictly lower role_id, and no self-mod for any non-super user
   const canModify = !isSuperAdmin && myRoleId < admin.role_id && !(myId && admin._id === myId && myRoleId >= 1);
 
@@ -293,9 +299,42 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       setEditingEmail(false);
       setEditingPhone(false);
       setEditingDob(false);
+      setEditingName(false);
+      setEditingUsername(false);
     },
     onError: (e: any) => {
       const msg = e?.response?.data?.detail || e?.message || 'Failed to update profile';
+      toast.error(String(msg));
+    }
+  });
+
+  const passwordChangeMutation = useMutation<void, Error, { targetId: string; newPassword: string; adminPassword: string }>({
+    mutationFn: async ({ targetId, newPassword, adminPassword }) => {
+      // First verify super admin's password by attempting to get token
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: user?.username, password: adminPassword })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Invalid super admin password');
+      }
+      
+      // Now update the target user's password
+      await put(`/admin/users/${targetId}/`, { password: newPassword });
+    },
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setShowPasswordDialog(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuperAdminPassword('');
+      queryClient.invalidateQueries({ queryKey: ['admins'] });
+    },
+    onError: (e: any) => {
+      const msg = e?.message || e?.response?.data?.detail || 'Failed to change password';
       toast.error(String(msg));
     }
   });
@@ -383,6 +422,45 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
     setModalEditing(false);
   };
 
+  const handlePasswordChange = () => {
+    if (!newPassword || !confirmPassword || !superAdminPassword) {
+      toast.error('All password fields are required');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    // Validate password requirements
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+    
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      toast.error('Password must contain at least one letter');
+      return;
+    }
+    
+    if (!/\d/.test(newPassword)) {
+      toast.error('Password must contain at least one number');
+      return;
+    }
+    
+    if (!/[!@#$%^&*()_\-+=[\]{}|:;",.<>?/]/.test(newPassword)) {
+      toast.error('Password must contain at least one special character');
+      return;
+    }
+    
+    passwordChangeMutation.mutate({ 
+      targetId: admin._id, 
+      newPassword, 
+      adminPassword: superAdminPassword 
+    });
+  };
+
   return (
     <TableRow className="border-b border-purple-500/30 hover:bg-purple-900/20">
       <TableCell className="px-6 py-4">
@@ -413,6 +491,11 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
       <TableCell className="px-6 py-4">
         <div className="flex flex-wrap gap-2">
           <Button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white" onClick={() => setIsProfileDialogOpen(true)}>Open Profile</Button>
+          {isCurrentUserSuperAdmin && !isSuperAdmin && (
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setShowPasswordDialog(true)}>
+              Change Password
+            </Button>
+          )}
           <Button className="bg-red-600 text-white" disabled={!canModify} onClick={() => deleteMutation.mutate(admin._id)}>Delete</Button>
           <Button className="bg-amber-600 text-white" disabled={!canModify} onClick={() => restrictMutation.mutate({ id: admin._id, payload: { isRestricted: !admin.isRestricted } })}>
             {admin.isRestricted ? 'Unrestrict' : 'Restrict'}
@@ -590,6 +673,82 @@ const AdminRow = ({ admin, roles }: { admin: Admin, roles: Role[] }) => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Password Change Dialog */}
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogContent className="bg-slate-900 border border-purple-500/30 text-white w-[95vw] max-w-xs max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-purple-400">
+                Change Password for {admin.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-purple-200 text-sm">As Super Admin, you can change this user's password. You must enter your own password to confirm.</p>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="newPassword" className="text-purple-300">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-slate-800/50 border-purple-500/30 mt-1 text-white"
+                    placeholder="Min. 8 characters"
+                  />
+                  <p className="text-xs text-purple-300 mt-1">Must contain: letter, number, special character</p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="confirmPassword" className="text-purple-300">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-slate-800/50 border-purple-500/30 mt-1 text-white"
+                    placeholder="Re-enter new password"
+                  />
+                </div>
+                
+                <div className="pt-4 border-t border-purple-500/30">
+                  <Label htmlFor="superAdminPassword" className="text-purple-300 font-semibold">Your Super Admin Password</Label>
+                  <p className="text-xs text-purple-200 mb-2">Enter your own password to authorize this change</p>
+                  <Input
+                    id="superAdminPassword"
+                    type="password"
+                    value={superAdminPassword}
+                    onChange={(e) => setSuperAdminPassword(e.target.value)}
+                    className="bg-slate-800/50 border-purple-500/30 text-white"
+                    placeholder="Your password"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordDialog(false);
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setSuperAdminPassword('');
+                  }}
+                  className="border-purple-500/30 text-purple-300 hover:bg-purple-900/20"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={passwordChangeMutation.isPending}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700"
+                >
+                  {passwordChangeMutation.isPending ? 'Changing...' : 'Change Password'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TableCell>
     </TableRow>
   );
@@ -609,6 +768,8 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
     role_id?: number;
     permissions: string[];
     isRestricted: boolean;
+    password?: string;
+    confirmPassword?: string;
   };
   const [formData, setFormData] = useState<FormState>({
     name: adminToEdit?.name || '',
@@ -621,8 +782,11 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
     role_id: adminToEdit?.role_id,
     permissions: adminToEdit?.permissions || [],
     isRestricted: adminToEdit?.isRestricted || false,
+    password: '',
+    confirmPassword: '',
   });
   const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordError, setPasswordError] = useState<string>('');
   // Allowed roles: hide super admin always; only roles with role_id strictly greater than myRoleId
   const allowedRoles = roles.filter(r => r.role_id !== 0 && r.role_id > myRoleId);
 
@@ -646,11 +810,51 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!adminToEdit) {
+      // CREATE mode - password is required
+      if (!formData.password) {
+        toast.error('Password is required');
+        setPasswordError('Password is required');
+        return;
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        setPasswordError('Passwords do not match');
+        return;
+      }
+      
+      // Validate password requirements
+      if (formData.password.length < 8) {
+        toast.error('Password must be at least 8 characters long');
+        setPasswordError('Password must be at least 8 characters long');
+        return;
+      }
+      
+      if (!/[a-zA-Z]/.test(formData.password)) {
+        toast.error('Password must contain at least one letter');
+        setPasswordError('Password must contain at least one letter');
+        return;
+      }
+      
+      if (!/\d/.test(formData.password)) {
+        toast.error('Password must contain at least one number');
+        setPasswordError('Password must contain at least one number');
+        return;
+      }
+      
+      if (!/[!@#$%^&*()_\-+=[\]{}|:;",.<>?/]/.test(formData.password)) {
+        toast.error('Password must contain at least one special character');
+        setPasswordError('Password must contain at least one special character');
+        return;
+      }
+      
       if (formData.role_id == null) {
         toast.error('Please select a role');
         return;
       }
+      
       // CREATE: must satisfy AdminCreate requirements
       const payload = {
         name: formData.name,
@@ -662,6 +866,7 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
         role_id: formData.role_id,
         permissions: formData.permissions,
         isRestricted: formData.isRestricted,
+        password: formData.password,
       } as AdminCreationPayload;
       mutation.mutate(payload);
     } else {
@@ -792,13 +997,56 @@ const AdminForm = ({ roles, adminToEdit, onSuccess, onClose }: { roles: Role[]; 
           </div>
         </div>
       </div>
+
+      {/* Password fields - only show when creating new admin */}
+      {!adminToEdit && (
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-purple-500/30">
+          <div>
+            <Label htmlFor="password" className="text-purple-300">Password *</Label>
+            <Input
+              id="password"
+              type="password"
+              className="bg-slate-800/50 border-purple-500/30 mt-1"
+              value={formData.password || ''}
+              onChange={(e) => {
+                setFormData({ ...formData, password: e.target.value });
+                setPasswordError('');
+              }}
+              placeholder="Min. 8 characters"
+            />
+            <p className="text-xs text-purple-300 mt-1">Must contain: letter, number, special character</p>
+          </div>
+          <div>
+            <Label htmlFor="confirmPassword" className="text-purple-300">Confirm Password *</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              className="bg-slate-800/50 border-purple-500/30 mt-1"
+              value={formData.confirmPassword || ''}
+              onChange={(e) => {
+                setFormData({ ...formData, confirmPassword: e.target.value });
+                setPasswordError('');
+              }}
+              placeholder="Re-enter password"
+            />
+            {passwordError && <p className="text-red-400 text-xs mt-1">{passwordError}</p>}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center space-x-2">
         <Checkbox id="isRestricted" checked={formData.isRestricted} onCheckedChange={(checked) => setFormData({ ...formData, isRestricted: !!checked })} />
         <Label htmlFor="isRestricted">Restrict this admin</Label>
       </div>
       <div className="flex justify-end gap-4">
-        {onClose && <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>}
-        <Button type="submit" disabled={mutation.isPending || (!adminToEdit && allowedRoles.length === 0)}>{mutation.isPending ? 'Saving...' : 'Save Admin'}</Button>
+        {onClose && (
+          <Button type="button" variant="outline" onClick={onClose} className="border-purple-500/30 text-purple-300">
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" disabled={mutation.isPending || (!adminToEdit && allowedRoles.length === 0)}>
+          {mutation.isPending ? 'Saving...' : (adminToEdit ? 'Update Admin' : 'Create Admin')}
+        </Button>
       </div>
     </form>
   );

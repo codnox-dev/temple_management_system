@@ -5,6 +5,8 @@ from .jwt_security_service import jwt_security
 from ..models import AdminCreate
 from bson import ObjectId
 from datetime import datetime
+import bcrypt
+from typing import Optional
 
 # Token URL is only used for docs; tokens are issued under /api/auth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -17,9 +19,39 @@ async def create_admin(admin: AdminCreate):
     and inserts it into the admins_collection.
     """
     admin_data = admin.model_dump()
+    if not admin_data.get("hashed_password"):
+        raise ValueError("hashed_password is required when creating an admin user")
     result = await admins_collection.insert_one(admin_data)
     new_admin = await admins_collection.find_one({"_id": result.inserted_id})
     return new_admin
+
+
+def hash_password(password: str) -> str:
+    """Hash a plain text password using bcrypt."""
+    if not password or not isinstance(password, str):
+        raise ValueError("Password must be a non-empty string")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
+    """Safely verify a password against its bcrypt hash."""
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Occurs if hash is malformed
+        return False
+
+
+async def authenticate_admin(username: str, password: str) -> Optional[dict]:
+    """Authenticate admin by username/password, returning admin document on success."""
+    admin = await get_admin_by_username(username)
+    if not admin:
+        return None
+    if not verify_password(password, admin.get("hashed_password")):
+        return None
+    return admin
 
 async def get_admin_by_username(username: str):
     """Fetches a single admin user from the database by username."""
