@@ -46,6 +46,9 @@ const AddStock = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'low' | 'expiring' | 'out'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'value' | 'expiry'>('name');
+  const [showIncrementModal, setShowIncrementModal] = useState(false);
+  const [incrementingItem, setIncrementingItem] = useState<StockItem | null>(null);
+  const [incrementAmount, setIncrementAmount] = useState<string>('');
   const { user } = (useAuth() as any) || {};
   const roleId: number = user?.role_id ?? 99;
 
@@ -230,6 +233,61 @@ const AddStock = () => {
             console.error('Stock deletion error:', err);
         }
     }
+  };
+
+  const handleIncrementStock = (item: StockItem) => {
+    if (roleId > 4) { 
+      toast.error('You are not authorized to update stock.'); 
+      return; 
+    }
+    setIncrementingItem(item);
+    setIncrementAmount('');
+    setShowIncrementModal(true);
+  };
+
+  const submitIncrementStock = async () => {
+    if (!incrementingItem) return;
+    
+    const additionalQuantity = Number(incrementAmount);
+    if (!additionalQuantity || additionalQuantity <= 0) {
+      toast.error('Please enter a valid quantity greater than 0.');
+      return;
+    }
+
+    try {
+      const newQuantity = incrementingItem.quantity + additionalQuantity;
+      
+      const updatedItem = {
+        ...incrementingItem,
+        quantity: newQuantity,
+        lastRestocked: new Date().toISOString().split('T')[0],
+      };
+
+      // Remove fields that shouldn't be sent in the update
+      const { _id, addedOn, ...itemToSend } = updatedItem;
+
+      const response = await api.put<StockItem>(`/stock/${incrementingItem._id}`, itemToSend);
+      
+      setStockItems(stockItems.map(item => 
+        item._id === incrementingItem._id ? response.data : item
+      ));
+      
+      toast.success(`Stock updated! Added ${additionalQuantity} ${incrementingItem.unit}. New total: ${newQuantity} ${incrementingItem.unit}`);
+      
+      setShowIncrementModal(false);
+      setIncrementingItem(null);
+      setIncrementAmount('');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to update stock.';
+      toast.error(errorMessage);
+      console.error('Stock increment error:', err);
+    }
+  };
+
+  const closeIncrementModal = () => {
+    setShowIncrementModal(false);
+    setIncrementingItem(null);
+    setIncrementAmount('');
   };
 
   const closeForm = () => {
@@ -424,6 +482,81 @@ const AddStock = () => {
         </div>
       </div>
 
+      {/* Increment Stock Modal */}
+      {showIncrementModal && incrementingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4">
+          <div className="bg-slate-900 rounded-xl shadow-lg p-6 border border-purple-500/30 w-full max-w-md">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-purple-400">Add Stock</h2>
+              <button onClick={closeIncrementModal} className="text-gray-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
+                <p className="text-white font-semibold text-lg">{incrementingItem.name}</p>
+                <p className="text-purple-300 text-sm mt-1">Category: {incrementingItem.category}</p>
+                <p className="text-purple-300 text-sm">Unit: {incrementingItem.unit}</p>
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                <p className="text-blue-300 text-sm font-medium mb-1">Current Stock</p>
+                <p className="text-white text-2xl font-bold">
+                  {incrementingItem.quantity} {incrementingItem.unit}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-300 mb-2">
+                  Additional Quantity to Add *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={incrementAmount}
+                  onChange={(e) => setIncrementAmount(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors text-white placeholder-gray-500"
+                  placeholder="Enter quantity to add"
+                  autoFocus
+                />
+              </div>
+
+              {incrementAmount && Number(incrementAmount) > 0 && (
+                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                  <p className="text-green-300 text-sm font-medium mb-1">New Total Stock</p>
+                  <p className="text-white text-2xl font-bold">
+                    {incrementingItem.quantity + Number(incrementAmount)} {incrementingItem.unit}
+                  </p>
+                  <p className="text-green-400 text-sm mt-2">
+                    Adding: +{Number(incrementAmount)} {incrementingItem.unit}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-4 mt-6">
+              <button
+                onClick={closeIncrementModal}
+                className="px-6 py-3 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitIncrementStock}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 flex items-center space-x-2"
+                type="button"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Add to Stock</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Item Form Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4">
@@ -565,13 +698,24 @@ const AddStock = () => {
                             <p className="text-xs text-gray-400">Min stock: {item.minimumStock} {item.unit}</p>
                         </div>
                     </div>
-                    <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-purple-500/20">
-                      <button onClick={() => handleEdit(item)} disabled={roleId > 4} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-md disabled:opacity-50 transition-colors" title="Edit">
-                        <Edit size={16}/>
+                    <div className="flex justify-between items-center space-x-2 mt-4 pt-4 border-t border-purple-500/20">
+                      <button 
+                        onClick={() => handleIncrementStock(item)} 
+                        disabled={roleId > 4} 
+                        className="px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg disabled:opacity-50 transition-all duration-300 flex items-center space-x-1 text-sm shadow-md hover:shadow-lg transform hover:scale-105" 
+                        title="Add Stock"
+                      >
+                        <Plus size={16}/>
+                        <span>Add Stock</span>
                       </button>
-                      <button onClick={() => handleDelete(item._id)} disabled={roleId > 4} className="p-2 text-red-400 hover:bg-red-900/50 rounded-md disabled:opacity-50 transition-colors" title="Delete">
-                        <Trash2 size={16}/>
-                      </button>
+                      <div className="flex space-x-2">
+                        <button onClick={() => handleEdit(item)} disabled={roleId > 4} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-md disabled:opacity-50 transition-colors" title="Edit">
+                          <Edit size={16}/>
+                        </button>
+                        <button onClick={() => handleDelete(item._id)} disabled={roleId > 4} className="p-2 text-red-400 hover:bg-red-900/50 rounded-md disabled:opacity-50 transition-colors" title="Delete">
+                          <Trash2 size={16}/>
+                        </button>
+                      </div>
                     </div>
                 </div>
             ))}
