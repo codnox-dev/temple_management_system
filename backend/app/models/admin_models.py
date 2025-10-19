@@ -27,10 +27,15 @@ class AdminBase(BaseModel):
     notification_preference: List[str] = Field(default_factory=list)
     notification_list: Optional[List[str]] = Field(None)
     isRestricted: bool = Field(False)
+    hashed_password: Optional[str] = Field(
+        None,
+        min_length=60,
+        description="BCrypt hashed password for the admin account"
+    )
 
 # Used when creating a new admin, includes the hashed password.
 class AdminCreate(AdminBase):
-    pass
+    hashed_password: str = Field(..., min_length=60, description="BCrypt hashed password for the admin account")
 
 # Used when updating an admin; all fields are optional and only provided fields will be updated.
 class AdminUpdate(BaseModel):
@@ -48,15 +53,18 @@ class AdminUpdate(BaseModel):
     notification_preference: Optional[List[str]] = None
     notification_list: Optional[List[str]] = None
     isRestricted: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=8, description="Plain text password to be hashed when updating")
 
 # Represents an admin object as stored in the database.
 class AdminInDB(AdminBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    hashed_password: str = Field(..., min_length=60)
     model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
 
 # Public-safe model to return to clients (no hashed_password)
 class AdminPublic(AdminBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    hashed_password: Optional[str] = Field(None, exclude=True)
     model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_encoders={ObjectId: str})
 
 # Input model for creating admins from clients; server sets created_by/created_at
@@ -70,6 +78,7 @@ class AdminCreateInput(BaseModel):
     mobile_prefix: str
     permissions: List[str] = Field(default_factory=list)
     isRestricted: bool = False
+    password: str = Field(..., min_length=8, description="Plain text password that will be hashed before storage")
 
 # Schema for the authentication token response.
 class Token(BaseModel):

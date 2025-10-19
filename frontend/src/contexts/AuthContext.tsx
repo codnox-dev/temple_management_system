@@ -11,9 +11,6 @@ type AuthContextType = {
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   loginWithGoogle: (idToken: string) => Promise<boolean>;
-  sendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }>;
-  resendOTP: (mobileNumber: string) => Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }>;
-  verifyOTP: (mobileNumber: string, otp: string) => Promise<boolean>;
   logout: () => void;
 };
 
@@ -85,9 +82,24 @@ export const AuthProvider = ({ children }) => {
     };
   }, [navigate]);
 
-  const login = async (username, password) => {
-    console.error('Password login disabled');
-    return false;
+  const login = async (username: string, password: string) => {
+    try {
+      const success = await enhancedJwtAuth.login(username, password);
+      if (!success) {
+        return false;
+      }
+
+      const currentUser = await enhancedJwtAuth.getCurrentUser();
+      if (currentUser) {
+        finishLoginWithUser(currentUser);
+        return true;
+      }
+
+      throw new Error('Unable to retrieve user profile after login');
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
   };
 
   const finishLoginWithUser = (currentUser: any) => {
@@ -113,31 +125,6 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
-  const sendOTP = async (mobileNumber: string) => {
-    return await enhancedJwtAuth.sendOTP(mobileNumber);
-  };
-
-  const resendOTP = async (mobileNumber: string) => {
-    return await enhancedJwtAuth.resendOTP(mobileNumber);
-  };
-
-  const verifyOTP = async (mobileNumber: string, otp: string) => {
-    try {
-      const success = await enhancedJwtAuth.verifyOTP(mobileNumber, otp);
-      if (success) {
-        const currentUser = await enhancedJwtAuth.getCurrentUser();
-        if (currentUser) {
-          finishLoginWithUser(currentUser);
-          return true;
-        }
-      }
-      return false;
-    } catch (e) {
-      console.error('OTP verification failed:', e);
-      throw e;
-    }
-  };
-
   const logout = async () => {
     try {
       await enhancedJwtAuth.logout();
@@ -156,9 +143,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     loginWithGoogle,
-    sendOTP,
-    resendOTP,
-    verifyOTP,
     logout,
   };
 

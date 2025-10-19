@@ -213,81 +213,28 @@ class EnhancedJWTAuthService {
   }
 
   /**
-   * Send OTP to mobile number
+   * Authenticate using username and password.
    */
-  async sendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }> {
-    // Import and use simple device fingerprint
-    const { generateDeviceFingerprint } = await import('./deviceFingerprint');
-    const deviceFp = generateDeviceFingerprint();
-    
-    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/send-otp`, {
-      method: 'POST',
-      headers: this.getEnhancedHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({ 
-        mobile_number: mobileNumber,
-        device_fingerprint: deviceFp
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Failed to send OTP' }));
-      throw new Error(errorData.detail || 'Failed to send OTP');
-    }
-    
-    return await response.json();
-  }
-
-  /**
-   * Resend OTP to mobile number
-   */
-  async resendOTP(mobileNumber: string): Promise<{ message: string; mobile_number: string; expires_in: number; cooldown_until?: string; attempts_remaining: number }> {
-    // Import and use simple device fingerprint
-    const { generateDeviceFingerprint } = await import('./deviceFingerprint');
-    const deviceFp = generateDeviceFingerprint();
-    
-    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/resend-otp`, {
-      method: 'POST',
-      headers: this.getEnhancedHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({ 
-        mobile_number: mobileNumber,
-        device_fingerprint: deviceFp
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Failed to resend OTP' }));
-      throw new Error(errorData.detail || 'Failed to resend OTP');
-    }
-    
-    return await response.json();
-  }
-
-  /**
-   * Verify OTP and login with enhanced security
-   */
-  async verifyOTP(mobileNumber: string, otp: string): Promise<boolean> {
+  async login(username: string, password: string): Promise<boolean> {
     const headers = this.getEnhancedHeaders();
-    
-    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/verify-otp`, {
+
+    const response = await fetch(`${this.getApiBaseUrl()}/api/auth/login`, {
       method: 'POST',
       headers,
       credentials: 'include',
-      body: JSON.stringify({ 
-        mobile_number: mobileNumber, 
-        otp: otp,
-        device_fingerprint: this.deviceFingerprint
+      body: JSON.stringify({
+        username: username.trim(),
+        password,
       }),
     });
-    
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Invalid OTP' }));
-      throw new Error(errorData.detail || 'Invalid OTP');
+      const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
+      throw new Error(errorData.detail || 'Login failed');
     }
-    
+
     const tokenData: TokenResponse = await response.json();
-    this.setTokens(tokenData, true); // true = authenticated user
+    this.setTokens(tokenData, true);
     return true;
   }
 
@@ -296,7 +243,7 @@ class EnhancedJWTAuthService {
    */
   async logout(): Promise<void> {
     try {
-      // Ensure we send the same rate-limit fingerprint used for OTP requests
+  // Reuse the same fingerprint data used for rate limiting on the backend
       const { generateDeviceFingerprint } = await import('./deviceFingerprint');
       const deviceFingerprintId = generateDeviceFingerprint();
       
@@ -428,6 +375,7 @@ class EnhancedJWTAuthService {
    */
   private setTokens(tokenData: TokenResponse, isAuthenticated: boolean = false): void {
     this.accessToken = tokenData.access_token;
+    this.refreshToken = tokenData.refresh_token ?? null;
     this.tokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
     this.isUserAuthenticated = isAuthenticated;
     
