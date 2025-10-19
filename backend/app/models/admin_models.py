@@ -32,6 +32,11 @@ class AdminBase(BaseModel):
         min_length=60,
         description="BCrypt hashed password for the admin account"
     )
+    
+    # Sync tracking fields (additional to created_at/updated_at)
+    synced_at: Optional[datetime] = Field(None)
+    sync_origin: Optional[str] = Field(default="local")  # "local" or "remote"
+    sync_status: Optional[str] = Field(default="pending")  # "synced", "pending", "conflict"
 
 # Used when creating a new admin, includes the hashed password.
 class AdminCreate(AdminBase):

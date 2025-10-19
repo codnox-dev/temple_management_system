@@ -9,9 +9,12 @@ services:
       - "8080:8000"
     volumes:
       - ./backend:/app
+      - ./backend/backups:/app/backups  # Mount backups directory to host
     environment:
       - MONGODB_URL=mongodb://mongo:27017
+      - MONGODB_LOCAL_URL=mongodb://mongo:27017  # For backup service
       - DATABASE_NAME=temple_db
+      - PRIMARY_DATABASE=local  # Enable backup features
       - WATCHFILES_FORCE_POLLING="true"
       - PYTHONUNBUFFERED="1"
     depends_on:

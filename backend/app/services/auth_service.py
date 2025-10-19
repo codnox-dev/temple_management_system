@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from ..database import admins_collection
 from .jwt_security_service import jwt_security
-from ..models import AdminCreate
+from ..models.admin_models import AdminInDB, AdminCreate
 from bson import ObjectId
 from datetime import datetime
 import bcrypt
@@ -113,3 +113,16 @@ async def get_current_admin(request: Request, token: str = Depends(oauth2_scheme
     if admin is None:
         raise credentials_exception
     return admin
+
+
+async def get_current_user_with_admin_role(request: Request, token: str = Depends(oauth2_scheme)) -> AdminInDB:
+    """
+    Get current admin user and return as AdminInDB model.
+    This is used for sync endpoints that require admin authentication.
+    """
+    # Get the admin dict using existing function
+    admin_dict = await get_current_admin(request, token)
+    
+    # Convert to AdminInDB model
+    admin_db = AdminInDB(**admin_dict)
+    return admin_db

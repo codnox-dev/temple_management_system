@@ -30,6 +30,7 @@ import EditProfile from "./pages/admin/EditProfile";
 import Activity from "./pages/admin/Activity";
 import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
 import ManageCommittee from "./pages/admin/ManageCommittee";
+import BackupManagement from "./pages/BackupManagement";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,13 @@ const App = () => (
               <Route path="activity" element={
                 <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
                   <Activity />
+                </RoleGuard>
+              } />
+
+              {/* Backup Management visible only to role_id <= 1 (Super/Admin) */}
+              <Route path="backup" element={
+                <RoleGuard allow={(rid) => (rid ?? 99) <= 1}>
+                  <BackupManagement />
                 </RoleGuard>
               } />
 

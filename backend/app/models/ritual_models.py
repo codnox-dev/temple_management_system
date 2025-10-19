@@ -29,6 +29,13 @@ class AvailableRitualBase(BaseModel):
     available_to: Optional[str] = Field(None, example="2023-12-31")
     # Whether this ritual should be shown on the home RitualSection (max 3 allowed)
     show_on_home: Optional[bool] = Field(False, example=False)
+    
+    # Sync tracking fields
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    synced_at: Optional[datetime] = Field(None)
+    sync_origin: Optional[str] = Field(default="local")  # "local" or "remote"
+    sync_status: Optional[str] = Field(default="pending")  # "synced", "pending", "conflict"
 
     @field_validator('available_from', 'available_to')
     @classmethod

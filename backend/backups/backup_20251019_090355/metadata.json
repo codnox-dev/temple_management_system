@@ -1,0 +1,22 @@
+{
+  "backup_id": "20251019_090355",
+  "timestamp": "2025-10-19T09:03:56.314200",
+  "database_name": "temple_db",
+  "collections": [
+    "token_revocation",
+    "activities",
+    "security_events",
+    "conflict_logs",
+    "calendar",
+    "backup_metadata",
+    "user_sessions",
+    "login_attempts",
+    "sync_config",
+    "events_section",
+    "roles",
+    "events",
+    "sync_logs",
+    "admins"
+  ],
+  "total_collections": 14
+}

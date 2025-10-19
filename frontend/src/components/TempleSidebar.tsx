@@ -16,7 +16,8 @@ import {
   BarChart3,
   Plus,
   Activity,
-  ShoppingCart
+  ShoppingCart,
+  Database
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean; onToggle?: () => void };
@@ -207,6 +208,12 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
                 <NavLink to="/admin/activity" className={subNavLinkClass}>
                     <Activity className="h-4 w-4" />
                     <span>Activity Log</span>
+                </NavLink>
+                )}
+                {roleId <= 1 && (
+                <NavLink to="/admin/backup" className={subNavLinkClass}>
+                    <Database className="h-4 w-4" />
+                    <span>Backup Management</span>
                 </NavLink>
                 )}
             </div>

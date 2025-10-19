@@ -2,25 +2,96 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 from pymongo import ASCENDING, IndexModel
+from typing import Optional
 
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Database Connection ---
-MONGO_DETAILS = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+# --- Database Connection Configuration ---
+MONGODB_LOCAL_URL = os.getenv("MONGODB_LOCAL_URL", "")
+MONGODB_CLOUD_URL = os.getenv("MONGODB_CLOUD_URL", "")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "temple_db")
 
-# --- Error Handling for Missing Database URL ---
-if not MONGO_DETAILS:
-    raise ValueError("No MONGODB_URL set for the database connection. Please set it in your .env file.")
+# Determine which database to use as primary
+# Options: "local" or "cloud"
+# - "local": Use local MongoDB as primary, sync to cloud (for on-premise/offline setups)
+# - "cloud": Use cloud MongoDB as primary, no sync needed (for hosted services)
+PRIMARY_DATABASE = os.getenv("PRIMARY_DATABASE", "local").lower()
 
+# Validate configuration
+if PRIMARY_DATABASE not in ["local", "cloud"]:
+    raise ValueError(f"PRIMARY_DATABASE must be 'local' or 'cloud', got '{PRIMARY_DATABASE}'")
 
-client = AsyncIOMotorClient(MONGO_DETAILS)
-database = client[DATABASE_NAME]
+# --- Initialize Database Connections ---
+local_client: Optional[AsyncIOMotorClient] = None
+local_database = None
+remote_client: Optional[AsyncIOMotorClient] = None
+remote_database = None
+
+# Initialize primary database
+if PRIMARY_DATABASE == "local":
+    if not MONGODB_LOCAL_URL:
+        raise ValueError("PRIMARY_DATABASE is 'local' but MONGODB_LOCAL_URL is not set in .env")
+    
+    local_client = AsyncIOMotorClient(MONGODB_LOCAL_URL)
+    local_database = local_client[DATABASE_NAME]
+    print(f"✓ Primary database: LOCAL MongoDB")
+    
+    # Initialize remote for sync (optional)
+    if MONGODB_CLOUD_URL:
+        try:
+            remote_client = AsyncIOMotorClient(MONGODB_CLOUD_URL)
+            remote_database = remote_client[DATABASE_NAME]
+            print(f"✓ Secondary database: CLOUD MongoDB (sync enabled)")
+        except Exception as e:
+            print(f"⚠ Warning: Could not connect to cloud MongoDB: {e}")
+            print(f"  Sync features will be disabled.")
+    else:
+        print("⚠ No MONGODB_CLOUD_URL configured. Sync features will be disabled.")
+
+elif PRIMARY_DATABASE == "cloud":
+    if not MONGODB_CLOUD_URL:
+        raise ValueError("PRIMARY_DATABASE is 'cloud' but MONGODB_CLOUD_URL is not set in .env")
+    
+    remote_client = AsyncIOMotorClient(MONGODB_CLOUD_URL)
+    remote_database = remote_client[DATABASE_NAME]
+    print(f"✓ Primary database: CLOUD MongoDB")
+    print(f"  Running in cloud mode - sync features disabled (not needed)")
+
+# Set primary database reference
+if PRIMARY_DATABASE == "local":
+    client = local_client
+    database = local_database
+else:  # cloud
+    client = remote_client
+    database = remote_database
 
 def get_database():
-    """Get the database instance"""
+    """Get the primary database instance"""
     return database
+
+def get_local_database():
+    """Get the local database instance explicitly (None if cloud-only)"""
+    return local_database
+
+def get_remote_database():
+    """Get the remote database instance (None if local-only)"""
+    return remote_database
+
+def is_sync_enabled() -> bool:
+    """
+    Check if sync should be enabled.
+    Sync is only needed when:
+    - PRIMARY_DATABASE is 'local' (on-premise setup)
+    - AND remote database is configured
+    
+    Cloud-hosted instances don't need sync.
+    """
+    return PRIMARY_DATABASE == "local" and remote_client is not None and remote_database is not None
+
+def get_primary_database_type() -> str:
+    """Get the primary database type ('local' or 'cloud')"""
+    return PRIMARY_DATABASE
 
 # --- Collections ---
 available_rituals_collection = database.get_collection("available_rituals")
@@ -48,6 +119,14 @@ token_revocation_collection = database.get_collection("token_revocation")
 device_fingerprints_collection = database.get_collection("device_fingerprints")
 security_events_collection = database.get_collection("security_events")
 user_sessions_collection = database.get_collection("user_sessions")
+
+# Sync Management Collections
+conflict_logs_collection = database.get_collection("conflict_logs")
+sync_logs_collection = database.get_collection("sync_logs")
+sync_config_collection = database.get_collection("sync_config")
+
+# Backup Management Collections
+backup_metadata_collection = database.get_collection("backup_metadata")
 
 # Ensure unique index on username for admins collection
 async def ensure_indexes():

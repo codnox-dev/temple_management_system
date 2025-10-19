@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Literal, Optional
 from bson import ObjectId
 from .main_models import PyObjectId
+from datetime import datetime
 
 Mode = Literal['full']
 
@@ -23,6 +24,13 @@ class GalleryLayoutBase(BaseModel):
     # New: Static container-based layout simply stores an ordered list of image IDs.
     # The frontend renders containers using a fixed, responsive pattern and maps images by this order.
     order: List[str] = Field(default_factory=list)
+    
+    # Sync tracking fields
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    synced_at: Optional[datetime] = Field(None)
+    sync_origin: Optional[str] = Field(default="local")  # "local" or "remote"
+    sync_status: Optional[str] = Field(default="pending")  # "synced", "pending", "conflict"
 
 class GalleryLayoutCreate(GalleryLayoutBase):
     pass

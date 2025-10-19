@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section, sync, backup
 # Conditional imports for resource optimization
 security_level = os.getenv("SECURITY_LEVEL", "standard").lower()
 from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
@@ -106,6 +106,16 @@ app.add_middleware(
 # --- Startup Event to Populate Database ---
 @app.on_event("startup")
 async def startup_db_client():
+    # --- Create Backups Directory ---
+    try:
+        import os
+        from pathlib import Path
+        backup_dir = Path(__file__).parent.parent / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        print(f"✓ Backups directory ready: {backup_dir}")
+    except Exception as e:
+        print(f"⚠ Warning: Could not create backups directory: {e}")
+    
     # --- Ensure Unique Indexes ---
     try:
         await ensure_indexes()
@@ -113,6 +123,46 @@ async def startup_db_client():
     except Exception as e:
         # Will fail if duplicates exist; surface a warning so it can be resolved
         print(f"Warning: Could not ensure indexes: {e}")
+
+    # --- Initialize Sync Manager and Network Monitor ---
+    try:
+        from .services.sync_manager_service import get_sync_manager
+        from .services.network_monitor_service import start_network_monitoring
+        from .database import is_sync_enabled, get_primary_database_type
+        
+        primary_db_type = get_primary_database_type()
+        
+        if primary_db_type == "cloud":
+            print("☁️ Running in CLOUD mode - sync features disabled (not needed)")
+            print("   All operations use cloud MongoDB directly")
+        elif is_sync_enabled():
+            print("🔄 Running in LOCAL mode - initializing synchronization system...")
+            
+            # Initialize sync manager
+            sync_manager = await get_sync_manager()
+            print("✓ Sync manager initialized")
+            
+            # Start network monitoring for automatic sync on reconnect
+            await start_network_monitoring()
+            print("✓ Network monitoring started (checks every 5 minutes)")
+            
+            # Optional: Perform initial sync on startup if online
+            try:
+                if sync_manager.config and sync_manager.config.autoSyncEnabled:
+                    print("🔄 Performing initial sync...")
+                    await sync_manager.sync_all_collections(trigger="automatic")
+                    print("✓ Initial sync completed")
+            except Exception as sync_error:
+                print(f"⚠ Initial sync failed (will retry on schedule): {sync_error}")
+        else:
+            print("⚠ Sync not configured:")
+            print("   - Set PRIMARY_DATABASE=local in .env to enable sync")
+            print("   - Set MONGODB_CLOUD_URL for sync target")
+            print("   Working in local-only mode.")
+    
+    except Exception as e:
+        print(f"⚠ Warning: Could not initialize sync system: {e}")
+        print("   Application will continue without sync features.")
 
     # --- Populate Rituals ---
     if await available_rituals_collection.count_documents({}) == 0:
@@ -236,6 +286,18 @@ async def startup_db_client():
             print("Super admin already aligned with environment overrides; no changes made.")
 
 
+# --- Shutdown Event ---
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown"""
+    try:
+        from .services.network_monitor_service import stop_network_monitoring
+        await stop_network_monitoring()
+        print("✓ Network monitor stopped")
+    except Exception as e:
+        print(f"Warning: Error during shutdown: {e}")
+
+
 # --- API Routers ---
 app.include_router(admin.router, tags=["Admin"], prefix="/api/admin")
 app.include_router(rituals.router, tags=["Rituals"], prefix="/api/rituals")
@@ -256,6 +318,8 @@ app.include_router(events_section.router, tags=["Events Section"], prefix="/api/
 app.include_router(calendar.router, tags=["Calendar"], prefix="/api")
 app.include_router(auth.router, tags=["Authentication"], prefix="/api/auth")
 app.include_router(enhanced_admin.router, tags=["Enhanced Admin"], prefix="/api/enhanced-admin")
+app.include_router(sync.router, tags=["Synchronization"], prefix="/api/sync")
+app.include_router(backup.router, tags=["Backup Management"], prefix="/api")
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
