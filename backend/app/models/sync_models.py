@@ -43,7 +43,7 @@ class SyncLogEntry(BaseModel):
     startTime: datetime = Field(default_factory=datetime.utcnow)
     endTime: Optional[datetime] = Field(None)
     status: Literal["in_progress", "completed", "failed", "partial"] = Field(default="in_progress")
-    trigger: Literal["manual", "automatic", "scheduled", "reconnect"] = Field(...)
+    trigger: Literal["manual", "automatic", "scheduled", "reconnect", "startup"] = Field(...)
     collections: list[str] = Field(default_factory=list, description="Collections synced")
     
     # Statistics

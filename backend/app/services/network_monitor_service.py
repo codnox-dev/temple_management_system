@@ -71,6 +71,17 @@ class NetworkMonitor:
             return
         
         self.is_running = True
+        
+        # Check initial connectivity state to avoid false "reconnect" trigger
+        # This is especially important during startup
+        try:
+            initial_state = await self.check_connectivity()
+            self.was_online = initial_state
+            logger.info(f"✓ Initial connectivity state: {'online' if initial_state else 'offline'}")
+        except Exception as e:
+            logger.warning(f"Could not determine initial connectivity state: {e}")
+            self.was_online = False
+        
         self.monitor_task = asyncio.create_task(self._monitor_loop())
         logger.info(f"✓ Network monitor started (check interval: {self.check_interval}s)")
     
@@ -89,6 +100,12 @@ class NetworkMonitor:
     
     async def _monitor_loop(self):
         """Main monitoring loop"""
+        # Add initial delay to avoid interfering with startup sync
+        # This gives the application time to complete initial operations
+        initial_delay = min(60, self.check_interval)  # Wait 1 minute or check_interval, whichever is smaller
+        logger.debug(f"Network monitor delaying {initial_delay}s before first check")
+        await asyncio.sleep(initial_delay)
+        
         while self.is_running:
             try:
                 self.last_check_time = datetime.utcnow()
