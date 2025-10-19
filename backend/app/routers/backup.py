@@ -35,20 +35,24 @@ async def verify_admin_permissions(current_admin: dict = Depends(get_current_adm
 @router.post("/backup", response_model=BackupResponse)
 async def trigger_backup(
     request: BackupTriggerRequest,
+    with_cleanup: bool = False,
     current_admin: dict = Depends(verify_admin_permissions),
     _: None = Depends(verify_local_mode)
 ):
     """
-    Trigger backup operation: sync → backup → delete
+    Trigger backup operation: [cleanup →] sync → backup → delete
     
     **Workflow**:
-    1. Sync local database with remote Atlas
-    2. Create backup of local database
-    3. Delete activities collection (automatic)
-    4. Delete bookings and employee_bookings (if requested)
+    1. [Optional] Cleanup old tokens and fetch remote security collections
+    2. Sync local database with remote Atlas
+    3. Create backup of local database
+    4. Delete activities collection (automatic)
+    5. Delete bookings and employee_bookings (if requested)
+    6. [Optional] Delete security collections (login_attempts, token_revocation, etc.)
     
     **Parameters**:
     - delete_bookings: Whether to delete bookings and employee_bookings after backup
+    - with_cleanup: Whether to perform security cleanup (query parameter)
     
     **Permissions**: Super Admin and Admin only
     """
@@ -57,7 +61,8 @@ async def trigger_backup(
         
         result = await backup_service.trigger_backup(
             delete_bookings=request.delete_bookings,
-            created_by=current_admin.get("username", "unknown")
+            created_by=current_admin.get("username", "unknown"),
+            with_cleanup=with_cleanup
         )
         
         if not result.get("success"):
@@ -296,4 +301,73 @@ async def trigger_manual_sync(
         raise HTTPException(
             status_code=500,
             detail=f"Manual sync failed: {str(e)}"
+        )
+
+@router.get("/backup/security-collections-count")
+async def get_security_collections_count(
+    current_admin: dict = Depends(verify_admin_permissions)
+):
+    """
+    Get document count for security collections in local and remote databases.
+    Useful for verifying cleanup worked correctly.
+    
+    **Permissions**: Super Admin and Admin only
+    """
+    try:
+        from ..database import (
+            get_local_database,
+            get_remote_database,
+            is_sync_enabled,
+            login_attempts_collection,
+            token_revocation_collection,
+            user_sessions_collection,
+            device_fingerprints_collection,
+            security_events_collection
+        )
+        
+        local_counts = {}
+        remote_counts = {}
+        
+        # Count local collections
+        security_collections = {
+            "login_attempts": login_attempts_collection,
+            "token_revocation": token_revocation_collection,
+            "user_sessions": user_sessions_collection,
+            "device_fingerprints": device_fingerprints_collection,
+            "security_events": security_events_collection
+        }
+        
+        for name, collection in security_collections.items():
+            local_counts[name] = await collection.count_documents({})
+        
+        # Count remote collections if available
+        if is_sync_enabled():
+            remote_db = get_remote_database()
+            if remote_db is not None:
+                for name in security_collections.keys():
+                    remote_collection = remote_db.get_collection(name)
+                    remote_counts[name] = await remote_collection.count_documents({})
+        
+        total_local = sum(local_counts.values())
+        total_remote = sum(remote_counts.values())
+        
+        return {
+            "local": local_counts,
+            "remote": remote_counts,
+            "totals": {
+                "local": total_local,
+                "remote": total_remote,
+                "combined": total_local + total_remote
+            },
+            "message": (
+                "All security collections are empty" 
+                if total_local == 0 and total_remote == 0 
+                else f"Found {total_local} local and {total_remote} remote security documents"
+            )
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to count security collections: {str(e)}"
         )

@@ -93,6 +93,28 @@ def get_primary_database_type() -> str:
     """Get the primary database type ('local' or 'cloud')"""
     return PRIMARY_DATABASE
 
+def get_security_origin() -> str:
+    """
+    Get the origin identifier for security-related documents.
+    Returns 'local' or 'cloud' based on PRIMARY_DATABASE setting.
+    This is used to track which system created security logs.
+    """
+    return PRIMARY_DATABASE
+
+def add_security_origin(document: dict) -> dict:
+    """
+    Add origin field to a security document.
+    This helper ensures all security documents are tagged with their origin.
+    
+    Args:
+        document: The document to add origin to
+    
+    Returns:
+        The document with origin field added
+    """
+    document["origin"] = get_security_origin()
+    return document
+
 # --- Collections ---
 available_rituals_collection = database.get_collection("available_rituals")
 bookings_collection = database.get_collection("bookings")

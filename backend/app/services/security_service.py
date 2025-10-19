@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException
-from ..database import security_events_collection
+from ..database import security_events_collection, add_security_origin
 
 logger = logging.getLogger("security_service")
 
@@ -15,13 +15,13 @@ class SecurityService:
                                 mobile_number: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
         """Log security events for monitoring and audit purposes"""
         try:
-            event_doc = {
+            event_doc = add_security_origin({
                 "event_type": event_type,
                 "timestamp": datetime.now(timezone.utc),
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "details": details or {}
-            }
+            })
             
             if user_id:
                 event_doc["user_id"] = user_id

@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from ..database import login_attempts_collection
+from ..database import login_attempts_collection, get_security_origin
 
 logger = logging.getLogger("login_rate_limit")
 
@@ -37,6 +37,7 @@ class LoginRateLimitService:
                 "last_attempt_at": now,
                 "request_count": 1,
                 "blocked_until": None,
+                "origin": get_security_origin(),  # Track which system created this
             }
             await login_attempts_collection.update_one(key, {"$set": new_record}, upsert=True)
             return True, None, None

@@ -57,6 +57,8 @@ const BackupManagement = () => {
   
   // Backup trigger states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
+  const [deleteBookingsInCleanup, setDeleteBookingsInCleanup] = useState(false);
   const [backupInProgress, setBackupInProgress] = useState(false);
   
   // Sync states
@@ -91,25 +93,34 @@ const BackupManagement = () => {
     }
   };
 
-  const handleTriggerBackup = async (deleteBookings: boolean) => {
+  const handleTriggerBackup = async (deleteBookings: boolean, withCleanup: boolean = false) => {
     setBackupInProgress(true);
     setError(null);
     setSuccess(null);
     setSyncSuccess(null);
     setShowDeleteDialog(false);
+    setShowCleanupDialog(false);
 
     try {
-      const result = await triggerBackup(deleteBookings);
+      const result = await triggerBackup(deleteBookings, withCleanup);
       
-      setSuccess(
+      let successMessage = 
         `Backup completed successfully!\n` +
         `Backup ID: ${result.backup_id}\n` +
         `Collections backed up: ${result.collections_backed_up.length}\n` +
         `Deleted locally: ${result.collections_deleted_local.join(', ')}\n` +
         (result.collections_deleted_remote.length > 0 
-          ? `Deleted remotely: ${result.collections_deleted_remote.join(', ')}`
-          : '')
-      );
+          ? `Deleted remotely: ${result.collections_deleted_remote.join(', ')}\n`
+          : '');
+      
+      if (withCleanup) {
+        successMessage += `\n🧹 Security Cleanup Performed:\n` +
+          `- Old tokens cleaned\n` +
+          `- Remote security data merged\n` +
+          `- Security collections purged from both databases`;
+      }
+      
+      setSuccess(successMessage);
       
       // Refresh backups list
       await loadBackups();
@@ -367,42 +378,109 @@ const BackupManagement = () => {
             </ol>
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              onClick={() => handleTriggerBackup(false)}
-              disabled={backupInProgress}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              {backupInProgress ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Backup in Progress...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Trigger Backup (Keep Bookings)
-                </>
-              )}
-            </Button>
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <h4 className="font-medium text-blue-900 mb-2">🧹 Cleanup Option:</h4>
+            <p className="text-sm text-blue-800 mb-2">
+              Security cleanup will also:
+            </p>
+            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+              <li>Remove old revoked tokens (older than 2 days)</li>
+              <li>Fetch and merge remote security collections (login_attempts, user_sessions, etc.)</li>
+              <li>Backup merged security data</li>
+              <li>Purge security collections from both local and remote databases</li>
+            </ul>
+          </div>
 
-            <Button
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={backupInProgress}
-              variant="destructive"
-            >
-              {backupInProgress ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Backup in Progress...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Trigger Backup (Delete Bookings)
-                </>
-              )}
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <p className="text-sm font-medium mb-2">Standard Backup</p>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => handleTriggerBackup(false, false)}
+                  disabled={backupInProgress}
+                  className="bg-orange-500 hover:bg-orange-600 w-full"
+                >
+                  {backupInProgress ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Backup in Progress...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Keep Bookings
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={backupInProgress}
+                  variant="destructive"
+                  className="w-full"
+                >
+                  {backupInProgress ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Backup in Progress...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Delete Bookings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">With Security Cleanup 🧹</p>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => {
+                    setDeleteBookingsInCleanup(false);
+                    setShowCleanupDialog(true);
+                  }}
+                  disabled={backupInProgress}
+                  className="bg-blue-600 hover:bg-blue-700 w-full"
+                >
+                  {backupInProgress ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Backup in Progress...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Keep Bookings + Cleanup
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setDeleteBookingsInCleanup(true);
+                    setShowCleanupDialog(true);
+                  }}
+                  disabled={backupInProgress}
+                  variant="destructive"
+                  className="bg-red-700 hover:bg-red-800 w-full"
+                >
+                  {backupInProgress ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Backup in Progress...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Delete Bookings + Cleanup
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -535,7 +613,7 @@ const BackupManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog for Standard Delete */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
@@ -559,9 +637,64 @@ const BackupManagement = () => {
             </Button>
             <Button 
               variant="destructive" 
-              onClick={() => handleTriggerBackup(true)}
+              onClick={() => handleTriggerBackup(true, false)}
             >
               Yes, Backup and Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Cleanup */}
+      <Dialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Backup with Security Cleanup</DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p>This will perform the following actions:</p>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                <li><strong>Security Cleanup:</strong></li>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>Remove old revoked tokens (older than 2 days)</li>
+                  <li>Fetch and merge remote security collections</li>
+                  <li>Prepare security data for backup</li>
+                </ul>
+                <li>Sync local database with remote</li>
+                <li>Create a complete backup (including merged security data)</li>
+                <li>Delete <strong>activities</strong> collection (automatic)</li>
+                {deleteBookingsInCleanup && (
+                  <li>Delete <strong>bookings</strong> and <strong>employee_bookings</strong> collections</li>
+                )}
+                <li><strong>Purge security collections:</strong></li>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>login_attempts</li>
+                  <li>token_revocation</li>
+                  <li>user_sessions</li>
+                  <li>device_fingerprints</li>
+                  <li>security_events</li>
+                </ul>
+                <li className="font-medium">Delete from <strong>both local and remote</strong> databases</li>
+              </ol>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-3">
+                <p className="text-sm text-blue-900 font-medium">
+                  ℹ️ This will free up space and isolate local/server sessions while preserving all data in the backup.
+                </p>
+              </div>
+              <p className="font-medium text-red-600 mt-3">
+                This action cannot be undone. Are you sure you want to proceed?
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCleanupDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleTriggerBackup(deleteBookingsInCleanup, true)}
+              className="bg-blue-700 hover:bg-blue-800"
+            >
+              Yes, Backup with Cleanup
             </Button>
           </DialogFooter>
         </DialogContent>

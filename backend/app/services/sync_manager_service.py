@@ -50,6 +50,15 @@ class SyncManager:
         self.last_sync_time: Optional[datetime] = None
         self.config: Optional[SyncConfiguration] = None
         
+        # Collections to exclude from sync (security-related, managed separately)
+        self.excluded_collections = {
+            "login_attempts",
+            "token_revocation", 
+            "user_sessions",
+            "device_fingerprints",
+            "security_events"
+        }
+        
         # Unique field mapping per collection
         self.unique_fields_map = {
             "admins": ["username"],  # username is unique in admins collection
@@ -152,9 +161,17 @@ class SyncManager:
             raise ValueError("Sync already in progress")
         
         self.is_syncing = True
+        
+        # Filter out excluded collections (security-related)
+        collections_to_sync = collections or self.config.collectionsToSync
+        collections_to_sync = [
+            col for col in collections_to_sync 
+            if col not in self.excluded_collections
+        ]
+        
         sync_log = SyncLogEntry(
             trigger=trigger,
-            collections=collections or self.config.collectionsToSync
+            collections=collections_to_sync
         )
         
         try:

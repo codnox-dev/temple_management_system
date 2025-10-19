@@ -11,7 +11,7 @@ from cryptography.fernet import Fernet
 import hmac
 import base64
 import logging
-from ..database import token_revocation_collection, device_fingerprints_collection
+from ..database import token_revocation_collection, device_fingerprints_collection, add_security_origin
 from .database_security_service import db_security
 
 logger = logging.getLogger("enhanced_jwt_security")
@@ -399,12 +399,12 @@ class EnhancedJWTSecurityService:
             await device_fingerprints_collection.update_one(
                 {"user_id": user_id},
                 {
-                    "$set": {
+                    "$set": add_security_origin({
                         "user_id": user_id,
                         "device_fingerprint": device_fingerprint,
                         "last_seen": datetime.now(timezone.utc),
                         "created_at": datetime.now(timezone.utc)
-                    }
+                    })
                 },
                 upsert=True
             )
@@ -491,11 +491,11 @@ class EnhancedJWTSecurityService:
                 await token_revocation_collection.update_one(
                     {"jti": jti},
                     {
-                        "$set": {
+                        "$set": add_security_origin({
                             "jti": jti,
                             "revoked_at": datetime.now(timezone.utc),
                             "reason": reason
-                        }
+                        })
                     },
                     upsert=True
                 )

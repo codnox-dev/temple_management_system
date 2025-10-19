@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from bson import ObjectId
 from .main_models import PyObjectId
+import os
 
 class SecurityEventBase(BaseModel):
     """Base model for security events"""
@@ -13,6 +14,7 @@ class SecurityEventBase(BaseModel):
     user_id: Optional[str] = Field(None, description="ID of the user involved")
     mobile_number: Optional[str] = Field(None, description="Mobile number involved")
     details: Dict[str, Any] = Field(default_factory=dict, description="Additional event details")
+    origin: str = Field(default_factory=lambda: os.getenv("PRIMARY_DATABASE", "local"), description="Database origin (local/cloud)")
 
 class SecurityEventCreate(SecurityEventBase):
     """Schema for creating security events"""
@@ -28,6 +30,7 @@ class TokenRevocationBase(BaseModel):
     jti: str = Field(..., description="JWT ID of the revoked token")
     revoked_at: datetime = Field(default_factory=datetime.utcnow)
     reason: str = Field(default="manual_revocation", description="Reason for revocation")
+    origin: str = Field(default_factory=lambda: os.getenv("PRIMARY_DATABASE", "local"), description="Database origin (local/cloud)")
 
 class TokenRevocationCreate(TokenRevocationBase):
     """Schema for creating token revocation records"""
@@ -44,6 +47,7 @@ class DeviceFingerprintBase(BaseModel):
     device_fingerprint: Dict[str, Any] = Field(..., description="Device fingerprint data")
     last_seen: datetime = Field(default_factory=datetime.utcnow)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    origin: str = Field(default_factory=lambda: os.getenv("PRIMARY_DATABASE", "local"), description="Database origin (local/cloud)")
 
 class DeviceFingerprintCreate(DeviceFingerprintBase):
     """Schema for creating device fingerprints"""
@@ -66,6 +70,7 @@ class UserSessionBase(BaseModel):
     expires_at: datetime = Field(..., description="Session expiration time")
     last_activity: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = Field(default=True)
+    origin: str = Field(default_factory=lambda: os.getenv("PRIMARY_DATABASE", "local"), description="Database origin (local/cloud)")
 
 class UserSessionCreate(UserSessionBase):
     """Schema for creating user sessions"""

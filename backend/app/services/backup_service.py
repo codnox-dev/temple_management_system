@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
@@ -19,6 +20,9 @@ from ..database import (
     DATABASE_NAME
 )
 from ..models.backup_models import BackupMetadata, BackupStatus, SyncStatus
+
+logger = logging.getLogger(__name__)
+
 
 class BackupService:
     """Service for managing database backups with sync and deletion"""
@@ -212,10 +216,16 @@ class BackupService:
     async def trigger_backup(
         self,
         delete_bookings: bool,
-        created_by: str
+        created_by: str,
+        with_cleanup: bool = False
     ) -> Dict:
         """
-        Main backup workflow: sync → backup → delete
+        Main backup workflow: [cleanup →] sync → backup → delete
+        
+        Args:
+            delete_bookings: Whether to delete bookings after backup
+            created_by: Username of admin triggering backup
+            with_cleanup: Whether to perform security cleanup (tokens, sessions, etc.)
         """
         try:
             # Validate local mode
@@ -250,7 +260,22 @@ class BackupService:
             created_by=created_by
         )
         
+        cleanup_result = None
+        
         try:
+            # Step 0: Cleanup security collections if requested
+            if with_cleanup:
+                try:
+                    from ..services.cleanup_service import get_cleanup_service
+                    cleanup_service = await get_cleanup_service()
+                    cleanup_result = await cleanup_service.perform_full_cleanup()
+                    
+                    if not cleanup_result.get("success"):
+                        logger.warning(f"Cleanup had issues: {cleanup_result.get('error')}")
+                except Exception as e:
+                    logger.error(f"Cleanup failed: {e}")
+                    cleanup_result = {"success": False, "error": str(e)}
+            
             # Step 1: Sync databases
             try:
                 sync_success, sync_message = await self.sync_databases()
@@ -329,6 +354,45 @@ class BackupService:
             else:
                 metadata.collections_deleted_remote = []
             
+            # Step 5: Delete security collections if cleanup was performed
+            security_cleanup_stats = None
+            if with_cleanup and cleanup_result and cleanup_result.get("success"):
+                logger.info("🗑️  Starting security collections deletion...")
+                try:
+                    from ..services.cleanup_service import get_cleanup_service
+                    cleanup_service = await get_cleanup_service()
+                    
+                    # Delete from local
+                    logger.info("Deleting security collections from LOCAL database...")
+                    local_security = await cleanup_service.delete_security_collections_local()
+                    logger.info(f"Local deletion complete: {local_security}")
+                    
+                    # Delete from remote
+                    logger.info("Deleting security collections from REMOTE database...")
+                    remote_security = await cleanup_service.delete_security_collections_remote()
+                    logger.info(f"Remote deletion complete: {remote_security}")
+                    
+                    security_cleanup_stats = {
+                        "local": local_security,
+                        "remote": remote_security
+                    }
+                    
+                    logger.info(f"✓ Security collections cleaned up successfully: {security_cleanup_stats}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Failed to delete security collections: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    security_cleanup_stats = {"error": str(e)}
+                    # Don't fail the entire backup if cleanup deletion fails
+                    metadata.status = BackupStatus.PARTIAL
+                    if not metadata.error_message:
+                        metadata.error_message = ""
+                    metadata.error_message += f"; Security cleanup deletion failed: {str(e)}"
+            elif with_cleanup and (not cleanup_result or not cleanup_result.get("success")):
+                logger.warning(f"⚠️  Skipping security deletion because cleanup failed: {cleanup_result}")
+                security_cleanup_stats = {"skipped": True, "reason": "cleanup_failed"}
+            
             # Set final status
             if metadata.status != BackupStatus.PARTIAL:
                 metadata.status = BackupStatus.SUCCESS
@@ -339,7 +403,7 @@ class BackupService:
             except Exception as db_error:
                 print(f"Warning: Could not save backup metadata: {db_error}")
             
-            return {
+            result = {
                 "success": True,
                 "backup_id": backup_id,
                 "backup_path": str(backup_path),
@@ -351,6 +415,14 @@ class BackupService:
                 "collections_deleted_remote": metadata.collections_deleted_remote,
                 "message": "Backup completed successfully" if metadata.status == BackupStatus.SUCCESS else "Backup completed with warnings"
             }
+            
+            # Add cleanup stats if cleanup was performed
+            if with_cleanup:
+                result["cleanup_performed"] = True
+                result["cleanup_result"] = cleanup_result
+                result["security_cleanup_stats"] = security_cleanup_stats
+            
+            return result
             
         except Exception as e:
             metadata.status = BackupStatus.FAILED

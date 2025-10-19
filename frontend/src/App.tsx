@@ -30,7 +30,7 @@ import EditProfile from "./pages/admin/EditProfile";
 import Activity from "./pages/admin/Activity";
 import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
 import ManageCommittee from "./pages/admin/ManageCommittee";
-import BackupManagement from "./pages/BackupManagement";
+import BackupManagement from "./pages/admin/BackupManagement";
 import SecurityDashboard from "./pages/admin/SecurityDashboard";
 
 const queryClient = new QueryClient();

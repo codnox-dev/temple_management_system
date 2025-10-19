@@ -13,7 +13,7 @@ from ..services.activity_service import create_activity
 from ..services.login_rate_limit_service import login_rate_limit_service
 from ..services.security_service import SecurityService
 from ..models.activity_models import ActivityCreate
-from ..database import token_revocation_collection
+from ..database import token_revocation_collection, add_security_origin
 
 router = APIRouter()
 logger = logging.getLogger("auth")
@@ -224,10 +224,10 @@ async def refresh_token(request: Request, response: Response, refresh_request: O
         await token_revocation_collection.update_one(
             {"jti": jti},
             {
-                "$setOnInsert": {
+                "$setOnInsert": add_security_origin({
                     "revoked_at": datetime.utcnow(),
                     "reason": "rotated_refresh",
-                }
+                })
             },
             upsert=True,
         )
@@ -293,10 +293,10 @@ async def logout(request: Request, response: Response):
                 await token_revocation_collection.update_one(
                     {"jti": jti},
                     {
-                        "$setOnInsert": {
+                        "$setOnInsert": add_security_origin({
                             "revoked_at": datetime.utcnow(),
                             "reason": "logout",
-                        }
+                        })
                     },
                     upsert=True,
                 )

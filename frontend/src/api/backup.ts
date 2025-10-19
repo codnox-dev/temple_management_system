@@ -65,10 +65,16 @@ export interface ManualSyncResponse {
 /**
  * Trigger a backup operation
  */
-export const triggerBackup = async (deleteBookings: boolean): Promise<BackupResponse> => {
-  const response = await api.post<BackupResponse>('/backup', {
-    delete_bookings: deleteBookings
-  });
+export const triggerBackup = async (
+  deleteBookings: boolean, 
+  withCleanup: boolean = false
+): Promise<BackupResponse> => {
+  const response = await api.post<BackupResponse>(
+    `/backup?with_cleanup=${withCleanup}`,
+    {
+      delete_bookings: deleteBookings
+    }
+  );
   return response.data;
 };
 
