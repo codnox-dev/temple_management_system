@@ -426,6 +426,188 @@ const ManageBookings = () => {
         }
     };
 
+    // Function to download individual booking as PDF
+    const downloadIndividualBookingAsPDF = async (booking: UnifiedBooking) => {
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginX = 14;
+            let cursorY = 18;
+
+            // Load Malayalam font
+            let malayalamFontAvailable = false;
+            try {
+                const response = await fetch('/fonts/NotoSansMalayalam-Regular.ttf');
+                const fontArrayBuffer = await response.arrayBuffer();
+                const fontBase64 = btoa(
+                    new Uint8Array(fontArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                doc.addFileToVFS('NotoSansMalayalam-Regular.ttf', fontBase64);
+                doc.addFont('NotoSansMalayalam-Regular.ttf', 'NotoSansMalayalam', 'normal');
+                malayalamFontAvailable = true;
+            } catch (error) {
+                console.warn('Could not load Malayalam font:', error);
+            }
+
+            // Helper function to detect Malayalam characters
+            const containsMalayalam = (text: string): boolean => {
+                return /[\u0D00-\u0D7F]/.test(text);
+            };
+
+            // Header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Temple Management System', marginX, cursorY);
+
+            cursorY += 8;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Booking Receipt', marginX, cursorY);
+
+            cursorY += 8;
+            // Summary line
+            doc.setFontSize(10);
+            doc.setTextColor(60);
+            const generatedOn = `${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`;
+            doc.text(`Generated on: ${generatedOn}`, marginX, cursorY);
+
+            cursorY += 6;
+            doc.setTextColor(0);
+            doc.text(`Total Rituals: ${booking.instances.length}`, marginX, cursorY);
+            doc.text(`Total Revenue: Rs. ${booking.total_cost.toFixed(2)}`, marginX + 60, cursorY);
+
+            cursorY += 8;
+
+            // Footer renderer
+            const drawFooter = (pageNumber: number) => {
+                doc.setFontSize(9);
+                doc.setTextColor(120);
+                doc.text('Booking Receipt', pageWidth / 2, pageHeight - 8, { align: 'center' });
+            };
+
+            const withPageDecorations = {
+                didDrawPage: (data: any) => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('Booking Receipt', marginX, 10);
+                    drawFooter(data.pageNumber);
+                }
+            } as const;
+
+            // Check if booking has enough space
+            const remaining = pageHeight - cursorY - 40;
+            if (remaining < 40) {
+                doc.addPage();
+                cursorY = 18;
+            }
+
+            // Booking header panel
+            doc.setFillColor(255, 255, 255);
+            const panelWidth = pageWidth - marginX * 2;
+            const panelHeight = 18;
+            doc.rect(marginX, cursorY, panelWidth, panelHeight, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(40);
+            const bookingSource = booking.source === 'employee' ? `Employee: ${booking.booked_by}` : 'Self-Booking';
+            doc.text(`${booking.name}  (${bookingSource})`, marginX + 2, cursorY + 5.5);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(70);
+            const contactLine = `Booked: ${formatTimestamp(booking.timestamp)}`;
+            doc.text(contactLine, marginX + 2, cursorY + 10.5);
+            
+            if (booking.email || booking.phone) {
+                const contactInfo = [booking.email, booking.phone].filter(Boolean).join(' | ');
+                doc.text(contactInfo, marginX + 2, cursorY + 14.5);
+            }
+
+            // Total cost badge on the right
+            const costText = `Total: Rs. ${booking.total_cost.toFixed(2)}`;
+            const costTextWidth = doc.getTextWidth(costText) + 6;
+            const costX = marginX + panelWidth - costTextWidth - 2;
+            doc.setFillColor(229, 231, 235);
+            doc.roundedRect(costX, cursorY + 3, costTextWidth, 8, 2, 2, 'F');
+            doc.setTextColor(0);
+            doc.text(costText, costX + 3, cursorY + 9);
+
+            cursorY += panelHeight + 2;
+
+            // Ritual instances table
+            const body = booking.instances.map((instance: any) => [
+                instance.ritualName || '-',
+                String(instance.quantity ?? '-'),
+                instance.devoteeName || '-',
+                instance.naal || '-',
+                instance.dob || '-',
+                instance.subscription || '-'
+            ]);
+
+            autoTable(doc, {
+                ...withPageDecorations,
+                startY: cursorY,
+                head: [[
+                    'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
+                ]],
+                body,
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 9,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    fontStyle: 'normal'
+                },
+                headStyles: {
+                    fillColor: [0, 0, 0],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    font: 'helvetica'
+                },
+                bodyStyles: {
+                    textColor: [30, 30, 30],
+                    font: 'helvetica'
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                margin: { left: marginX, right: marginX },
+                columnStyles: {
+                    0: { cellWidth: 54 }, // Ritual
+                    1: { cellWidth: 12, halign: 'center' }, // Qty
+                    2: { cellWidth: 36 }, // Devotee
+                    3: { cellWidth: 28 }, // Naal
+                    4: { cellWidth: 22 }, // DOB
+                    5: { cellWidth: 'auto' } // Subscription
+                },
+                didParseCell: function(data: any) {
+                    // Apply Malayalam font to any cell containing Malayalam text
+                    if (malayalamFontAvailable && data.section === 'body') {
+                        const cellText = data.cell.text ? data.cell.text.join('') : '';
+                        if (containsMalayalam(cellText)) {
+                            data.cell.styles.font = 'NotoSansMalayalam';
+                            data.cell.styles.fontStyle = 'normal';
+                        }
+                    }
+                }
+            });
+
+            const fileName = `booking_receipt_${booking.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+            toast.success('Booking receipt downloaded successfully!');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF. Please try again.');
+        }
+    };
+
 
     return (
         <div className="space-y-6">
@@ -573,6 +755,7 @@ const ManageBookings = () => {
                                 <TableHead className="text-purple-300">Booked At</TableHead>
                                 <TableHead className="text-right text-purple-300">Total Cost</TableHead>
                                 <TableHead className="text-center text-purple-300">Details</TableHead>
+                                <TableHead className="text-center text-purple-300">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -616,6 +799,16 @@ const ManageBookings = () => {
                                                 </AccordionContent>
                                             </AccordionItem>
                                         </Accordion>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <button
+                                            onClick={() => downloadIndividualBookingAsPDF(booking)}
+                                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2 mx-auto"
+                                            title="Download this booking receipt"
+                                        >
+                                            <Download className="h-4 w-4" />
+                                            <span className="text-sm">PDF</span>
+                                        </button>
                                     </TableCell>
                                 </TableRow>
                             ))}
