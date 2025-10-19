@@ -31,7 +31,8 @@ class RoleBasedAccessControl:
             "financial_operations": ["create", "read", "update", "delete"],
             "audit_logs": ["read"],
             "admin_functions": ["all"],
-            "bulk_operations": ["all"]
+            "bulk_operations": ["all"],
+            "priest_attendance": ["create", "read", "update", "delete"]
         },
         1: {  # Admin - Administrative access
             "user_management": ["create", "read", "update", "delete"],
@@ -40,13 +41,15 @@ class RoleBasedAccessControl:
             "financial_operations": ["create", "read", "update"],
             "audit_logs": ["read"],
             "admin_functions": ["most"],
-            "bulk_operations": ["limited"]
+            "bulk_operations": ["limited"],
+            "priest_attendance": ["create", "read", "update", "delete"]
         },
-        2: {  # Privileged - Extended access
+        2: {  # Privileged - Extended access (super_user)
             "user_management": ["read", "update"],
             "content_management": ["create", "read", "update", "delete"],
             "reporting": ["read", "create"],
-            "bulk_operations": ["limited"]
+            "bulk_operations": ["limited"],
+            "priest_attendance": ["create", "read", "update", "delete"]
         },
         3: {  # Editor - Content management
             "content_management": ["create", "read", "update"],
@@ -55,7 +58,8 @@ class RoleBasedAccessControl:
         },
         4: {  # Employee - Basic operations
             "basic_operations": ["create", "read", "update"],
-            "self_service": ["all"]
+            "self_service": ["all"],
+            "priest_attendance": ["create", "read", "update"]
         },
         5: {  # Viewer - Read-only
             "basic_operations": ["read"],

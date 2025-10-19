@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section, sync, backup, security
+from .routers import rituals, bookings, events, admin, gallery, stock, roles, profile, activity, employee_booking, gallery_layout, slideshow, featured_event, committee, gallery_home_preview, calendar, auth, enhanced_admin, events_section, sync, backup, security, priest_attendance
 # Conditional imports for resource optimization
 security_level = os.getenv("SECURITY_LEVEL", "standard").lower()
 from .database import available_rituals_collection, admins_collection, roles_collection, ensure_indexes
@@ -346,6 +346,7 @@ app.include_router(enhanced_admin.router, tags=["Enhanced Admin"], prefix="/api/
 app.include_router(sync.router, tags=["Synchronization"], prefix="/api/sync")
 app.include_router(backup.router, tags=["Backup Management"], prefix="/api")
 app.include_router(security.router, tags=["Security"], prefix="/api/security")
+app.include_router(priest_attendance.router, tags=["Priest Attendance"])
 
 # Serve static files for profile pictures under /static/
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

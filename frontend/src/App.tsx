@@ -32,6 +32,9 @@ import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
 import ManageCommittee from "./pages/admin/ManageCommittee";
 import BackupManagement from "./pages/admin/BackupManagement";
 import SecurityDashboard from "./pages/admin/SecurityDashboard";
+import PriestManagement from "./pages/PriestManagement";
+import MarkAttendance from "./pages/MarkAttendance";
+import AttendanceReport from "./pages/AttendanceReport";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +167,11 @@ const App = () => (
                   <ManageCommittee />
                 </RoleGuard>
               } />
+
+              {/* Priest Attendance Management: Accessible to all admin users */}
+              <Route path="priest-management" element={<PriestManagement />} />
+              <Route path="mark-attendance" element={<MarkAttendance />} />
+              <Route path="attendance-report" element={<AttendanceReport />} />
 
               {/* Edit Profile accessible to all logged-in users */}
               <Route path="edit-profile" element={<EditProfile />} />

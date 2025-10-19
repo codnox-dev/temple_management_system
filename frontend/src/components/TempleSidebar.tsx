@@ -17,7 +17,10 @@ import {
   Plus,
   Activity,
   ShoppingCart,
-  Database
+  Database,
+  UserCheck,
+  ClipboardList,
+  FileText
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean; onToggle?: () => void };
@@ -28,6 +31,7 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
 
   const [isWebsiteExpanded, setIsWebsiteExpanded] = useState(true);
   const [isStockExpanded, setIsStockExpanded] = useState(true);
+  const [isPriestAttendanceExpanded, setIsPriestAttendanceExpanded] = useState(true);
   const [isAdminExpanded, setIsAdminExpanded] = useState(true);
   
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -182,6 +186,37 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
           )}
         </div>
         )}
+
+        {/* Priest Attendance Section: visible for all admin users */}
+        <div>
+          <button
+            onClick={() => setIsPriestAttendanceExpanded(!isPriestAttendanceExpanded)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-neutral-600 hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-medium"
+          >
+            <div className="flex items-center space-x-3">
+              <UserCheck className="h-5 w-5" />
+              <span className="font-medium">Priest Attendance</span>
+            </div>
+            {isPriestAttendanceExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          
+          {isPriestAttendanceExpanded && (
+             <div className="ml-6 mt-2 space-y-1">
+                <NavLink to="/admin/priest-management" className={subNavLinkClass}>
+                    <Users className="h-4 w-4" />
+                    <span>Priest Management</span>
+                </NavLink>
+                <NavLink to="/admin/mark-attendance" className={subNavLinkClass}>
+                    <ClipboardList className="h-4 w-4" />
+                    <span>Mark Attendance</span>
+                </NavLink>
+                <NavLink to="/admin/attendance-report" className={subNavLinkClass}>
+                    <FileText className="h-4 w-4" />
+                    <span>Attendance Report</span>
+                </NavLink>
+             </div>
+          )}
+        </div>
 
         {/* Admin Management Section */}
         {/* Admin Management visible only to role_id <= 2 (Super/Admin/Privileged), but page will also gate */}
