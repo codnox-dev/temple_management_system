@@ -194,6 +194,53 @@ h1, h2, h3, h4, h5, h6 { font-family: 'Prata', Georgia, serif; }
 html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; }
 body { max-width: 100%; overflow-x: hidden; }
 
+/* ================= Golden Text Scheme (scoped for main page) ================= */
+/* Apply to a container to give all typical text elements a readable golden hue
+   that fits the temple aesthetic while keeping buttons and badges unchanged. */
+.golden-text-scheme {
+  /* Local palette so we can tune without touching global variables */
+  --gold-50: 45 100% 92%;  /* very light */
+  --gold-100: 45 95% 86%;  /* light */
+  --gold-200: 45 92% 80%;  /* base body */
+  --gold-300: 42 88% 73%;  /* secondary */
+  --gold-400: 40 84% 66%;  /* emphasis */
+}
+
+.golden-text-scheme :where(h1,h2,h3,h4,h5,h6):not(.gold-glow-text):not(.temple-heading):not(.temple-heading-xl):not(.temple-section-heading) {
+  color: hsl(var(--gold-50));
+  text-shadow: 0 2px 4px hsla(30, 65%, 20%, 0.45);
+}
+
+.golden-text-scheme :where(p,li,small,label,blockquote,figcaption,dd,dt,th,td) {
+  color: hsl(var(--gold-200));
+  text-shadow: 0 1px 2px hsla(28, 60%, 18%, 0.35);
+}
+
+/* Muted/secondary text */
+.golden-text-scheme :where(.text-muted-foreground,[data-muted="true"]) {
+  color: hsl(var(--gold-300));
+}
+
+/* Links get a brighter gold with a subtle glow */
+.golden-text-scheme a:not(.temple-btn-primary):not(.btn-divine):not(.btn-golden):not(.gold-glow-text) {
+  color: hsl(var(--gold-100));
+  text-decoration-color: hsl(var(--gold-400));
+  text-underline-offset: 2px;
+  transition: color .25s ease, text-shadow .25s ease;
+}
+.golden-text-scheme a:not(.temple-btn-primary):not(.btn-divine):not(.btn-golden):not(.gold-glow-text):hover {
+  color: hsl(var(--gold-50));
+  text-shadow: 0 0 10px hsla(45, 100%, 75%, 0.35);
+}
+
+/* Table headers and borders read better against dark tapestry */
+.golden-text-scheme table thead th { color: hsl(var(--gold-100)); }
+.golden-text-scheme table tbody td { color: hsl(var(--gold-200)); }
+
+/* Form placeholders */
+.golden-text-scheme ::placeholder { color: hsl(var(--gold-300)); opacity: .9; }
+
+
 /* ================= Temple Themed Section Frames ================= */
 .temple-section-frame { position: relative; }
 /* Softened frame: drastically lower contrast so sections blend into tapestry */
@@ -435,6 +482,14 @@ body { max-width: 100%; overflow-x: hidden; }
 .pulse-divine { animation: pulse-divine 3s ease-in-out infinite; }
 .float-gentle { animation: float-gentle 6s ease-in-out infinite; }
 .glow-sacred { animation: glow-sacred 4s ease-in-out infinite; }
+
+/* Gentle pendulum swing for decorative lamps */
+@keyframes swing-gentle {
+  0% { transform: rotate(-2deg); transform-origin: top center; }
+  50% { transform: rotate(2deg); transform-origin: top center; }
+  100% { transform: rotate(-2deg); transform-origin: top center; }
+}
+.swing-gentle { animation: swing-gentle 6s ease-in-out infinite; }
 
 @keyframes pulse-divine {
   0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px hsl(30, 100%, 60%, 0.3)); }

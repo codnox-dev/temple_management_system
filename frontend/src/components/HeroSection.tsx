@@ -11,10 +11,10 @@ const HeroSection = () => {
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(30,10,2,0.75),rgba(80,30,5,0.55)60%,rgba(120,60,10,0.7))]" />
     </div>
     <div className="temple-hero-arch animate-fade-in-up">
-      <div className="relative z-10 max-w-5xl mx-auto text-center px-4 md:px-10">
-        <h1 className="text-5xl md:text-7xl font-playfair font-bold leading-tight mb-6 gold-glow-text">
+      <div className="relative z-10 max-w-5xl mx-auto text-center px-4 md:px-10 pt-16 md:pt-0">
+        <h1 className="text-3xl md:text-7xl font-playfair font-bold leading-tight mb-6 gold-glow-text">
           Vamanakulangara
-          <span className="block text-4xl md:text-6xl mt-3 tracking-wide gold-glow-text">Vishnu Temple</span>
+          <span className="block text-2xl md:text-6xl mt-3 tracking-wide gold-glow-text">Vishnu Temple</span>
         </h1>
         <p className="text-lg md:text-2xl text-amber-50/90 max-w-3xl mx-auto leading-relaxed mb-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
           A sacred sanctuary of devotion, tradition and divine grace. Book rituals, explore festivals and experience serenity.

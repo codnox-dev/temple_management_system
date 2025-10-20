@@ -112,7 +112,7 @@ const RitualSection = () => {
             </div>
           ))}
         </div>
-        <div className="pt-4">
+        <div className="pt-4 flex justify-center">
           <a href="/ritual-booking" className="temple-btn-primary inline-block">Book a Ritual</a>
         </div>
       </div>

@@ -130,15 +130,16 @@ const EventSection = () => {
 
   return (
     <section className="py-8 px-4 md:py-14 md:px-8">
-      <div className="max-w-screen-2xl mx-auto temple-glass-surface no-pad overflow-hidden relative"> {/* unified hero style glass */}
+      {/* Add extra bottom padding to ensure the bottom button is fully visible */}
+  <div className="max-w-screen-2xl mx-auto temple-glass-surface overflow-hidden relative px-0 pt-16 md:pt-24 pb-24 md:pb-32"> {/* unified hero style glass with extra top/bottom padding */}
         
-        {/* --- GOLDEN LOTUS SVG ADJUSTED: left-38% on mobile, left-44% on desktop --- */}
+  {/* --- GOLDEN LOTUS SVG: keep ~36% on mobile, nudge RIGHT on desktop to ~43% --- */}
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
           viewBox="0 0 200 200" 
           aria-hidden="true"
-          // left-[38%] for mobile/default. md:left-[44%] overrides for desktop view.
-          className="absolute top-5 left-[36%] md:left-[44%] transform -translate-x-1/2 w-[100px] h-[100px] md:w-[200px] md:h-[200px] opacity-[0.35] z-0 animate-spin-slow"
+          // left-[36%] for mobile/default. md:left-[43%] for desktop to align optically with heading.
+          className="absolute top-5 left-[36%] md:left-[43%] transform -translate-x-1/2 w-[100px] h-[100px] md:w-[200px] md:h-[200px] opacity-[0.35] z-0 animate-spin-slow"
         >
           {/* Center circle (Brightest Red - red-400) */}
           <circle cx="100" cy="100" r="10" fill="#EF4444"/> 
@@ -231,15 +232,15 @@ const EventSection = () => {
                         {currentEvent.title}
                       </h3>
                       <div className="space-y-3 text-sm">
-                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
+                        <div className="text-primary/90 flex items-center">
                           <Calendar className="h-4 w-4 mr-3 text-primary" />
                           {new Date(currentEvent.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
-                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
+                        <div className="text-primary/90 flex items-center">
                           <Clock className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.time}
                         </div>
-                        <div className="text-[hsl(30_25%_92%)]/90 flex items-center">
+                        <div className="text-primary/90 flex items-center">
                           <MapPin className="h-4 w-4 mr-3 text-primary" />
                           {currentEvent.location}
                         </div>

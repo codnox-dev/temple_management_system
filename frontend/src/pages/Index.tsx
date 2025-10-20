@@ -40,7 +40,7 @@ const Index = () => {
           </Link>
         </div>
       )}
-      <main className="overflow-x-hidden">
+  <main className="overflow-x-hidden golden-text-scheme">
         <div id="home" className="scroll-offset">
           <HeroSection />
         </div>

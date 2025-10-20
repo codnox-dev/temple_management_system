@@ -76,18 +76,17 @@ const GalleryPreview = () => {
 
 	return (
 		// 1. Main wrapper with reduced vertical space
-		<section className="py-10 px-6">
-			{/* 2. The visible outline container */}
-			<div className="max-w-screen-2xl mx-auto bg-transparent border-2 border-red-500 rounded-xl p-6 sm:p-8 lg:p-12">
+	    <section className="py-10 px-6">
+		    {/* 2. The visible outline container - replaced red debug border with temple frame */}
+		    <div className="max-w-screen-2xl mx-auto bg-transparent rounded-xl p-6 sm:p-8 lg:p-12 temple-section-frame transparent-bg">
 				{/* 3. The content container */}
 				<div className="max-w-7xl mx-auto">
 					
 					{/* Section Header */}
 					<div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
-						<h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
-							Sacred <span className="text-primary">Gallery</span>
-						</h2>
-						<p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+						<h2 className="temple-heading-xl">Sacred <span className="sub">Gallery</span></h2>
+						<div className="temple-heading-divider" />
+						<p className="mt-6 text-amber-900/90 text-lg leading-relaxed max-w-3xl mx-auto">
 							Witness the divine beauty and spiritual moments captured during our
 							ceremonies, festivals, and daily temple activities.
 						</p>

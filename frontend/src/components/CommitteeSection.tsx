@@ -275,7 +275,7 @@ const CommitteeSection = () => {
 
     return (
         <section className="py-10 px-6" id="committee">
-            <div className="max-w-screen-2xl mx-auto bg-transparent border-2 border-red-500 rounded-xl p-6 sm:p-8 lg:p-12">
+            <div className="max-w-screen-2xl mx-auto bg-transparent rounded-xl p-6 sm:p-8 lg:p-12 temple-section-frame transparent-bg">
                 <div className="max-w-7xl mx-auto">
                     {isLoading ? (
                         // Polished skeleton loader wrapped in the same structure
@@ -305,10 +305,9 @@ const CommitteeSection = () => {
                         // Main component content
                         <>
                             <div ref={headerRef} className={`text-center mb-16 ${headerVisible ? 'animate-fade-in-up' : ''}`}>
-                                <h2 className="text-4xl md:text-5xl font-playfair font-bold mb-6 text-foreground">
-                                    Our <span className="text-primary">Committee</span>
-                                </h2>
-                                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                                <h2 className="temple-heading-xl">Our <span className="sub">Committee</span></h2>
+                                <div className="temple-heading-divider" />
+                                <p className="mt-6 text-amber-900/90 text-lg leading-relaxed max-w-3xl mx-auto">
                                     Meet the dedicated individuals who guide and support our temple community with wisdom and devotion.
                                 </p>
                             </div>
@@ -318,7 +317,7 @@ const CommitteeSection = () => {
                                 {mainMember && (
                                     <div ref={featuredRef} className={`flex justify-center mb-16 ${featuredVisible ? 'animate-scale-in' : ''}`}>
                                         <div className="text-center transition-transform duration-300 hover:-translate-y-1">
-                                            <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-primary shadow-lg ring-0 hover:ring-2 hover:ring-primary/40 transition">
+                                            <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-primary shadow-lg ring-0 hover:ring-2 hover:ring-primary/40 transition temple-pulse-ring">
                                                 <ImageWithBlur src={resolveImageUrl(mainMember.image)} alt={mainMember.name} className="w-full h-full" />
                                             </div>
                                             <div className="mt-4">
