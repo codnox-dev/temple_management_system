@@ -14,6 +14,7 @@ from .models.ritual_models import AvailableRitualBase
 from fastapi.middleware.cors import CORSMiddleware
 from .middleware.enhanced_jwt_auth_middleware import EnhancedJWTAuthMiddleware
 from .middleware.enhanced_security_middleware import create_enhanced_security_middleware
+from .middleware.mobile_verification_middleware import MobileVerificationMiddleware
 from dotenv import load_dotenv
 from pymongo import ASCENDING
 
@@ -27,8 +28,13 @@ app = FastAPI(
     version="1.2.0"  # Updated version for enhanced security
 )
 
-# --- Enhanced Security Middleware ---
-# Conditional security layer - disabled for low resource environments
+# ====================================================================
+# --- MIDDLEWARE ORDER (CRITICAL) ---
+# Order is: Broadest Security -> Client Type -> User Auth -> CORS
+# ====================================================================
+
+# --- 1. Enhanced Security Middleware ---
+# Blocks bad traffic (WAF, DDoS, rate limits) at the edge.
 # NOTE: Only enabled if not running in minimal resource mode
 if os.getenv("DISABLE_HEAVY_MIDDLEWARE", "false").lower() != "true":
     app.add_middleware(
@@ -43,28 +49,38 @@ if os.getenv("DISABLE_HEAVY_MIDDLEWARE", "false").lower() != "true":
         )
     )
 
-# --- Enhanced JWT Authentication Middleware ---
-# Validates API requests using enhanced JWT security with device fingerprinting and geolocation
-# NOTE: Added after security middleware for authenticated endpoints
+# --- 2. Mobile Verification Middleware (MOVED UP) ---
+# Checks if the *client* is authorized (official mobile/web app).
+# This runs BEFORE JWT auth to reject unauthorized clients quickly.
+app.add_middleware(
+    MobileVerificationMiddleware,
+    exclude_paths=[
+        "/docs", "/redoc", "/openapi.json", "/", "/api"
+        # We intentionally DO NOT exclude auth paths like /api/auth/login.
+        # This middleware is designed to protect them from unauthorized
+        # clients like curl and Postman.
+    ],
+)
+
+# --- 3. Enhanced JWT Authentication Middleware (MOVED DOWN) ---
+# Checks if the *user* is authenticated (valid JWT).
+# Runs AFTER client verification.
 app.add_middleware(
     EnhancedJWTAuthMiddleware,
     exclude_paths=[
         "/docs", "/redoc", "/openapi.json", "/", "/api",
-        # Public auth endpoints only (verify-token should be protected)
+        # Public auth endpoints (login/register)
         "/api/auth/login", "/api/auth/register",
+        # Refresh/logout are handled by the endpoint logic itself
         "/api/auth/refresh-token", "/api/auth/logout"
     ]
 )
 
-# --- CORS Middleware ---
+# --- 4. CORS Middleware ---
 """
 Allows the frontend to communicate with the backend.
-
-We read ALLOWED_ORIGINS from env (comma-separated). If it's missing or empty,
-we fall back to the production Netlify app. Additionally, we allow Netlify
-deploy preview subdomains via a safe regex and local dev hosts for convenience.
+This runs last to handle browser preflight (OPTIONS) requests.
 """
-
 # Read ALLOWED_ORIGINS; treat empty/whitespace as unset
 raw_allowed = os.getenv("ALLOWED_ORIGINS", "").strip()
 

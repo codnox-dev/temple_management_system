@@ -24,7 +24,9 @@ def _is_allowed_origin(origin: str) -> bool:
     """Validate Origin header against ALLOWED_ORIGINS and ALLOWED_ORIGIN_REGEX.
     Falls back to sane defaults if env not set."""
     if not origin:
-        return False
+        # Allow requests without Origin header (mobile apps)
+        # Mobile verification middleware handles authentication
+        return True
     raw_allowed = os.getenv("ALLOWED_ORIGINS", "").strip()
     allowed_list = [o.strip() for o in raw_allowed.split(",") if o.strip()] or [
         "https://vamana-temple.netlify.app",

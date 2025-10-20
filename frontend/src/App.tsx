@@ -32,9 +32,9 @@ import EmployeeBooking from "./pages/admin/EmployeeBooking"; // <-- add
 import ManageCommittee from "./pages/admin/ManageCommittee";
 import BackupManagement from "./pages/admin/BackupManagement";
 import SecurityDashboard from "./pages/admin/SecurityDashboard";
-import PriestManagement from "./pages/PriestManagement";
-import MarkAttendance from "./pages/MarkAttendance";
-import AttendanceReport from "./pages/AttendanceReport";
+import PriestManagement from "./pages/admin/PriestManagement";
+import MarkAttendance from "./pages/admin/MarkAttendance";
+import AttendanceReport from "./pages/admin/AttendanceReport";
 
 const queryClient = new QueryClient();
 
