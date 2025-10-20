@@ -4,6 +4,14 @@ from bson import ObjectId
 from .main_models import PyObjectId
 from datetime import datetime
 
+# --- Admin Details Nested Structure ---
+class AdminDetails(BaseModel):
+    """Optional nested details for admin attendance tracking"""
+    address: Optional[str] = Field(None, max_length=500, description="Residential address")
+    specialization: Optional[str] = Field(None, max_length=200, description="Area of specialization or expertise")
+    daily_salary: Optional[float] = Field(None, ge=0, description="Daily salary rate for attendance calculation")
+    notes: Optional[str] = Field(None, max_length=1000, description="Additional notes")
+
 # --- Schemas for Admin Authentication ---
 # Defines the base structure for an admin user.
 class AdminBase(BaseModel):
@@ -33,6 +41,12 @@ class AdminBase(BaseModel):
         description="BCrypt hashed password for the admin account"
     )
     
+    # Optional details for attendance tracking
+    details: Optional[AdminDetails] = Field(None, description="Optional details for attendance and salary tracking")
+    
+    # Attendance tracking flag
+    isAttendance: bool = Field(default=False, description="Flag to mark if user is enrolled for attendance tracking")
+    
     # Sync tracking fields (additional to created_at/updated_at)
     synced_at: Optional[datetime] = Field(None)
     sync_origin: Optional[str] = Field(default="local")  # "local" or "remote"
@@ -58,6 +72,8 @@ class AdminUpdate(BaseModel):
     notification_preference: Optional[List[str]] = None
     notification_list: Optional[List[str]] = None
     isRestricted: Optional[bool] = None
+    isAttendance: Optional[bool] = None
+    details: Optional[AdminDetails] = None
     password: Optional[str] = Field(None, min_length=8, description="Plain text password to be hashed when updating")
 
 # Represents an admin object as stored in the database.
@@ -83,6 +99,7 @@ class AdminCreateInput(BaseModel):
     mobile_prefix: str
     permissions: List[str] = Field(default_factory=list)
     isRestricted: bool = False
+    isAttendance: bool = False
     password: str = Field(..., min_length=8, description="Plain text password that will be hashed before storage")
 
 # Schema for the authentication token response.

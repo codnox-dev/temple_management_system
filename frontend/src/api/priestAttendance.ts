@@ -1,88 +1,72 @@
 /**
- * Priest Attendance API Service
+ * Attendance API Service
  * 
- * Handles all API calls for priest management, attendance marking, and salary reports.
+ * Handles all API calls for admin attendance management.
  */
 
 import api from './api';
 
 // ============= Type Definitions =============
 
-export interface Priest {
+export interface AdminUser {
   id: string;
+  username: string;
   name: string;
-  phone?: string;
   email?: string;
-  daily_salary: number;
+  role?: string;
+  isAttendance?: boolean;
+  has_salary_configured: boolean;
+  daily_salary?: number;
   address?: string;
   specialization?: string;
-  is_active: boolean;
   notes?: string;
-  created_at: string;
-  updated_at: string;
-  total_days_worked?: number;
-  current_month_days?: number;
-  current_month_salary?: number;
+  mobile_number?: number;
+  mobile_prefix?: string;
+  created_at?: string;
+}
+
+export interface AttendanceReportEntry {
+  user_id: string;
+  username: string;
+  name: string;
+  role?: string;
+  email?: string;
+  specialization?: string;
+  daily_salary: number;
+  total_days_marked: number;
+  days_present: number;
+  days_absent: number;
+  total_overtime_hours: number;
+  working_days_in_period: number;
+  attendance_percentage: number;
+  total_salary: number;
 }
 
 export interface AttendanceRecord {
   id: string;
-  priest_id: string;
-  priest_name: string;
+  user_id: string;
+  username: string;
+  user_name: string;
   attendance_date: string;
   is_present: boolean;
   check_in_time?: string;
   check_out_time?: string;
-  half_day: boolean;
   overtime_hours: number;
-  daily_salary: number;
-  calculated_salary: number;
   notes?: string;
   marked_by: string;
+  marked_by_name?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface MonthlyAttendanceStats {
-  priest_id: string;
-  priest_name: string;
-  daily_salary: number;
-  total_days_present: number;
-  total_half_days: number;
-  total_full_days: number;
-  total_overtime_hours: number;
-  base_salary: number;
-  overtime_pay: number;
-  total_salary: number;
-  attendance_percentage: number;
-}
-
-export interface MonthlyReport {
-  month: number;
-  year: number;
-  total_working_days: number;
-  priests_stats: MonthlyAttendanceStats[];
-  total_salary_disbursed: number;
-  generated_at: string;
 }
 
 export interface AttendanceDashboard {
   today_present: number;
   today_absent: number;
   today_total: number;
-  current_month_total_salary: number;
-  active_priests_count: number;
-  inactive_priests_count: number;
+  current_month_total_records: number;
+  eligible_users_count: number;
   current_month: number;
   current_year: number;
-}
-
-export interface PaginatedPriests {
-  priests: Priest[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
 }
 
 export interface PaginatedAttendance {
@@ -93,45 +77,23 @@ export interface PaginatedAttendance {
   total_pages: number;
 }
 
-export interface CreatePriestData {
-  name: string;
-  phone?: string;
-  email?: string;
-  daily_salary: number;
-  address?: string;
-  specialization?: string;
-  is_active?: boolean;
-  notes?: string;
-}
-
-export interface UpdatePriestData {
-  name?: string;
-  phone?: string;
-  email?: string;
-  daily_salary?: number;
-  address?: string;
-  specialization?: string;
-  is_active?: boolean;
-  notes?: string;
-}
-
 export interface CreateAttendanceData {
-  priest_id: string;
+  user_id: string;
+  username: string;
   attendance_date: string;
   is_present?: boolean;
   check_in_time?: string;
   check_out_time?: string;
-  half_day?: boolean;
   overtime_hours?: number;
   notes?: string;
 }
 
 export interface BulkAttendanceEntry {
-  priest_id: string;
+  user_id: string;
+  username: string;
   is_present?: boolean;
   check_in_time?: string;
   check_out_time?: string;
-  half_day?: boolean;
   overtime_hours?: number;
   notes?: string;
 }
@@ -145,46 +107,21 @@ export interface UpdateAttendanceData {
   is_present?: boolean;
   check_in_time?: string;
   check_out_time?: string;
-  half_day?: boolean;
   overtime_hours?: number;
   notes?: string;
 }
 
-// ============= Priest Management APIs =============
+// ============= Admin User APIs =============
 
-export const createPriest = async (data: CreatePriestData): Promise<Priest> => {
-  const response = await api.post('/priest-attendance/priests', data);
+export const getEligibleUsers = async (): Promise<AdminUser[]> => {
+  const response = await api.get('/attendance/users');
   return response.data;
-};
-
-export const getPriests = async (params?: {
-  page?: number;
-  page_size?: number;
-  is_active?: boolean;
-  search?: string;
-}): Promise<PaginatedPriests> => {
-  const response = await api.get('/priest-attendance/priests', { params });
-  return response.data;
-};
-
-export const getPriest = async (priestId: string): Promise<Priest> => {
-  const response = await api.get(`/priest-attendance/priests/${priestId}`);
-  return response.data;
-};
-
-export const updatePriest = async (priestId: string, data: UpdatePriestData): Promise<Priest> => {
-  const response = await api.put(`/priest-attendance/priests/${priestId}`, data);
-  return response.data;
-};
-
-export const deletePriest = async (priestId: string): Promise<void> => {
-  await api.delete(`/priest-attendance/priests/${priestId}`);
 };
 
 // ============= Attendance Marking APIs =============
 
 export const markAttendance = async (data: CreateAttendanceData): Promise<AttendanceRecord> => {
-  const response = await api.post('/priest-attendance/attendance', data);
+  const response = await api.post('/attendance/mark', data);
   return response.data;
 };
 
@@ -193,51 +130,43 @@ export const markBulkAttendance = async (data: BulkAttendanceData): Promise<{
   message: string;
   data?: any;
 }> => {
-  const response = await api.post('/priest-attendance/attendance/bulk', data);
+  const response = await api.post('/attendance/mark-bulk', data);
   return response.data;
 };
 
 export const getAttendanceRecords = async (params?: {
   page?: number;
   page_size?: number;
-  priest_id?: string;
+  user_id?: string;
+  username?: string;
   start_date?: string;
   end_date?: string;
   month?: number;
   year?: number;
   is_present?: boolean;
 }): Promise<PaginatedAttendance> => {
-  const response = await api.get('/priest-attendance/attendance', { params });
+  const response = await api.get('/attendance/records', { params });
   return response.data;
 };
 
 export const getAttendanceRecord = async (attendanceId: string): Promise<AttendanceRecord> => {
-  const response = await api.get(`/priest-attendance/attendance/${attendanceId}`);
+  const response = await api.get(`/attendance/records/${attendanceId}`);
   return response.data;
 };
 
 export const updateAttendance = async (attendanceId: string, data: UpdateAttendanceData): Promise<AttendanceRecord> => {
-  const response = await api.put(`/priest-attendance/attendance/${attendanceId}`, data);
+  const response = await api.put(`/attendance/records/${attendanceId}`, data);
   return response.data;
 };
 
 export const deleteAttendance = async (attendanceId: string): Promise<void> => {
-  await api.delete(`/priest-attendance/attendance/${attendanceId}`);
+  await api.delete(`/attendance/records/${attendanceId}`);
 };
 
-// ============= Reports & Dashboard APIs =============
-
-export const getMonthlyReport = async (params: {
-  month: number;
-  year: number;
-  priest_id?: string;
-}): Promise<MonthlyReport> => {
-  const response = await api.get('/priest-attendance/reports/monthly', { params });
-  return response.data;
-};
+// ============= Dashboard APIs =============
 
 export const getDashboardStats = async (): Promise<AttendanceDashboard> => {
-  const response = await api.get('/priest-attendance/dashboard');
+  const response = await api.get('/attendance/dashboard');
   return response.data;
 };
 
@@ -296,13 +225,46 @@ export const getMonthName = (month: number): string => {
   return months[month - 1] || '';
 };
 
+// ============= Employee Management Functions =============
+
+export interface EmployeeDetailsData {
+  address?: string;
+  specialization?: string;
+  daily_salary: number;
+  notes?: string;
+}
+
+export const getAllEmployees = async (): Promise<AdminUser[]> => {
+  const response = await api.get('/attendance/employees');
+  return response.data;
+};
+
+export const toggleUserAttendance = async (
+  userId: string, 
+  employeeDetails?: EmployeeDetailsData
+): Promise<any> => {
+  const response = await api.post(
+    `/attendance/users/${userId}/toggle-attendance`,
+    employeeDetails || null
+  );
+  return response.data;
+};
+
+export const getAttendanceReport = async (params?: {
+  start_date?: string;
+  end_date?: string;
+  month?: number;
+  year?: number;
+}): Promise<AttendanceReportEntry[]> => {
+  const response = await api.get('/attendance/report', { params });
+  return response.data;
+};
+
 export default {
-  // Priest Management
-  createPriest,
-  getPriests,
-  getPriest,
-  updatePriest,
-  deletePriest,
+  // User Management
+  getEligibleUsers,
+  getAllEmployees,
+  toggleUserAttendance,
   
   // Attendance
   markAttendance,
@@ -312,9 +274,11 @@ export default {
   updateAttendance,
   deleteAttendance,
   
-  // Reports
-  getMonthlyReport,
+  // Dashboard
   getDashboardStats,
+  
+  // Reports
+  getAttendanceReport,
   
   // Helpers
   formatDateForAPI,
@@ -323,3 +287,4 @@ export default {
   formatDate,
   getMonthName
 };
+

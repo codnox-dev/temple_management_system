@@ -136,6 +136,9 @@ calendar_collection = database.get_collection("calendar")
 calendar_audit_collection = database.get_collection("calendar_audit")
 login_attempts_collection = database.get_collection("login_attempts")
 
+# Attendance Management Collections
+attendance_records_collection = database.get_collection("attendance_records")
+
 # Enhanced Security Collections
 token_revocation_collection = database.get_collection("token_revocation")
 device_fingerprints_collection = database.get_collection("device_fingerprints")
@@ -182,6 +185,19 @@ async def ensure_indexes():
     )
     await login_attempts_collection.create_index([( "window_start", ASCENDING)], name="login_window_idx")
     await login_attempts_collection.create_index([( "blocked_until", ASCENDING)], name="login_block_idx")
+    
+    # Attendance records indexes
+    # Unique constraint: one attendance record per user per date
+    await attendance_records_collection.create_index(
+        [("user_id", ASCENDING), ("attendance_date", ASCENDING)],
+        unique=True,
+        name="uniq_user_date"
+    )
+    # Query patterns for filtering
+    await attendance_records_collection.create_index([("attendance_date", ASCENDING)], name="date_idx")
+    await attendance_records_collection.create_index([("user_id", ASCENDING), ("attendance_date", ASCENDING)], name="user_date_idx")
+    await attendance_records_collection.create_index([("username", ASCENDING)], name="username_idx")
+    
     # User sessions indexes
     await user_sessions_collection.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], name="user_sessions")
     await user_sessions_collection.create_index([("expires_at", ASCENDING)], name="session_expiry")
