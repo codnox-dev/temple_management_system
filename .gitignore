@@ -1,4 +1,6 @@
+# ==============================
 # Logs
+# ==============================
 logs
 *.log
 npm-debug.log*
@@ -7,46 +9,83 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Build artifacts & dependencies (ignore everywhere)
+# ==============================
+# Node / Frontend build artifacts
+# ==============================
 **/node_modules/
 **/dist/
 **/dist-ssr/
+**/build/
 
-# Editor directories and files
+# ==============================
+# Python / Backend
+# ==============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+
+# ==============================
+# Environment files
+# ==============================
+**/.env
+**/.env.*
+*.env
+
+# ==============================
+# Editors / IDEs
+# ==============================
+# VSCode
 .vscode/*
 !.vscode/extensions.json
-**/.idea/
-**/.DS_Store
+
+# IntelliJ / WebStorm
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Mac / misc
+.DS_Store
 *.suo
-.ntvs
+*.ntvs
 *.njsproj
 *.sln
 *.sw?
-__pycache__/
-*.pyc
 
-# Folers
-backend/profile/
-backend/backups/
-backend/mongodb-database-tools-debian10-x86_64-100.13.0.deb
+# ==============================
+# Flutter / Dart
+# ==============================
+**/.dart_tool/
+**/.pub/
+**/.pub-cache/
+**/.flutter-plugins-dependencies
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/build/
+**/coverage/
+**/generated_plugin_registrant.*
 
-# Environment files
-backend/.env
-frontend/.env
-.env
-**/.env
-.env.*
+# ==============================
+# Android / iOS
+# ==============================
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/ios/Pods/
+**/ios/Flutter/Flutter.framework/
+**/ios/Flutter/Flutter.podspec/
+**/ios/Flutter/Generated.xcconfig
 
-OTP_RESEND_FEATURE.md
-LOGOUT_COOLDOWN_SUMMARY.md
-LOGOUT_COOLDOWN_CLEAR.md
-
-# Miscellaneous
+# ==============================
+# Misc / other
+# ==============================
 *.class
 *.log
 *.pyc
 *.swp
-.DS_Store
 .atom/
 .build/
 .buildlog/
@@ -54,35 +93,11 @@ LOGOUT_COOLDOWN_CLEAR.md
 .svn/
 .swiftpm/
 migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
+backend/profile/
+backend/backups/
+backend/mongodb-database-tools-debian10-x86_64-100.13.0.deb
+OTP_RESEND_FEATURE.md
+LOGOUT_COOLDOWN_SUMMARY.md
+LOGOUT_COOLDOWN_CLEAR.md
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
