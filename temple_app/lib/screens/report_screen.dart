@@ -284,6 +284,10 @@ class _AttendanceCard extends StatelessWidget {
 
   Color _getStatusColor(AttendanceStatus status) {
     switch (status) {
+      case AttendanceStatus.checkedIn:
+        return Colors.blue;
+      case AttendanceStatus.checkedOut:
+        return Colors.teal;
       case AttendanceStatus.synced:
         return Colors.green;
       case AttendanceStatus.pending:

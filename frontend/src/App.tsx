@@ -33,8 +33,8 @@ import ManageCommittee from "./pages/admin/ManageCommittee";
 import BackupManagement from "./pages/admin/BackupManagement";
 import SecurityDashboard from "./pages/admin/SecurityDashboard";
 import PriestManagement from "./pages/admin/PriestManagement";
-import MarkAttendance from "./pages/admin/MarkAttendance";
 import AttendanceReport from "./pages/admin/AttendanceReport";
+import LocationManagement from "./pages/admin/LocationManagement";
 
 const queryClient = new QueryClient();
 
@@ -170,8 +170,14 @@ const App = () => (
 
               {/* Priest Attendance Management: Accessible to all admin users */}
               <Route path="priest-management" element={<PriestManagement />} />
-              <Route path="mark-attendance" element={<MarkAttendance />} />
               <Route path="attendance-report" element={<AttendanceReport />} />
+
+              {/* Location Management: Only Super Admins (role_id === 0) */}
+              <Route path="location-management" element={
+                <RoleGuard allow={(rid) => rid === 0}>
+                  <LocationManagement />
+                </RoleGuard>
+              } />
 
               {/* Edit Profile accessible to all logged-in users */}
               <Route path="edit-profile" element={<EditProfile />} />

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'attendance_screen.dart';
-import 'report_screen.dart';
+import 'gps_attendance_screen.dart';
+import 'attendance_history_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 
@@ -15,8 +15,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    AttendanceScreen(),
-    ReportScreen(),
+    GpsAttendanceScreen(),
+    AttendanceHistoryScreen(),
     ProfileScreen(),
     NotificationsScreen(),
   ];
@@ -41,8 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Attendance',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assessment),
-            label: 'Reports',
+            icon: Icon(Icons.history),
+            label: 'History',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

@@ -41,6 +41,9 @@ class AttendanceRecordBase(BaseModel):
     check_in_time: Optional[str] = Field(None, description="Check-in time (HH:MM format, 24-hour)")
     check_out_time: Optional[str] = Field(None, description="Check-out time (HH:MM format, 24-hour)")
     overtime_hours: Optional[float] = Field(default=0.0, ge=0, description="Overtime hours (calculated automatically)")
+    outside_hours: Optional[float] = Field(default=0.0, ge=0, description="Time spent outside work zone (in hours)")
+    check_in_location: Optional[dict] = Field(None, description="GPS coordinates at check-in as {lat: float, lon: float}")
+    check_out_location: Optional[dict] = Field(None, description="GPS coordinates at check-out as {lat: float, lon: float}")
     notes: Optional[str] = Field(None, max_length=500, description="Additional notes for the day")
 
 
@@ -55,6 +58,9 @@ class AttendanceRecordUpdate(BaseModel):
     check_in_time: Optional[str] = None
     check_out_time: Optional[str] = None
     overtime_hours: Optional[float] = Field(None, ge=0)
+    outside_hours: Optional[float] = Field(None, ge=0)
+    check_in_location: Optional[dict] = None
+    check_out_location: Optional[dict] = None
     notes: Optional[str] = Field(None, max_length=500)
 
 
@@ -66,9 +72,9 @@ class AttendanceRecordInDB(AttendanceRecordBase):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Sync tracking fields
-    synced_at: Optional[datetime] = Field(None, description="Last sync timestamp")
-    sync_origin: Optional[str] = Field(default="local", description="Origin of the record: 'local' or 'remote'")
-    sync_status: Optional[str] = Field(default="pending", description="Sync status: 'synced', 'pending', 'conflict'")
+    synced_at: Optional[datetime] = Field(None, description="Timestamp when record was synced from mobile")
+    sync_origin: Optional[str] = Field(None, description="Origin of the record: 'web' (marked via web), 'cloud' (synced from mobile app)")
+    sync_device_id: Optional[str] = Field(None, description="Device ID that created/synced this record")
 
     class Config:
         populate_by_name = True
@@ -86,11 +92,19 @@ class AttendanceRecordResponse(BaseModel):
     check_in_time: Optional[str]
     check_out_time: Optional[str]
     overtime_hours: float
+    outside_hours: float = 0.0
+    check_in_location: Optional[dict] = None
+    check_out_location: Optional[dict] = None
     notes: Optional[str]
     marked_by: str
     marked_by_name: Optional[str]  # Name of person who marked
     created_at: datetime
     updated_at: datetime
+    
+    # Sync tracking fields
+    synced_at: Optional[datetime] = None
+    sync_origin: Optional[str] = None  # "web" or "cloud"
+    sync_device_id: Optional[str] = None
 
     class Config:
         json_encoders = {date: lambda v: v.isoformat()}
@@ -106,6 +120,9 @@ class BulkAttendanceEntry(BaseModel):
     check_in_time: Optional[str] = None
     check_out_time: Optional[str] = None
     overtime_hours: float = 0.0
+    outside_hours: float = 0.0
+    check_in_location: Optional[dict] = None
+    check_out_location: Optional[dict] = None
     notes: Optional[str] = None
 
 

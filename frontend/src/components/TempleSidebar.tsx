@@ -19,8 +19,8 @@ import {
   ShoppingCart,
   Database,
   UserCheck,
-  ClipboardList,
-  FileText
+  FileText,
+  MapPin
 } from 'lucide-react';
 
 type SidebarProps = { isOpen?: boolean; onToggle?: () => void };
@@ -206,14 +206,17 @@ const TempleSidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => 
                     <Users className="h-4 w-4" />
                     <span>Priest Management</span>
                 </NavLink>
-                <NavLink to="/admin/mark-attendance" className={subNavLinkClass}>
-                    <ClipboardList className="h-4 w-4" />
-                    <span>Mark Attendance</span>
-                </NavLink>
                 <NavLink to="/admin/attendance-report" className={subNavLinkClass}>
                     <FileText className="h-4 w-4" />
                     <span>Attendance Report</span>
                 </NavLink>
+                {/* Location Management: Only visible to Super Admin (role_id === 0) */}
+                {roleId === 0 && (
+                  <NavLink to="/admin/location-management" className={subNavLinkClass}>
+                    <MapPin className="h-4 w-4" />
+                    <span>Location Management</span>
+                  </NavLink>
+                )}
              </div>
           )}
         </div>

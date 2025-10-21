@@ -3,6 +3,9 @@ import '../models/attendance_model.dart';
 import '../config/api_config.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
+import 'location_service.dart';
+import 'database_service.dart';
+import 'sync_service.dart';
 
 class AttendanceService {
   static final AttendanceService _instance = AttendanceService._internal();
@@ -12,21 +15,16 @@ class AttendanceService {
 
   final ApiClient _apiClient = ApiClient();
   final AuthService _authService = AuthService();
+  final LocationService _locationService = LocationService();
+  final DatabaseService _dbService = DatabaseService();
+  final SyncService _syncService = SyncService();
 
-  // Mock function for distance (can be implemented with GPS later)
+  // Get distance to temple using GPS
   Future<Map<String, dynamic>> getDistanceToTemple() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // For now, always return a valid distance
-    // In production, you would use GPS to calculate actual distance
-    return {
-      'success': true,
-      'distance': 100.0, // meters
-      'unit': 'meters',
-    };
+    return await _locationService.getDistanceFromWorkLocation();
   }
 
-  // Mark attendance for today
+  // Mark attendance for today (Check In)
   Future<Map<String, dynamic>> markAttendance() async {
     try {
       final user = _authService.getCurrentUser();
@@ -37,10 +35,16 @@ class AttendanceService {
         };
       }
 
+      // Validate GPS location
+      final locationValidation = await _locationService.validateCheckInLocation();
+      if (!locationValidation['success']) {
+        return locationValidation;
+      }
+
       final now = DateTime.now();
       final timeFormat = DateFormat('HH:mm');
       
-      // Create attendance record
+      // Create attendance record with GPS location
       final attendanceData = {
         'user_id': user.id,
         'username': user.name,
@@ -48,20 +52,69 @@ class AttendanceService {
         'is_present': true,
         'check_in_time': timeFormat.format(now),
         'overtime_hours': 0.0,
+        'outside_hours': 0.0,
+        'check_in_location': {
+          'lat': locationValidation['latitude'],
+          'lon': locationValidation['longitude'],
+        },
       };
 
-      // Call backend API
-      final response = await _apiClient.post(
-        ApiConfig.markAttendanceEndpoint,
-        body: attendanceData,
+      Attendance? attendance;
+
+      // Try to call backend API if connected
+      if (await _syncService.hasConnectivity()) {
+        try {
+          final response = await _apiClient.post(
+            ApiConfig.markAttendanceEndpoint,
+            body: attendanceData,
+          );
+
+          // Create Attendance object from response and mark as synced
+          attendance = Attendance.fromJson(response).copyWith(
+            status: AttendanceStatus.synced,
+          );
+
+          // Save to local database
+          await _dbService.saveAttendance(attendance);
+
+          return {
+            'success': true,
+            'message': '✅ Check-in successful! Distance: ${_locationService.formatDistance(locationValidation['distance'])}',
+            'attendance': attendance,
+          };
+        } catch (e) {
+          print('API call failed, saving offline: $e');
+          // Fall through to offline storage
+        }
+      }
+
+      // Save offline if no connectivity or API failed
+      attendance = Attendance(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: user.id,
+        username: user.name,
+        date: now,
+        isPresent: true,
+        checkInTime: timeFormat.format(now),
+        overtimeHours: 0.0,
+        outsideHours: 0.0,
+        status: AttendanceStatus.pending,
+        checkInLocation: LocationData(
+          latitude: locationValidation['latitude'],
+          longitude: locationValidation['longitude'],
+          timestamp: now,
+        ),
       );
 
-      // Create Attendance object from response
-      final attendance = Attendance.fromJson(response);
-      
+      // Save to local database
+      await _dbService.saveAttendance(attendance);
+
+      // Add to sync queue
+      await _dbService.addToSyncQueue(attendance);
+
       return {
         'success': true,
-        'message': '✅ Attendance marked successfully.',
+        'message': '✅ Check-in saved offline. Will sync when connected. Distance: ${_locationService.formatDistance(locationValidation['distance'])}',
         'attendance': attendance,
       };
     } on UnauthorizedException {
@@ -89,31 +142,102 @@ class AttendanceService {
         };
       }
 
+      // Get today's attendance to update it
+      final todayAttendance = await _dbService.getTodayAttendance(user.id);
+      if (todayAttendance == null || todayAttendance.checkInTime == null) {
+        return {
+          'success': false,
+          'message': 'You must check in first before checking out!',
+        };
+      }
+
+      if (todayAttendance.checkOutTime != null) {
+        return {
+          'success': false,
+          'message': 'You have already checked out for today.',
+        };
+      }
+
+      // Validate GPS location (must be within check-in radius to check out)
+      final locationValidation = await _locationService.validateCheckInLocation();
+      if (!locationValidation['success']) {
+        return {
+          'success': false,
+          'message': 'You must be within the work location to check out. ${locationValidation['message']}',
+        };
+      }
+
       final now = DateTime.now();
       final timeFormat = DateFormat('HH:mm');
       
-      // Create attendance record with check-out time
+      // Update attendance record with check-out time and location
       final attendanceData = {
         'user_id': user.id,
         'username': user.name,
-        'attendance_date': DateFormat('yyyy-MM-dd').format(now),
+        'attendance_date': DateFormat('yyyy-MM-dd').format(todayAttendance.date),
         'is_present': true,
+        'check_in_time': todayAttendance.checkInTime, // Keep existing check-in
         'check_out_time': timeFormat.format(now),
         'overtime_hours': 0.0,
+        'outside_hours': 0.0, // Will be calculated by background service
+        'check_in_location': todayAttendance.checkInLocation != null ? {
+          'lat': todayAttendance.checkInLocation!.latitude,
+          'lon': todayAttendance.checkInLocation!.longitude,
+        } : null,
+        'check_out_location': {
+          'lat': locationValidation['latitude'],
+          'lon': locationValidation['longitude'],
+        },
       };
 
-      // Call backend API
-      final response = await _apiClient.post(
-        ApiConfig.markAttendanceEndpoint,
-        body: attendanceData,
+      // Update local attendance object
+      final updatedAttendance = todayAttendance.copyWith(
+        checkOutTime: timeFormat.format(now),
+        checkOutLocation: LocationData(
+          latitude: locationValidation['latitude'],
+          longitude: locationValidation['longitude'],
+          timestamp: now,
+        ),
+        status: AttendanceStatus.pending, // Will be synced
       );
 
-      final attendance = Attendance.fromJson(response);
+      // Try to call backend API if connected
+      if (await _syncService.hasConnectivity()) {
+        try {
+          final response = await _apiClient.post(
+            ApiConfig.markAttendanceEndpoint,
+            body: attendanceData,
+          );
+
+          // Update with synced status
+          final syncedAttendance = Attendance.fromJson(response).copyWith(
+            status: AttendanceStatus.synced,
+          );
+
+          // Save to local database
+          await _dbService.saveAttendance(syncedAttendance);
+
+          return {
+            'success': true,
+            'message': '✅ Check-out successful! Distance: ${_locationService.formatDistance(locationValidation['distance'])}',
+            'attendance': syncedAttendance,
+          };
+        } catch (e) {
+          print('API call failed, saving offline: $e');
+          // Fall through to offline storage
+        }
+      }
+
+      // Save offline if no connectivity or API failed
+      await _dbService.saveAttendance(updatedAttendance);
       
+      // Add to sync queue (will update on server when connected)
+      await _dbService.addToSyncQueue(updatedAttendance);
+
       return {
         'success': true,
-        'message': '✅ Check-out marked successfully.',
-        'attendance': attendance,
+        'message': '✅ Check-out saved offline. Will sync when connected. Distance: ${_locationService.formatDistance(locationValidation['distance'])}',
+        'attendance': updatedAttendance,
       };
     } on UnauthorizedException {
       return {

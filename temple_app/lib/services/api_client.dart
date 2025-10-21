@@ -74,6 +74,7 @@ class ApiClient {
     String endpoint, {
     Map<String, dynamic>? body,
     bool requiresAuth = true,
+    bool retryOn401 = true,
   }) async {
     try {
       if (requiresAuth && _accessToken == null) {
@@ -88,8 +89,25 @@ class ApiClient {
         body: body != null ? jsonEncode(body) : null,
       );
 
-      return _handleResponse(response);
+      try {
+        return _handleResponse(response);
+      } on UnauthorizedException {
+        // If we get 401 and haven't retried yet, try to refresh token
+        if (retryOn401 && requiresAuth && _refreshToken != null) {
+          print('Got 401, attempting to refresh token...');
+          try {
+            await refreshAccessToken();
+            // Retry the request with new token
+            return await post(endpoint, body: body, requiresAuth: requiresAuth, retryOn401: false);
+          } catch (e) {
+            print('Token refresh failed: $e');
+            rethrow;
+          }
+        }
+        rethrow;
+      }
     } catch (e) {
+      if (e is UnauthorizedException) rethrow;
       throw ApiException('POST request failed: $e');
     }
   }
@@ -148,7 +166,13 @@ class ApiClient {
       if (response.body.isEmpty) {
         return {'success': true};
       }
-      return jsonDecode(response.body);
+      // jsonDecode returns dynamic, which could be Map<dynamic, dynamic>
+      // Explicitly cast to Map<String, dynamic>
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      return {'data': decoded};
     } else if (response.statusCode == 401) {
       throw UnauthorizedException('Unauthorized: ${response.body}');
     } else if (response.statusCode == 404) {

@@ -139,6 +139,9 @@ login_attempts_collection = database.get_collection("login_attempts")
 # Attendance Management Collections
 attendance_records_collection = database.get_collection("attendance_records")
 
+# Location Management Collections
+location_config_collection = database.get_collection("location_config")
+
 # Enhanced Security Collections
 token_revocation_collection = database.get_collection("token_revocation")
 device_fingerprints_collection = database.get_collection("device_fingerprints")
@@ -197,6 +200,11 @@ async def ensure_indexes():
     await attendance_records_collection.create_index([("attendance_date", ASCENDING)], name="date_idx")
     await attendance_records_collection.create_index([("user_id", ASCENDING), ("attendance_date", ASCENDING)], name="user_date_idx")
     await attendance_records_collection.create_index([("username", ASCENDING)], name="username_idx")
+    
+    # Location config indexes
+    # Ensure only one active location at a time
+    await location_config_collection.create_index([("is_active", ASCENDING)], name="active_location_idx")
+    await location_config_collection.create_index([("created_at", ASCENDING)], name="location_created_idx")
     
     # User sessions indexes
     await user_sessions_collection.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], name="user_sessions")

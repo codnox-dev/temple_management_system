@@ -56,7 +56,7 @@ def attendance_helper(attendance, user_name: str = None, marked_by_name: str = N
     if isinstance(attendance_date, datetime):
         attendance_date = attendance_date.date()
     
-    return {
+    result = {
         "id": str(attendance["_id"]),
         "user_id": attendance["user_id"],
         "username": attendance["username"],
@@ -66,12 +66,25 @@ def attendance_helper(attendance, user_name: str = None, marked_by_name: str = N
         "check_in_time": attendance.get("check_in_time"),
         "check_out_time": attendance.get("check_out_time"),
         "overtime_hours": attendance.get("overtime_hours", 0.0),
+        "outside_hours": attendance.get("outside_hours", 0.0),
+        "check_in_location": attendance.get("check_in_location"),
+        "check_out_location": attendance.get("check_out_location"),
         "notes": attendance.get("notes"),
         "marked_by": attendance["marked_by"],
         "marked_by_name": marked_by_name or attendance.get("marked_by_name"),
         "created_at": attendance.get("created_at", datetime.utcnow()),
         "updated_at": attendance.get("updated_at", datetime.utcnow()),
     }
+    
+    # Add sync tracking fields if they exist
+    if "synced_at" in attendance:
+        result["synced_at"] = attendance["synced_at"]
+    if "sync_origin" in attendance:
+        result["sync_origin"] = attendance["sync_origin"]
+    if "sync_device_id" in attendance:
+        result["sync_device_id"] = attendance["sync_device_id"]
+    
+    return result
 
 
 async def get_user_name(user_id: str, db) -> str:
@@ -134,6 +147,42 @@ async def mark_attendance(
         "attendance_date": attendance_datetime
     })
     
+    # If record exists and we have check_out_time, update the existing record (check-out scenario)
+    if existing and attendance.check_out_time:
+        # Calculate overtime hours
+        overtime_hours = calculate_overtime_hours(
+            existing.get("check_in_time") or attendance.check_in_time,
+            attendance.check_out_time
+        )
+        
+        # Prepare update data
+        update_data = {
+            "check_out_time": attendance.check_out_time,
+            "check_out_location": attendance.check_out_location,
+            "overtime_hours": overtime_hours,
+            "outside_hours": attendance.outside_hours or existing.get("outside_hours", 0.0),
+            "updated_at": datetime.utcnow(),
+        }
+        
+        # Update sync tracking if GPS data present
+        if attendance.check_out_location:
+            update_data["synced_at"] = datetime.utcnow()
+            update_data["sync_origin"] = "cloud"
+        
+        # Update the record
+        await db.attendance_records.update_one(
+            {"_id": existing["_id"]},
+            {"$set": update_data}
+        )
+        
+        # Get the updated record
+        updated_record = await db.attendance_records.find_one({"_id": existing["_id"]})
+        user_name = user["name"]
+        marked_by_name = current_user["name"]
+        
+        return attendance_helper(updated_record, user_name, marked_by_name)
+    
+    # If record exists but no check_out_time, it's a duplicate check-in
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -151,14 +200,21 @@ async def mark_attendance(
     # Convert date to datetime for MongoDB
     attendance_dict["attendance_date"] = attendance_datetime
     attendance_dict["overtime_hours"] = overtime_hours
+    attendance_dict["outside_hours"] = attendance.outside_hours or 0.0
+    attendance_dict["check_in_location"] = attendance.check_in_location
+    attendance_dict["check_out_location"] = attendance.check_out_location
     attendance_dict["marked_by"] = str(current_user["_id"])
     attendance_dict["created_at"] = datetime.utcnow()
     attendance_dict["updated_at"] = datetime.utcnow()
     
+    # Determine sync origin based on presence of GPS location data
+    # If check_in_location or check_out_location exists, it's from mobile app (cloud sync)
+    has_gps_data = attendance.check_in_location is not None or attendance.check_out_location is not None
+    
     # Add sync tracking fields
-    attendance_dict["synced_at"] = None
-    attendance_dict["sync_origin"] = "local"
-    attendance_dict["sync_status"] = "pending"
+    attendance_dict["synced_at"] = datetime.utcnow() if has_gps_data else None
+    attendance_dict["sync_origin"] = "cloud" if has_gps_data else "web"
+    attendance_dict["sync_device_id"] = None  # Can be added later if needed
     
     result = await db.attendance_records.insert_one(attendance_dict)
     created_record = await db.attendance_records.find_one({"_id": result.inserted_id})
@@ -231,6 +287,9 @@ async def mark_bulk_attendance(
                 entry.check_out_time
             )
             
+            # Determine sync origin based on GPS data
+            has_gps_data = entry.check_in_location is not None or entry.check_out_location is not None
+            
             # Create record (use datetime instead of date for MongoDB)
             attendance_dict = {
                 "user_id": entry.user_id,
@@ -240,14 +299,17 @@ async def mark_bulk_attendance(
                 "check_in_time": entry.check_in_time,
                 "check_out_time": entry.check_out_time,
                 "overtime_hours": overtime_hours,
+                "outside_hours": entry.outside_hours or 0.0,
+                "check_in_location": entry.check_in_location,
+                "check_out_location": entry.check_out_location,
                 "notes": entry.notes,
                 "marked_by": str(current_user["_id"]),
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 # Sync tracking fields
-                "synced_at": None,
-                "sync_origin": "local",
-                "sync_status": "pending"
+                "synced_at": datetime.utcnow() if has_gps_data else None,
+                "sync_origin": "cloud" if has_gps_data else "web",
+                "sync_device_id": None
             }
             
             await db.attendance_records.insert_one(attendance_dict)
@@ -524,6 +586,7 @@ async def get_eligible_users(
             "name": admin["name"],
             "email": admin.get("email"),
             "role": admin.get("role"),
+            "isAttendance": admin.get("isAttendance", False),
             "has_salary_configured": bool(details.get("daily_salary")),
             "daily_salary": details.get("daily_salary"),
             "address": details.get("address"),

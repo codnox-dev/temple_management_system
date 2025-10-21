@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/user_model.dart';
 import '../config/api_config.dart';
 import 'api_client.dart';
@@ -10,6 +11,22 @@ class AuthService {
 
   final ApiClient _apiClient = ApiClient();
   User? _currentUser;
+
+  /// Decode JWT token to extract user information
+  Map<String, dynamic>? _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      return json.decode(decoded);
+    } catch (e) {
+      print('Error decoding JWT: $e');
+      return null;
+    }
+  }
 
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
@@ -27,16 +44,24 @@ class AuthService {
       final accessToken = response['access_token'];
       final refreshToken = response['refresh_token'];
       
+      // Decode JWT to get user information
+      final tokenData = _decodeJwt(accessToken);
+      if (tokenData == null) {
+        return {
+          'success': false,
+          'message': 'Failed to decode authentication token',
+        };
+      }
+      
       // Save tokens
       await _apiClient.saveTokens(accessToken, refreshToken);
 
-      // Create user object from username
-      // Note: Backend doesn't return user details in login response
+      // Create user object from JWT token data
       _currentUser = User(
-        id: username,
-        name: username,
+        id: tokenData['user_id'] ?? username,  // MongoDB ObjectId from token
+        name: tokenData['sub'] ?? username,     // Username from token
         email: '$username@temple.com',
-        role: 'Priest',
+        role: tokenData['role'] ?? 'Priest',
         phone: null,
       );
 
@@ -109,6 +134,17 @@ class AuthService {
       
       // Load tokens
       await _apiClient.loadTokens();
+    }
+  }
+
+  /// Restore user session from saved data
+  Future<bool> restoreSession() async {
+    try {
+      await loadUserFromPreferences();
+      return _currentUser != null && _apiClient.hasToken;
+    } catch (e) {
+      print('Error restoring session: $e');
+      return false;
     }
   }
 

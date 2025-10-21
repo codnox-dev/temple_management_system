@@ -41,7 +41,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final result = await _attendanceService.getDistanceToTemple();
     if (mounted) {
       setState(() {
-        _distanceToTemple = result['distance'];
+        _distanceToTemple = result['distance'] ?? 0.0;
         _isLoadingDistance = false;
       });
     }
@@ -243,6 +243,10 @@ class _AttendanceListItem extends StatelessWidget {
 
   Color _getStatusColor(AttendanceStatus status) {
     switch (status) {
+      case AttendanceStatus.checkedIn:
+        return Colors.blue;
+      case AttendanceStatus.checkedOut:
+        return Colors.teal;
       case AttendanceStatus.synced:
         return Colors.green;
       case AttendanceStatus.pending:
@@ -254,6 +258,10 @@ class _AttendanceListItem extends StatelessWidget {
 
   IconData _getStatusIcon(AttendanceStatus status) {
     switch (status) {
+      case AttendanceStatus.checkedIn:
+        return Icons.login;
+      case AttendanceStatus.checkedOut:
+        return Icons.logout;
       case AttendanceStatus.synced:
         return Icons.check_circle;
       case AttendanceStatus.pending:
