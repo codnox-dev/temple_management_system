@@ -5,7 +5,15 @@ import '../../styles/spiritual-calendar.css'
 import { addMonths, format, startOfMonth } from 'date-fns'
 import api, { get, post } from '@/api/api'
 import { toast } from 'sonner'
-import { Calendar, Clock, Star, Sun, Moon, ChevronLeft, ChevronRight, Settings, Save, X, Sparkles, Zap, Eye } from 'lucide-react'
+import { Calendar, Clock, Star, Sun, Moon, ChevronLeft, ChevronRight, Settings, Save, X, Sparkles, Zap, Eye, Plus, Edit2, Trash2 } from 'lucide-react'
+import { 
+  MALAYALAM_MONTHS, 
+  MalayalamMonthRange, 
+  getMalayalamDate, 
+  formatMalayalamDate,
+  validateMalayalamMonthRange,
+  getMalayalamMonthName
+} from '@/utils/malayalamCalendar'
 
 type CalendarDay = {
   dateISO: string
@@ -91,6 +99,120 @@ export default function CalendarManagement() {
   const [editing, setEditing] = useState<CalendarDay | null>(null)
   const [naal, setNaal] = useState<string>('')
   const [saving, setSaving] = useState<boolean>(false)
+
+  // Malayalam Month Management
+  const [malayalamMonths, setMalayalamMonths] = useState<MalayalamMonthRange[]>([])
+  const [showMalayalamMonthForm, setShowMalayalamMonthForm] = useState(false)
+  const [malayalamMonthForm, setMalayalamMonthForm] = useState({
+    month: '',
+    startDate: '',
+    endDate: '',
+    year: '' as string | number // Allow both string and number for better input handling
+  })
+  const [editingMalayalamMonthIndex, setEditingMalayalamMonthIndex] = useState<number | null>(null)
+
+  // Load Malayalam months from localStorage on mount
+  useEffect(() => {
+    const savedMonths = localStorage.getItem('malayalamMonths')
+    if (savedMonths) {
+      try {
+        setMalayalamMonths(JSON.parse(savedMonths))
+      } catch (e) {
+        console.error('Failed to load Malayalam months:', e)
+      }
+    }
+  }, [])
+
+  // Save Malayalam months to localStorage whenever they change
+  useEffect(() => {
+    if (malayalamMonths.length > 0) {
+      localStorage.setItem('malayalamMonths', JSON.stringify(malayalamMonths))
+    }
+  }, [malayalamMonths])
+
+  const handleAddMalayalamMonth = () => {
+    const validation = validateMalayalamMonthRange(
+      malayalamMonthForm.startDate,
+      malayalamMonthForm.endDate
+    )
+
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid date range')
+      return
+    }
+
+    if (!malayalamMonthForm.month) {
+      toast.error('Please select a Malayalam month')
+      return
+    }
+
+    if (!malayalamMonthForm.year || malayalamMonthForm.year === '') {
+      toast.error('Please enter a valid Malayalam year')
+      return
+    }
+
+    const monthData = MALAYALAM_MONTHS.find(m => m.value === malayalamMonthForm.month)
+    if (!monthData) return
+
+    const yearNumber = typeof malayalamMonthForm.year === 'string' 
+      ? parseInt(malayalamMonthForm.year, 10) 
+      : malayalamMonthForm.year
+
+    if (isNaN(yearNumber) || yearNumber <= 0) {
+      toast.error('Please enter a valid Malayalam year')
+      return
+    }
+
+    const newMonth: MalayalamMonthRange = {
+      month: malayalamMonthForm.month,
+      monthLabel: monthData.label,
+      startDate: malayalamMonthForm.startDate,
+      endDate: malayalamMonthForm.endDate,
+      year: yearNumber
+    }
+
+    if (editingMalayalamMonthIndex !== null) {
+      // Update existing month
+      const updated = [...malayalamMonths]
+      updated[editingMalayalamMonthIndex] = newMonth
+      setMalayalamMonths(updated)
+      toast.success('Malayalam month updated')
+      setEditingMalayalamMonthIndex(null)
+    } else {
+      // Add new month
+      setMalayalamMonths([...malayalamMonths, newMonth])
+      toast.success('Malayalam month added')
+    }
+
+    // Reset form
+    setMalayalamMonthForm({
+      month: '',
+      startDate: '',
+      endDate: '',
+      year: ''
+    })
+    setShowMalayalamMonthForm(false)
+  }
+
+  const handleEditMalayalamMonth = (index: number) => {
+    const month = malayalamMonths[index]
+    setMalayalamMonthForm({
+      month: month.month,
+      startDate: month.startDate,
+      endDate: month.endDate,
+      year: month.year
+    })
+    setEditingMalayalamMonthIndex(index)
+    setShowMalayalamMonthForm(true)
+  }
+
+  const handleDeleteMalayalamMonth = (index: number) => {
+    if (confirm('Are you sure you want to delete this Malayalam month?')) {
+      const updated = malayalamMonths.filter((_, i) => i !== index)
+      setMalayalamMonths(updated)
+      toast.success('Malayalam month deleted')
+    }
+  }
 
   const onSelectDay = (d?: Date) => {
     if (!d) return
@@ -378,6 +500,10 @@ export default function CalendarManagement() {
                     const myText = d?.malayalam_year != null && d?.malayalam_year !== '' ? String(d.malayalam_year) : ''
                     const isToday = format(props.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                     
+                    // Get Malayalam date for this day
+                    const malayalamDate = getMalayalamDate(props.date, malayalamMonths)
+                    const malayalamDateText = formatMalayalamDate(malayalamDate)
+                    
                     return (
                       <div className={`
                         relative flex flex-col items-start w-full h-full px-1 sm:px-2 lg:px-3 py-1 sm:py-2 lg:py-3 rounded-2xl transition-all duration-500 cursor-pointer group
@@ -391,6 +517,13 @@ export default function CalendarManagement() {
                         <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-amber-400/10 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                         </div>
+                        
+                        {/* Malayalam Date - Top Right Corner */}
+                        {malayalamDateText && (
+                          <div className="absolute top-1 right-1 text-[0.5rem] sm:text-[0.6rem] text-amber-300/80 font-medium bg-black/20 px-1 py-0.5 rounded backdrop-blur-sm z-20">
+                            {malayalamDateText}
+                          </div>
+                        )}
                         
                         <div className={`
                           relative z-10 text-sm sm:text-base lg:text-lg font-bold leading-none mb-1 sm:mb-2 sacred-text
@@ -457,6 +590,142 @@ export default function CalendarManagement() {
           </div>
           {/* Sacred Control Panel */}
           <div className="space-y-4 sm:space-y-6 order-1 lg:order-2">
+            {/* Malayalam Month Management Panel */}
+            <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-purple-500/30 shadow-xl shadow-purple-500/10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg mr-3">
+                    <Moon className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">
+                    Malayalam Months
+                  </h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMalayalamMonthForm(!showMalayalamMonthForm)
+                    setEditingMalayalamMonthIndex(null)
+                    setMalayalamMonthForm({
+                      month: '',
+                      startDate: '',
+                      endDate: '',
+                      year: ''
+                    })
+                  }}
+                  className="p-2 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg transition-colors"
+                >
+                  {showMalayalamMonthForm ? <X className="w-4 h-4 text-purple-300" /> : <Plus className="w-4 h-4 text-purple-300" />}
+                </button>
+              </div>
+
+              {showMalayalamMonthForm && (
+                <div className="space-y-4 mb-4 bg-purple-900/10 p-4 rounded-xl border border-purple-500/20">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Malayalam Month</label>
+                    <select
+                      className="w-full px-4 py-3 bg-white/90 border border-purple-500/50 rounded-xl text-black font-medium focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-colors cursor-pointer"
+                      value={malayalamMonthForm.month}
+                      onChange={(e) => setMalayalamMonthForm({ ...malayalamMonthForm, month: e.target.value })}
+                    >
+                      <option value="">Select Month</option>
+                      {MALAYALAM_MONTHS.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Malayalam Year</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-4 py-3 bg-white/90 border border-purple-500/50 rounded-xl text-black font-medium focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-colors"
+                      value={malayalamMonthForm.year}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow empty string or only digits
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setMalayalamMonthForm({ ...malayalamMonthForm, year: value })
+                        }
+                      }}
+                      placeholder="e.g., 1200"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 bg-white/90 border border-purple-500/50 rounded-xl text-black font-medium focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-colors"
+                      value={malayalamMonthForm.startDate}
+                      onChange={(e) => setMalayalamMonthForm({ ...malayalamMonthForm, startDate: e.target.value })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">End Date</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 bg-white/90 border border-purple-500/50 rounded-xl text-black font-medium focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-colors"
+                      value={malayalamMonthForm.endDate}
+                      onChange={(e) => setMalayalamMonthForm({ ...malayalamMonthForm, endDate: e.target.value })}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={handleAddMalayalamMonth}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/25 flex items-center justify-center"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {editingMalayalamMonthIndex !== null ? 'Update Month' : 'Add Month'}
+                  </button>
+                </div>
+              )}
+
+              {/* List of Malayalam Months */}
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {malayalamMonths.length === 0 ? (
+                  <div className="text-center py-8 text-purple-200/60 text-sm">
+                    No Malayalam months configured yet. Click + to add one.
+                  </div>
+                ) : (
+                  malayalamMonths.map((month, index) => (
+                    <div
+                      key={index}
+                      className="bg-purple-900/20 p-3 rounded-lg border border-purple-500/20 hover:border-purple-500/40 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-purple-200 mb-1">
+                            {getMalayalamMonthName(month.month)} - {month.year}
+                          </div>
+                          <div className="text-xs text-purple-300/70">
+                            {month.startDate} to {month.endDate}
+                          </div>
+                        </div>
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => handleEditMalayalamMonth(index)}
+                            className="p-1.5 bg-purple-600/20 hover:bg-purple-600/30 rounded transition-colors"
+                          >
+                            <Edit2 className="w-3 h-3 text-purple-300" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMalayalamMonth(index)}
+                            className="p-1.5 bg-red-600/20 hover:bg-red-600/30 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-300" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* Range Assignment Panel */}
             <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-amber-500/30 shadow-xl shadow-amber-500/10">
               <div className="flex items-center mb-6">
