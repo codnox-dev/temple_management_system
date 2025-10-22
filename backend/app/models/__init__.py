@@ -4,6 +4,7 @@ from .committee_models import CommitteeMemberBase, CommitteeMemberCreate, Commit
 from .event_models import EventBase, EventCreate, EventInDB
 from .gallery_models import GalleryImageBase, GalleryImageCreate, GalleryImageInDB
 from .ritual_models import AvailableRitualBase, AvailableRitualCreate, AvailableRitualInDB, RitualInstance
+from .employee_booking_models import EmployeeBookingBase, EmployeeBookingCreate, EmployeeBookingInDB
 from .main_models import PyObjectId
 from .upload_models import (
 	UploadTarget,

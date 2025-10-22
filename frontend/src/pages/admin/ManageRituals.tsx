@@ -32,6 +32,8 @@ interface Ritual {
     available_from?: string;
     available_to?: string;
     show_on_home?: boolean; // Used for featuring on home
+    is_nakshatrapooja?: boolean; // Nakshatrapooja special field
+    nakshatrapooja_color?: string; // Nakshatrapooja custom color
 }
 
 interface StockItem {
@@ -150,6 +152,9 @@ const ManageRituals = () => {
                 available_from: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_from || null : null,
                 available_to: ritualPayload.date_range_option === 'custom' ? ritualPayload.available_to || null : null,
                 show_on_home: !!ritualPayload.show_on_home,
+                // Preserve Nakshatrapooja special fields when editing
+                is_nakshatrapooja: isEditing?.is_nakshatrapooja || false,
+                nakshatrapooja_color: isEditing?.nakshatrapooja_color || null,
                 required_stock: ritualPayload.required_stock.map(({ stock_item_id, quantity_required }: RequiredStock) => ({
                     stock_item_id,
                     quantity_required: Number(quantity_required)

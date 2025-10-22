@@ -42,6 +42,12 @@ interface RitualInstance {
     dob: string;
     subscription: string;
     quantity: number;
+    // Nakshatrapooja specific fields
+    date_range_type?: string;
+    custom_range_start?: string;
+    custom_range_end?: string;
+    calculated_date?: string;  // Single date for this_month or custom_range
+    calculated_dates?: string[];  // All dates for this_year (12 months)
 }
 
 type UnifiedBooking = {
@@ -274,6 +280,13 @@ const ManageBookings = () => {
 
             cursorY += 8;
 
+            // Check if any booking has Nakshatrapooja dates
+            const hasAnyNakshatrapooja = processedBookings.some(booking =>
+                booking.instances.some((inst: any) => 
+                    inst.calculated_date || (inst.calculated_dates && inst.calculated_dates.length > 0)
+                )
+            );
+
             // Footer renderer for each page
             const drawFooter = (pageNumber: number) => {
                 doc.setFontSize(9);
@@ -338,22 +351,66 @@ const ManageBookings = () => {
 
                 cursorY += panelHeight + 2;
 
-                // Ritual instances table - handles both single and multiple rituals
-                const body = entity.instances.map((instance) => [
-                    instance.ritualName || '-',
-                    String(instance.quantity ?? '-'),
-                    instance.devoteeName || '-',
-                    instance.naal || '-',
-                    instance.dob || '-',
-                    instance.subscription || '-'
-                ]);
+                // Check if this specific booking has Nakshatrapooja dates
+                const hasNakshatrapooja = entity.instances.some((inst: any) => 
+                    inst.calculated_date || (inst.calculated_dates && inst.calculated_dates.length > 0)
+                );
+
+                // Ritual instances table - conditional Nakshatrapooja column
+                const headers = ['Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'];
+                if (hasAnyNakshatrapooja) {
+                    headers.push('Nakshatrapooja');
+                }
+
+                const body = entity.instances.map((instance: any) => {
+                    const baseRow = [
+                        instance.ritualName || '-',
+                        String(instance.quantity ?? '-'),
+                        instance.devoteeName || '-',
+                        instance.naal || '-',
+                        instance.dob || '-',
+                        instance.subscription || '-'
+                    ];
+                    
+                    // Add Nakshatrapooja dates if column exists
+                    if (hasAnyNakshatrapooja) {
+                        if (instance.calculated_dates && instance.calculated_dates.length > 0) {
+                            const datesStr = instance.calculated_dates.map((d: string) => 
+                                new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                            ).join(', ');
+                            baseRow.push(`Dates: ${datesStr}`);
+                        } else if (instance.calculated_date) {
+                            baseRow.push(`Date: ${new Date(instance.calculated_date).toLocaleDateString('en-IN')}`);
+                        } else {
+                            baseRow.push('-');
+                        }
+                    }
+                    
+                    return baseRow;
+                });
+
+                // Dynamically set column widths based on whether Nakshatrapooja column exists
+                const columnStyles: any = hasAnyNakshatrapooja ? {
+                    0: { cellWidth: 45 }, // Ritual
+                    1: { cellWidth: 12, halign: 'center' }, // Qty
+                    2: { cellWidth: 32 }, // Devotee
+                    3: { cellWidth: 24 }, // Naal
+                    4: { cellWidth: 20 }, // DOB
+                    5: { cellWidth: 26 }, // Subscription
+                    6: { cellWidth: 'auto' } // Nakshatrapooja dates
+                } : {
+                    0: { cellWidth: 54 }, // Ritual
+                    1: { cellWidth: 12, halign: 'center' }, // Qty
+                    2: { cellWidth: 36 }, // Devotee
+                    3: { cellWidth: 28 }, // Naal
+                    4: { cellWidth: 22 }, // DOB
+                    5: { cellWidth: 'auto' } // Subscription
+                };
 
                 autoTable(doc, {
                     ...withPageDecorations,
                     startY: cursorY,
-                    head: [[
-                        'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
-                    ]],
+                    head: [headers],
                     body,
                     theme: 'grid',
                     styles: {
@@ -377,14 +434,7 @@ const ManageBookings = () => {
                         fillColor: [248, 250, 252]
                     },
                     margin: { left: marginX, right: marginX },
-                    columnStyles: {
-                        0: { cellWidth: 54 }, // Ritual
-                        1: { cellWidth: 12, halign: 'center' }, // Qty
-                        2: { cellWidth: 36 }, // Devotee
-                        3: { cellWidth: 28 }, // Naal - increased width for Malayalam text
-                        4: { cellWidth: 22 }, // DOB
-                        5: { cellWidth: 'auto' } // Subscription
-                    },
+                    columnStyles,
                     didParseCell: function(data: any) {
                         // Apply Malayalam font to any cell containing Malayalam text in body rows
                         if (malayalamFontAvailable && data.section === 'body') {
@@ -540,22 +590,66 @@ const ManageBookings = () => {
 
             cursorY += panelHeight + 2;
 
-            // Ritual instances table
-            const body = booking.instances.map((instance: any) => [
-                instance.ritualName || '-',
-                String(instance.quantity ?? '-'),
-                instance.devoteeName || '-',
-                instance.naal || '-',
-                instance.dob || '-',
-                instance.subscription || '-'
-            ]);
+            // Check if any instance has Nakshatrapooja dates
+            const hasNakshatrapooja = booking.instances.some((inst: any) => 
+                inst.calculated_date || (inst.calculated_dates && inst.calculated_dates.length > 0)
+            );
+
+            // Ritual instances table with conditional Nakshatrapooja column
+            const headers = ['Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'];
+            if (hasNakshatrapooja) {
+                headers.push('Nakshatrapooja');
+            }
+
+            const body = booking.instances.map((instance: any) => {
+                const baseRow = [
+                    instance.ritualName || '-',
+                    String(instance.quantity ?? '-'),
+                    instance.devoteeName || '-',
+                    instance.naal || '-',
+                    instance.dob || '-',
+                    instance.subscription || '-'
+                ];
+                
+                // Add Nakshatrapooja dates if column exists
+                if (hasNakshatrapooja) {
+                    if (instance.calculated_dates && instance.calculated_dates.length > 0) {
+                        const datesStr = instance.calculated_dates.map((d: string) => 
+                            new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                        ).join(', ');
+                        baseRow.push(`Dates: ${datesStr}`);
+                    } else if (instance.calculated_date) {
+                        baseRow.push(`Date: ${new Date(instance.calculated_date).toLocaleDateString('en-IN')}`);
+                    } else {
+                        baseRow.push('-');
+                    }
+                }
+                
+                return baseRow;
+            });
+
+            // Dynamically set column widths based on whether Nakshatrapooja column exists
+            const columnStyles: any = hasNakshatrapooja ? {
+                0: { cellWidth: 45 }, // Ritual
+                1: { cellWidth: 12, halign: 'center' }, // Qty
+                2: { cellWidth: 32 }, // Devotee
+                3: { cellWidth: 24 }, // Naal
+                4: { cellWidth: 20 }, // DOB
+                5: { cellWidth: 26 }, // Subscription
+                6: { cellWidth: 'auto' } // Nakshatrapooja dates
+            } : {
+                0: { cellWidth: 54 }, // Ritual
+                1: { cellWidth: 12, halign: 'center' }, // Qty
+                2: { cellWidth: 36 }, // Devotee
+                3: { cellWidth: 28 }, // Naal
+                4: { cellWidth: 22 }, // DOB
+                5: { cellWidth: 'auto' } // Subscription
+            };
 
             autoTable(doc, {
                 ...withPageDecorations,
                 startY: cursorY,
-                head: [[
-                    'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
-                ]],
+                head: [headers],
                 body,
                 theme: 'grid',
                 styles: {
@@ -579,14 +673,7 @@ const ManageBookings = () => {
                     fillColor: [248, 250, 252]
                 },
                 margin: { left: marginX, right: marginX },
-                columnStyles: {
-                    0: { cellWidth: 54 }, // Ritual
-                    1: { cellWidth: 12, halign: 'center' }, // Qty
-                    2: { cellWidth: 36 }, // Devotee
-                    3: { cellWidth: 28 }, // Naal
-                    4: { cellWidth: 22 }, // DOB
-                    5: { cellWidth: 'auto' } // Subscription
-                },
+                columnStyles,
                 didParseCell: function(data: any) {
                     // Apply Malayalam font to any cell containing Malayalam text
                     if (malayalamFontAvailable && data.section === 'body') {
@@ -793,6 +880,24 @@ const ManageBookings = () => {
                                                                 <div className="text-xs text-purple-400">
                                                                     Naal: {instance.naal} | DOB: {instance.dob} | Sub: <Badge variant="outline" className="ml-1 border-purple-500/30 text-purple-300">{instance.subscription}</Badge>
                                                                 </div>
+                                                                {/* Show calculated dates for Nakshatrapooja */}
+                                                                {instance.calculated_dates && instance.calculated_dates.length > 0 && (
+                                                                    <div className="mt-2 p-2 bg-orange-900/30 rounded border border-orange-500/30">
+                                                                        <div className="text-xs font-semibold text-orange-300 mb-1">📅 Nakshatrapooja Dates ({instance.date_range_type}):</div>
+                                                                        <div className="grid grid-cols-3 gap-1">
+                                                                            {instance.calculated_dates.map((date, idx) => (
+                                                                                <div key={idx} className="text-xs text-orange-200 bg-orange-950/50 px-2 py-1 rounded">
+                                                                                    {new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {instance.calculated_date && !instance.calculated_dates && (
+                                                                    <div className="mt-1 text-xs text-orange-300">
+                                                                        📅 Nakshatrapooja Date: <span className="font-semibold">{new Date(instance.calculated_date).toLocaleDateString('en-IN')}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>

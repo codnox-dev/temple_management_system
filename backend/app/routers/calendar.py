@@ -10,6 +10,7 @@ from ..services.calendar_service import (
     upsert_day_naal,
     get_day,
     search_by_naal,
+    search_naal_in_date_range,
 )
 from ..models.calendar_models import (
     PrepopulateRequest,
@@ -73,3 +74,22 @@ async def get_single_day(dateISO: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Day not found")
     return doc
+
+
+@router.get("/v1/calendar/naal-to-date")
+async def get_naal_date(
+    naal: str = Query(..., max_length=256),
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format")
+):
+    """
+    Find the first occurrence of a naal within a date range.
+    Used for Nakshatrapooja bookings to map naal to actual dates.
+    """
+    date_found = await search_naal_in_date_range(naal, start_date, end_date)
+    if not date_found:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Naal '{naal}' not found in the calendar between {start_date} and {end_date}. Please ensure the calendar is updated with naal information."
+        )
+    return {"naal": naal, "date": date_found, "start_date": start_date, "end_date": end_date}

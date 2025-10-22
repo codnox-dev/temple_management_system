@@ -27,8 +27,15 @@ type MonthResponse = {
   lastModified: string
 }
 
-// Available Naals list (Malayalam only)
-const NAALS = ['അശ്വതി','ഭരണി','കാർത്തിക','രോഹിണി','മകയിരം','തിരുവാതിര','പുണർതം','പൂയം','ആയില്യം','മകം','പൂരം','ഉത്രം','അത്തം','ചിത്തിര','ചോതി','വിശാഖം','അനിഴം','തൃക്കേട്ട','മൂലം','പൂരാടം','ഉത്രാടം','തിരുവോണം','അവിട്ടം','ചതയം','പൂരുരുട്ടാതി','ഉത്തൃട്ടാതി','രേവതി']
+// Available Naals list (Malayalam with English transliteration for database storage)
+const NAALS = ['അശ്വതി (Ashwathi)','ഭരണി (Bharani)','കാർത്തിക (Karthika)','രോഹിണി (Rohini)','മകയിരം (Makayiram)','തിരുവാതിര (Thiruvathira)','പുണർതം (Punartham)','പൂയം (Pooyam)','ആയില്യം (Aayilyam)','മകം (Makam)','പൂരം (Pooram)','ഉത്രം (Uthram)','അത്തം (Atham)','ചിത്തിര (Chithira)','ചോതി (Chothi)','വിശാഖം (Vishakham)','അനിഴം (Anizham)','തൃക്കേട്ട (Thrikketta)','മൂലം (Moolam)','പൂരാടം (Pooradam)','ഉത്രാടം (Uthradam)','തിരുവോണം (Thiruvonam)','അവിട്ടം (Avittam)','ചതയം (Chathayam)','പൂരുരുട്ടാതി (Pooruruttathi)','ഉത്തൃട്ടാതി (Uthruttathi)','രേവതി (Revathi)']
+
+// Helper function to extract Malayalam part from full naal string
+const getMalayalamNaal = (fullNaal: string): string => {
+  if (!fullNaal) return ''
+  const match = fullNaal.match(/^([^\(]+)/)
+  return match ? match[1].trim() : fullNaal
+}
 
 function useMonthData(year: number, month: number) {
   const [data, setData] = useState<MonthResponse | null>(null)
@@ -57,8 +64,10 @@ function useMonthData(year: number, month: number) {
       setLoading(true)
       const newData = await get<MonthResponse>(`/v1/calendar/${year}/${month}`)
       setData(newData)
+      return newData
     } catch (e: any) {
       setError(e?.response?.data?.detail || e.message)
+      return null
     } finally {
       setLoading(false)
     }
@@ -141,12 +150,8 @@ export default function CalendarManagement() {
     if (!editing || saving) return
     try {
       setSaving(true)
-      const result = await post('/v1/calendar/day/naal', { date: editing.dateISO, naal, version: editing.version })
+      const result = await post<CalendarDay>('/v1/calendar/day/naal', { date: editing.dateISO, naal, version: editing.version })
       toast.success('Saved')
-      
-      // Update the editing state with the new data
-      const updatedEditing = { ...editing, naal, version: result?.version || editing.version + 1 }
-      setEditing(updatedEditing)
       
       // Immediately update the local data state to reflect changes in the calendar
       if (data) {
@@ -163,6 +168,7 @@ export default function CalendarManagement() {
           }
         } else {
           // Add new day if it doesn't exist
+          const updatedEditing = { ...editing, naal, version: result?.version || editing.version + 1 }
           updatedDays.push({
             ...updatedEditing,
             updated_at: new Date().toISOString()
@@ -172,12 +178,33 @@ export default function CalendarManagement() {
         setData({ ...data, days: updatedDays, lastModified: new Date().toISOString() })
       }
       
-      // Also refresh from server to ensure consistency
-      await refetch()
+      // Refresh from server to ensure consistency and update editing state with server data
+      const freshData = await refetch()
+      if (freshData && editing) {
+        const freshDay = freshData.days.find(d => d.dateISO === editing.dateISO)
+        if (freshDay) {
+          setEditing(freshDay)
+          // Keep the current naal value in the UI (don't reset to server value since we just saved it)
+        }
+      }
       
     } catch (e: any) {
-      if (e?.response?.status === 409) toast.error('Version conflict, please refresh the month')
-      else toast.error(e?.response?.data?.detail || e.message)
+      if (e?.response?.status === 409) {
+        // Version conflict - auto-refresh and notify user
+        toast.error('Calendar was updated by another user. Refreshing...')
+        const freshData = await refetch()
+        // Update editing state with fresh data
+        if (editing && freshData) {
+          const freshDay = freshData.days.find(d => d.dateISO === editing.dateISO)
+          if (freshDay) {
+            setEditing(freshDay)
+            setNaal(freshDay.naal || '')
+            toast.info('Data refreshed. Please save again.')
+          }
+        }
+      } else {
+        toast.error(e?.response?.data?.detail || e.message)
+      }
     } finally {
       setSaving(false)
     }
@@ -378,7 +405,7 @@ export default function CalendarManagement() {
                             {naalText && (
                               <div className="naal-badge text-[0.65rem] sm:text-xs text-amber-200/95 leading-snug break-words px-1 sm:px-2 py-1 sm:py-1.5 rounded-lg">
                                 <Star className="w-2 h-2 sm:w-3 sm:h-3 inline mr-1 text-amber-300" />
-                                <span className="font-medium text-[0.6rem] sm:text-xs">{naalText}</span>
+                                <span className="font-medium text-[0.6rem] sm:text-xs">{getMalayalamNaal(naalText)}</span>
                               </div>
                             )}
                             {myText && (
@@ -521,7 +548,7 @@ export default function CalendarManagement() {
                     >
                       <option value="" className="bg-white text-black">None</option>
                       {NAALS.map((n, idx) => (
-                        <option key={`naal-${idx}`} value={n} className="bg-white text-black">{n}</option>
+                        <option key={`naal-${idx}`} value={n} className="bg-white text-black">{getMalayalamNaal(n)}</option>
                       ))}
                     </select>
                   </div>

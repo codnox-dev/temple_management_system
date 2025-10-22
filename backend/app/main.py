@@ -217,6 +217,37 @@ async def startup_db_client():
         # You would typically insert these into the database.
         # For example: await available_rituals_collection.insert_many([r.model_dump() for r in initial_rituals])
         print("Database populated with initial rituals.")
+    
+    # --- Create or Update Nakshatrapooja Ritual (Special) ---
+    nakshatrapooja_ritual = await available_rituals_collection.find_one({"name": "Nakshatrapooja"})
+    if not nakshatrapooja_ritual:
+        print("Creating special Nakshatrapooja ritual...")
+        nakshatrapooja = AvailableRitualBase(
+            name='Nakshatrapooja',
+            description='Sacred ritual performed on your birth star (Naal) for blessings and prosperity. This is a special ritual that uses our calendar system to map your Naal to the correct date.',
+            price=751,
+            duration='1.5 hours',
+            popular=True,
+            icon_name='Star',
+            is_nakshatrapooja=True,
+            nakshatrapooja_color='#FF6B35',  # Special orange-red color
+            show_on_home=False
+        )
+        await available_rituals_collection.insert_one(nakshatrapooja.model_dump())
+        print("✓ Nakshatrapooja ritual created successfully!")
+    else:
+        # Update existing to ensure it has special fields
+        if not nakshatrapooja_ritual.get('is_nakshatrapooja'):
+            print("Updating existing Nakshatrapooja ritual with special fields...")
+            await available_rituals_collection.update_one(
+                {"name": "Nakshatrapooja"},
+                {"$set": {
+                    "is_nakshatrapooja": True,
+                    "nakshatrapooja_color": "#FF6B35",
+                    "description": "Sacred ritual performed on your birth star (Naal) for blessings and prosperity. This is a special ritual that uses our calendar system to map your Naal to the correct date."
+                }}
+            )
+            print("✓ Nakshatrapooja ritual updated with special fields!")
 
     # --- Populate Roles ---
     if await roles_collection.count_documents({}) == 0:
