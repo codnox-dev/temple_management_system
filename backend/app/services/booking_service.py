@@ -5,6 +5,7 @@ from ..models import BookingCreate
 from .calendar_service import search_naal_in_date_range, search_naal_yearly, search_naal_in_range_all
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+import bleach
 
 async def create_booking(booking: BookingCreate):
     """
@@ -13,6 +14,14 @@ async def create_booking(booking: BookingCreate):
     For Nakshatrapooja rituals, it maps the naal to the actual date from the calendar.
     Raises HTTPException if stock is insufficient or a required stock item is not found.
     """
+    # Sanitize user inputs to prevent XSS
+    booking.name = bleach.clean(booking.name, strip=True)
+    booking.email = bleach.clean(booking.email, strip=True)
+    booking.phone = bleach.clean(booking.phone, strip=True)
+    booking.address = bleach.clean(booking.address, strip=True)
+    for instance in booking.instances:
+        instance.devoteeName = bleach.clean(instance.devoteeName, strip=True)
+
     # 1. Pre-check stock availability and process Nakshatrapooja instances
     for instance in booking.instances:
         if not ObjectId.is_valid(instance.ritualId):
@@ -168,4 +177,14 @@ async def create_booking(booking: BookingCreate):
 
 async def get_all_bookings():
     cursor = bookings_collection.find({})
-    return [booking async for booking in cursor]
+    bookings = []
+    async for booking in cursor:
+        # Sanitize user inputs for safe display
+        booking['name'] = bleach.clean(booking.get('name', ''), strip=True)
+        booking['email'] = bleach.clean(booking.get('email', ''), strip=True)
+        booking['phone'] = bleach.clean(booking.get('phone', ''), strip=True)
+        booking['address'] = bleach.clean(booking.get('address', ''), strip=True)
+        for instance in booking.get('instances', []):
+            instance['devoteeName'] = bleach.clean(instance.get('devoteeName', ''), strip=True)
+        bookings.append(booking)
+    return bookings
