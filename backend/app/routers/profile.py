@@ -9,6 +9,9 @@ from ..database import admins_collection
 from ..models.admin_models import AdminPublic
 from pydantic import BaseModel, Field
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 from urllib.parse import unquote
 from ..services.activity_service import create_activity
 from ..models.activity_models import ActivityCreate
@@ -169,8 +172,8 @@ async def finalize_profile_upload(
         # Delete the uploaded asset since it exceeds the limit
         try:
             storage_service.delete_profile_asset(metadata.secure_url or f"{storage_service.bucket_name}/{metadata.object_path}")
-        except Exception:
-            pass  # Non-fatal, but log if possible
+        except Exception as e:
+            logger.warning(f"Failed to delete oversized profile picture: {e}")
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Profile picture exceeds the maximum allowed size of 2MB. Uploaded size: {metadata.bytes} bytes."

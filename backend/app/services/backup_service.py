@@ -106,6 +106,7 @@ class BackupService:
             backup_path.mkdir(parents=True, exist_ok=True)
             
             # Build mongodump command
+            # Note: Using list-based command (not shell=True) to prevent injection attacks
             dump_command = [
                 "mongodump",
                 f"--uri={mongodb_local_url}",
@@ -113,12 +114,14 @@ class BackupService:
                 f"--out={backup_path}"
             ]
             
-            # Execute mongodump
+            # Execute mongodump with timeout and capture output
+            # subprocess.run with list args (no shell=True) is secure against injection
             result = subprocess.run(
                 dump_command,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
+                check=False  # Explicitly handle return codes
             )
             
             if result.returncode != 0:

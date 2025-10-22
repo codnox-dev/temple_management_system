@@ -191,6 +191,7 @@ class CleanupService:
             for collection_name, collection in collections_map.items():
                 try:
                     logger.info(f"  Attempting to delete from {collection_name}...")
+                    # Note: MongoDB delete_many({}) is safe - not SQL injection
                     result = await collection.delete_many({})
                     deletion_stats[collection_name] = result.deleted_count
                     logger.info(f"  ✓ Deleted {result.deleted_count} documents from {collection_name}")

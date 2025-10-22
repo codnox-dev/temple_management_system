@@ -173,8 +173,8 @@ class NetworkSecurityService:
                 body = await request.body()
                 if body:
                     inspection_targets["body"] = body.decode('utf-8', errors='ignore')
-            except:
-                pass
+            except (UnicodeDecodeError, AttributeError) as e:
+                logger.warning(f"Failed to decode request body for WAF inspection: {e}")
         
         # Run WAF rules
         for rule in self.waf_rules:

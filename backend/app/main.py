@@ -401,8 +401,9 @@ _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _profile_dir = os.path.join(_base_dir, "profile")
 try:
     os.makedirs(_profile_dir, exist_ok=True)
-except Exception:
-    pass
+except Exception as e:
+    import logging
+    logging.warning(f"Failed to create profile directory: {e}")
 app.mount("/static", StaticFiles(directory=_base_dir), name="static")
 
 @app.get("/")

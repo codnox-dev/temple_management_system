@@ -7,6 +7,9 @@ from ..database import calendar_collection, calendar_audit_collection
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from ..models.calendar_models import CalendarDayPublic
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Simple in-memory cache for month payloads (can be replaced with Redis)
@@ -159,8 +162,8 @@ async def assign_malayalam_year_range(start_date: str, end_date: str, malayalam_
     if audit_ops:
         try:
             await calendar_audit_collection.bulk_write(audit_ops, ordered=False)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to write calendar audit logs: {e}")
 
     _invalidate_month_cache_for_range(s, e)
     return modified
@@ -232,8 +235,8 @@ async def upsert_day_naal(date_str: str, naal: Optional[str], actor: str, versio
             "timestamp": now,
             "operation_id": str(ObjectId()),
         })
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to create calendar audit entry: {e}")
 
     _invalidate_single(d.isoformat())
     return after
@@ -328,8 +331,9 @@ async def search_naal_yearly(naal: str, year: int) -> List[str]:
             
             if result:
                 monthly_dates.append(result.get("dateISO"))
-        except Exception:
+        except Exception as e:
             # Skip months that cause errors
+            logger.warning(f"Error searching for naal {naal} in month {year}-{month:02d}: {e}")
             continue
     
     return monthly_dates
