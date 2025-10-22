@@ -9,6 +9,9 @@ from ..models.activity_models import ActivityCreate
 from datetime import datetime
 from urllib.parse import unquote
 from ..services.storage_service import storage_service
+import logging
+
+logger = logging.getLogger(__name__)
 from ..database import gallery_layouts_collection, gallery_slideshow_collection
 
 router = APIRouter()
@@ -153,14 +156,13 @@ async def delete_gallery_image(
         await gallery_layouts_collection.update_many({}, {"$pull": {"items": {"id": id}}})
         # Also remove from static 'order' list if present
         await gallery_layouts_collection.update_many({}, {"$pull": {"order": id}})
-    except Exception:
-        # Non-fatal; logging can be added here if a logger exists
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to remove image {id} from gallery layouts: {e}")
     try:
         # Remove from slideshow order if present
         await gallery_slideshow_collection.update_one({}, {"$pull": {"image_ids": id}})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to remove image {id} from slideshow: {e}")
     
     # Log activity
     activity = ActivityCreate(

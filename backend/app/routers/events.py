@@ -9,6 +9,9 @@ from ..models.activity_models import ActivityCreate
 from datetime import datetime
 from urllib.parse import unquote
 from ..services.storage_service import storage_service
+import logging
+
+logger = logging.getLogger(__name__)
 from ..database import events_featured_collection, events_section_collection
 
 router = APIRouter()
@@ -157,13 +160,13 @@ async def delete_event(
     # If this was the featured event, clear it
     try:
         await events_featured_collection.update_one({"event_id": id}, {"$unset": {"event_id": ""}})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to clear featured event {id}: {e}")
     # If this event was selected for homepage section, pull it from the list
     try:
         await events_section_collection.update_one({}, {"$pull": {"event_ids": id}})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to remove event {id} from homepage section: {e}")
     
     # Log activity
     activity = ActivityCreate(

@@ -220,8 +220,9 @@ async def request_step_up_auth(
             try:
                 import json
                 device_fingerprint = json.loads(device_fp_header)
-            except:
-                pass
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"Failed to parse device fingerprint: {e}")
+                device_fingerprint = None
         
         # Create step-up token
         base_token_data = {

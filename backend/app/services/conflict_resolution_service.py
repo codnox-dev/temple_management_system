@@ -6,7 +6,7 @@ Helper functions for resolving sync conflicts automatically or semi-automaticall
 import logging
 from typing import Dict, Optional, List
 from datetime import datetime
-import random
+import secrets
 import string
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def generate_unique_suffix(length: int = 4) -> str:
     """
-    Generate a random alphanumeric suffix for renaming conflicts.
+    Generate a cryptographically secure random alphanumeric suffix for renaming conflicts.
     
     Args:
         length: Length of the suffix (default: 4)
@@ -23,7 +23,7 @@ def generate_unique_suffix(length: int = 4) -> str:
         Random string like "_a7k2"
     """
     chars = string.ascii_lowercase + string.digits
-    return "_" + "".join(random.choice(chars) for _ in range(length))
+    return "_" + "".join(secrets.choice(chars) for _ in range(length))
 
 
 def auto_rename_field(original_value: str, suffix: Optional[str] = None) -> str:

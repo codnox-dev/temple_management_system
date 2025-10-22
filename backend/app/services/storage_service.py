@@ -339,17 +339,17 @@ class CloudinaryStorageService:
         bytes_size = info.get("bytes")
         fmt = (info.get("format") or "").lower()
         if bytes_size and bytes_size > self.max_image_bytes:
-            # Optional: schedule deletion for oversize asset
+            # Schedule deletion for oversize asset
             try:
                 cloudinary_destroy(public_id, resource_type="image", invalidate=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to delete oversized asset {public_id}: {e}")
             raise HTTPException(status_code=413, detail="Uploaded file exceeds allowed size")
         if fmt and fmt not in self.allowed_extensions:
             try:
                 cloudinary_destroy(public_id, resource_type="image", invalidate=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to delete unsupported format asset {public_id}: {e}")
             raise HTTPException(status_code=415, detail="Unsupported media format")
         return {
             "public_id": public_id,

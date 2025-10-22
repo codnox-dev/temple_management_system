@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import secrets
 import asyncio
+import ast
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -284,7 +285,7 @@ class DatabaseSecurityService:
             # Decrypt metadata if present
             decrypted_metadata = None
             if token_doc.get("encrypted_metadata"):
-                decrypted_metadata = eval(self.encryption_key.decrypt(token_doc["encrypted_metadata"]).decode())
+                decrypted_metadata = ast.literal_eval(self.encryption_key.decrypt(token_doc["encrypted_metadata"]).decode())
             
             # Update access statistics
             await collections["encrypted_tokens"].update_one(
@@ -435,7 +436,7 @@ class DatabaseSecurityService:
                 return None
             
             # Decrypt session data
-            decrypted_data = eval(self.encryption_key.decrypt(session_doc["encrypted_data"]).decode())
+            decrypted_data = ast.literal_eval(self.encryption_key.decrypt(session_doc["encrypted_data"]).decode())
             
             # Update access count
             await collections["encrypted_sessions"].update_one(
