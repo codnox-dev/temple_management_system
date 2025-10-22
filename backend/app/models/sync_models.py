@@ -67,6 +67,7 @@ class SyncConfiguration(BaseModel):
     collectionsToSync: list[str] = Field(
         default_factory=lambda: [
             "admins",
+            "attendance_records",
             "available_rituals",
             "bookings",
             "employee_bookings",

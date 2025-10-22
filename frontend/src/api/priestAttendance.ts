@@ -52,11 +52,23 @@ export interface AttendanceRecord {
   check_in_time?: string;
   check_out_time?: string;
   overtime_hours: number;
+  outside_hours?: number;
+  check_in_location?: {
+    lat: number;
+    lon: number;
+  };
+  check_out_location?: {
+    lat: number;
+    lon: number;
+  };
   notes?: string;
   marked_by: string;
   marked_by_name?: string;
   created_at: string;
   updated_at: string;
+  synced_at?: string;
+  sync_origin?: string;
+  sync_device_id?: string;
 }
 
 export interface AttendanceDashboard {

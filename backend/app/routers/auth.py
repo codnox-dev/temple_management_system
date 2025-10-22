@@ -163,8 +163,13 @@ async def login(request: Request, response: Response, credentials: LoginRequest)
         "permissions": admin.get("permissions", []),
     }
 
-    access_token = jwt_security.create_access_token(token_payload, client_info)
-    refresh_token = jwt_security.create_refresh_token(token_payload, client_info)
+    # Detect if request is from mobile app (no Origin header or specific User-Agent)
+    origin = request.headers.get("origin", "")
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_mobile = not origin or "dart" in user_agent or "flutter" in user_agent
+
+    access_token = jwt_security.create_access_token(token_payload, client_info, is_mobile=is_mobile)
+    refresh_token = jwt_security.create_refresh_token(token_payload, client_info, is_mobile=is_mobile)
 
     response.set_cookie(
         key="refresh_token",
@@ -242,8 +247,12 @@ async def refresh_token(request: Request, response: Response, refresh_request: O
         "permissions": admin.get("permissions", []),
     }
 
-    new_access_token = jwt_security.create_access_token(user_data, client_info)
-    new_refresh_token = jwt_security.create_refresh_token(user_data, client_info)
+    # Detect if request is from mobile app (no Origin header or specific User-Agent)
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_mobile = not origin or "dart" in user_agent or "flutter" in user_agent
+
+    new_access_token = jwt_security.create_access_token(user_data, client_info, is_mobile=is_mobile)
+    new_refresh_token = jwt_security.create_refresh_token(user_data, client_info, is_mobile=is_mobile)
 
     response.set_cookie(
         key="refresh_token",
