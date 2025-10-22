@@ -272,11 +272,24 @@ class SyncManager:
         
         try:
             # Find documents that need syncing (updated_at > synced_at or synced_at is None)
+            # IMPORTANT: Exclude documents with sync_origin = "cloud" or "remote" as they originated from remote
+            # This prevents pushing back records that were created by mobile apps with cloud origin
             query = {
-                "$or": [
-                    {"synced_at": {"$exists": False}},
-                    {"synced_at": None},
-                    {"$expr": {"$gt": ["$updated_at", "$synced_at"]}}
+                "$and": [
+                    {
+                        "$or": [
+                            {"synced_at": {"$exists": False}},
+                            {"synced_at": None},
+                            {"$expr": {"$gt": ["$updated_at", "$synced_at"]}}
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"sync_origin": {"$exists": False}},
+                            {"sync_origin": None},
+                            {"sync_origin": {"$nin": ["cloud", "remote"]}}
+                        ]
+                    }
                 ]
             }
             
@@ -392,10 +405,15 @@ class SyncManager:
                         
                         if remote_updated and local_updated:
                             # Remote is newer, update local
+                            # This includes records that originated from cloud (sync_origin: "cloud")
+                            # because the remote version is the source of truth
                             if remote_updated > local_updated:
                                 update_data = {k: v for k, v in remote_doc.items() if k != "_id"}
                                 update_data["synced_at"] = datetime.utcnow()
                                 update_data["sync_status"] = SyncStatus.SYNCED.value
+                                # Preserve the original sync_origin if it exists
+                                if "sync_origin" not in update_data and "sync_origin" in local_doc:
+                                    update_data["sync_origin"] = local_doc["sync_origin"]
                                 
                                 await local_collection.update_one(
                                     {"_id": doc_id},
@@ -406,7 +424,9 @@ class SyncManager:
                         # Document doesn't exist locally, insert it
                         remote_doc["synced_at"] = datetime.utcnow()
                         remote_doc["sync_status"] = SyncStatus.SYNCED.value
-                        remote_doc["sync_origin"] = SyncOrigin.REMOTE.value
+                        # Set sync_origin to remote only if not already set
+                        if "sync_origin" not in remote_doc:
+                            remote_doc["sync_origin"] = SyncOrigin.REMOTE.value
                         
                         await local_collection.insert_one(remote_doc)
                         pulled_count += 1

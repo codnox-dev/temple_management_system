@@ -39,6 +39,11 @@ class LocationConfigBase(BaseModel):
     outside_radius: float = Field(default=500.0, ge=100, le=5000, description="Radius beyond which user is considered outside (default: 500m)")
     address: Optional[str] = Field(None, max_length=500, description="Physical address of the location")
     notes: Optional[str] = Field(None, max_length=1000, description="Additional notes")
+    
+    # Sync tracking fields
+    synced_at: Optional[datetime] = Field(None, description="Last successful sync timestamp")
+    sync_origin: Optional[str] = Field(default="local", description="Origin of the document: 'local', 'cloud', or 'remote'")
+    sync_status: Optional[str] = Field(default="pending", description="Current sync status: 'synced', 'pending', 'conflict', or 'failed'")
 
 
 class LocationConfigCreate(LocationConfigBase):
@@ -55,6 +60,9 @@ class LocationConfigUpdate(BaseModel):
     outside_radius: Optional[float] = Field(None, ge=100, le=5000)
     address: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = Field(None, max_length=1000)
+    
+    # Sync tracking fields are not included in update model
+    # They are managed automatically by the sync system
 
 
 class LocationConfigInDB(LocationConfigBase):
@@ -88,6 +96,11 @@ class LocationConfigResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_active: bool
+    
+    # Sync tracking fields
+    synced_at: Optional[datetime] = None
+    sync_origin: Optional[str] = None
+    sync_status: Optional[str] = None
 
 
 # ============= Response Models =============

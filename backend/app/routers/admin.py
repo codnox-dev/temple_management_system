@@ -78,6 +78,9 @@ def _can_modify_user(actor: dict, target: dict, update_role_id: Optional[int] = 
 async def get_me(current_admin: dict = Depends(auth_service.get_current_admin)):
     admin = current_admin.copy()
     admin.pop("hashed_password", None)
+    # Ensure _id is converted to string for JSON serialization
+    if "_id" in admin:
+        admin["_id"] = str(admin["_id"])
     return admin
 
 @router.post("/token", response_model=Token)

@@ -82,7 +82,8 @@ class SyncConfiguration(BaseModel):
             "gallery_home_preview",
             "events_featured",
             "events_section",
-            "calendar"
+            "calendar",
+            "location_config"
         ],
         description="Collections to include in sync"
     )

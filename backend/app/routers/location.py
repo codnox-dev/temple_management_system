@@ -42,6 +42,10 @@ def location_helper(location, created_by_name: str = None, updated_by_name: str 
         "created_at": location.get("created_at", datetime.utcnow()),
         "updated_at": location.get("updated_at", datetime.utcnow()),
         "is_active": location.get("is_active", True),
+        # Sync tracking fields
+        "synced_at": location.get("synced_at"),
+        "sync_origin": location.get("sync_origin", "local"),
+        "sync_status": location.get("sync_status", "pending"),
     }
 
 
@@ -118,6 +122,11 @@ async def create_location_config(
     location_dict["updated_at"] = datetime.utcnow()
     location_dict["is_active"] = True
     
+    # Initialize sync tracking fields
+    location_dict["synced_at"] = None
+    location_dict["sync_origin"] = "local"
+    location_dict["sync_status"] = "pending"
+    
     result = await db.location_config.insert_one(location_dict)
     created_location = await db.location_config.find_one({"_id": result.inserted_id})
     
@@ -163,6 +172,8 @@ async def update_location_config(
     if update_data:
         update_data["updated_by"] = str(current_user["_id"])
         update_data["updated_at"] = datetime.utcnow()
+        # Reset sync status to pending when location is updated
+        update_data["sync_status"] = "pending"
         
         await db.location_config.update_one(
             {"_id": existing_location["_id"]},
@@ -275,7 +286,8 @@ async def activate_location_config(
         {"$set": {
             "is_active": True,
             "updated_by": str(current_user["_id"]),
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.utcnow(),
+            "sync_status": "pending"  # Mark as pending sync when activated
         }}
     )
     
