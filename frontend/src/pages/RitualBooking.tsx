@@ -63,6 +63,7 @@ type RitualInstance = {
 	date_range_type?: DateRangeType;
 	custom_range_start?: string;
 	custom_range_end?: string;
+	naal_count?: number; // Number of naals found in the selected date range
 };
 
 const frequencyMultipliers: Record<Subscription, number> = { 'one-time': 1, daily: 30, weekly: 4, monthly: 1 };
@@ -136,6 +137,10 @@ const RitualBooking = () => {
 			newInstance.date_range_type = 'this_month';
 			newInstance.custom_range_start = '';
 			newInstance.custom_range_end = '';
+			newInstance.naal_count = 0;
+			// For Nakshatrapooja, subscription is fixed to one-time and quantity is fixed to 1
+			newInstance.subscription = 'one-time';
+			newInstance.quantity = 1;
 		}
 		
 		setInstances(prev => [...prev, newInstance]);
@@ -151,9 +156,76 @@ const RitualBooking = () => {
 
 	const ritualById = (id: string) => rituals.find(r => r.id === id)!;
     
+	// Function to fetch naal count for Nakshatrapooja rituals
+	const fetchNaalCount = async (instance: RitualInstance) => {
+		const ritual = ritualById(instance.ritualId);
+		if (!ritual?.is_nakshatrapooja || !instance.naal) {
+			return 0;
+		}
+
+		try {
+			const now = new Date();
+			let startDate = '';
+			let endDate = '';
+
+			if (instance.date_range_type === 'this_month') {
+				// Current month
+				const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+				const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+				startDate = firstDay.toISOString().split('T')[0];
+				endDate = lastDay.toISOString().split('T')[0];
+			} else if (instance.date_range_type === 'this_year') {
+				// Current year
+				startDate = `${now.getFullYear()}-01-01`;
+				endDate = `${now.getFullYear()}-12-31`;
+			} else if (instance.date_range_type === 'custom_range') {
+				if (!instance.custom_range_start || !instance.custom_range_end) {
+					return 0;
+				}
+				startDate = instance.custom_range_start;
+				endDate = instance.custom_range_end;
+			}
+
+			// Call the backend API to get naal dates in range
+			const response = await get<string[]>(
+				`/v1/calendar/search-naal-range?naal=${encodeURIComponent(instance.naal)}&start_date=${startDate}&end_date=${endDate}`
+			);
+
+			return response.length;
+		} catch (error) {
+			console.error('Error fetching naal count:', error);
+			return 0;
+		}
+	};
+
+	// Update naal count when relevant fields change
+	const updateInstanceWithNaalCount = async (id: RitualInstance['id'], key: keyof RitualInstance, value: any) => {
+		updateInstance(id, key, value);
+		
+		const instance = instances.find(i => i.id === id);
+		if (!instance) return;
+		
+		const ritual = ritualById(instance.ritualId);
+		if (ritual?.is_nakshatrapooja) {
+			// If changing naal, date_range_type, or custom dates, recalculate naal count
+			if (key === 'naal' || key === 'date_range_type' || key === 'custom_range_start' || key === 'custom_range_end') {
+				// Create updated instance with new value
+				const updatedInstance = { ...instance, [key]: value };
+				const count = await fetchNaalCount(updatedInstance);
+				updateInstance(id, 'naal_count', count);
+			}
+		}
+	};
+    
 	const calcInstanceTotal = (i: RitualInstance) => {
         const ritual = ritualById(i.ritualId);
         if (!ritual) return 0;
+        
+        // For Nakshatrapooja, calculate based on naal_count instead of quantity and subscription
+        if (ritual.is_nakshatrapooja) {
+            return ritual.price * (i.naal_count || 0);
+        }
+        
         return ritual.price * i.quantity * frequencyMultipliers[i.subscription];
     }
 
@@ -362,7 +434,7 @@ const RitualBooking = () => {
 												<select
 													id={`naal-${inst.id}`}
 													value={inst.naal}
-													onChange={e => updateInstance(inst.id, 'naal', e.target.value)}
+													onChange={e => updateInstanceWithNaalCount(inst.id, 'naal', e.target.value)}
 													className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 													required
 												>
@@ -376,11 +448,11 @@ const RitualBooking = () => {
 											{isNakshatrapooja && (
 												<div className="p-3 rounded-lg" style={{ backgroundColor: `${customColor}15`, borderLeft: `3px solid ${customColor}` }}>
 													<Label htmlFor={`dateRange-${inst.id}`} className="font-semibold">Date Range for Naal Search *</Label>
-													<p className="text-xs text-muted-foreground mb-2">We'll find the first occurrence of your Naal in the selected period</p>
+													<p className="text-xs text-muted-foreground mb-2">We'll calculate the cost based on how many times your Naal occurs in the selected period</p>
 													<select
 														id={`dateRange-${inst.id}`}
 														value={inst.date_range_type || 'this_month'}
-														onChange={e => updateInstance(inst.id, 'date_range_type', e.target.value as DateRangeType)}
+														onChange={e => updateInstanceWithNaalCount(inst.id, 'date_range_type', e.target.value as DateRangeType)}
 														className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 														required
 													>
@@ -397,7 +469,7 @@ const RitualBooking = () => {
 																	id={`rangeStart-${inst.id}`}
 																	type="date"
 																	value={inst.custom_range_start || ''}
-																	onChange={e => updateInstance(inst.id, 'custom_range_start', e.target.value)}
+																	onChange={e => updateInstanceWithNaalCount(inst.id, 'custom_range_start', e.target.value)}
 																	className="mt-1"
 																	required
 																/>
@@ -408,39 +480,63 @@ const RitualBooking = () => {
 																	id={`rangeEnd-${inst.id}`}
 																	type="date"
 																	value={inst.custom_range_end || ''}
-																	onChange={e => updateInstance(inst.id, 'custom_range_end', e.target.value)}
+																	onChange={e => updateInstanceWithNaalCount(inst.id, 'custom_range_end', e.target.value)}
 																	className="mt-1"
 																	required
 																/>
 															</div>
 														</div>
 													)}
+													
+													{inst.naal_count !== undefined && inst.naal_count > 0 && (
+														<div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
+															<p className="text-sm text-green-800 font-medium">
+																✓ Found {inst.naal_count} occurrence{inst.naal_count !== 1 ? 's' : ''} of your Naal in the selected period
+															</p>
+															<p className="text-xs text-green-600 mt-1">
+																Cost: ₹{r.price} × {inst.naal_count} = ₹{calcInstanceTotal(inst)}
+															</p>
+														</div>
+													)}
+													
+													{inst.naal && inst.naal_count === 0 && (
+														<div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-md">
+															<p className="text-sm text-amber-800 font-medium">
+																No occurrences found for the selected Naal in this period
+															</p>
+														</div>
+													)}
 												</div>
 											)}
 											
 											<div><Label htmlFor={`dob-${inst.id}`}>Date of Birth *</Label><Input id={`dob-${inst.id}`} type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="mt-1" required/></div>
-											<div className="grid grid-cols-3 gap-3">
-												<div className="col-span-2"><Label htmlFor={`sub-${inst.id}`}>Subscription</Label><select id={`sub-${inst.id}`} value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-												<div>
-                                                    <Label htmlFor={`qty-${inst.id}`}>Qty</Label>
-                                                    <Input
-                                                        id={`qty-${inst.id}`}
-                                                        type="number"
-                                                        min={1}
-                                                        value={inst.quantity === 0 ? '' : inst.quantity}
-                                                        onChange={e => {
-                                                            const qty = parseInt(e.target.value, 10);
-                                                            updateInstance(inst.id, 'quantity', isNaN(qty) ? 0 : qty);
-                                                        }}
-                                                        onBlur={() => {
-                                                            if (inst.quantity < 1) {
-                                                                updateInstance(inst.id, 'quantity', 1);
-                                                            }
-                                                        }}
-                                                        className="mt-1"
-                                                    />
-                                                </div>
-											</div>
+											
+											{/* Hide subscription and quantity for Nakshatrapooja */}
+											{!isNakshatrapooja && (
+												<div className="grid grid-cols-3 gap-3">
+													<div className="col-span-2"><Label htmlFor={`sub-${inst.id}`}>Subscription</Label><select id={`sub-${inst.id}`} value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+													<div>
+														<Label htmlFor={`qty-${inst.id}`}>Qty</Label>
+														<Input
+															id={`qty-${inst.id}`}
+															type="number"
+															min={1}
+															value={inst.quantity === 0 ? '' : inst.quantity}
+															onChange={e => {
+																const qty = parseInt(e.target.value, 10);
+																updateInstance(inst.id, 'quantity', isNaN(qty) ? 0 : qty);
+															}}
+															onBlur={() => {
+																if (inst.quantity < 1) {
+																	updateInstance(inst.id, 'quantity', 1);
+																}
+															}}
+															className="mt-1"
+														/>
+													</div>
+												</div>
+											)}
+											
 											<div className="flex items-center justify-between pt-2"><div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-primary">₹{calcInstanceTotal(inst)}</span></div><Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeInstance(inst.id)}>Remove</Button></div>
 										</div>
 									</div>
