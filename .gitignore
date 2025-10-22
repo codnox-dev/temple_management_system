@@ -144,3 +144,6 @@ LOGOUT_COOLDOWN_SUMMARY.md
 LOGOUT_COOLDOWN_CLEAR.md
 app.*.symbols
 app.*.map.json
+
+temple_app/linux/flutter/generated_plugins.cmake
+temple_app/windows/flutter/generated_plugins.cmake
