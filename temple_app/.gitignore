@@ -43,3 +43,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+temple_app/windows/flutter/generated_plugins.cmake
+temple_app/linux/flutter/generated_plugins.cmake
