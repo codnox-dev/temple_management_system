@@ -15,14 +15,20 @@ import autoTable from 'jspdf-autotable';
 // --- Type Definitions ---
 interface ApiRitual {
   _id: string; name: string; description: string; price: number; duration: string; icon_name: string;
+  is_nakshatrapooja?: boolean; nakshatrapooja_color?: string;
 }
 interface Ritual extends ApiRitual { id: string; }
 
 type Subscription = 'one-time' | 'daily' | 'weekly' | 'monthly';
+type DateRangeType = 'this_month' | 'this_year' | 'custom_range';
 
 type RitualInstance = {
 	id: string; ritualId: string; devoteeName: string; naal: string;
 	dob: string; subscription: Subscription; quantity: number;
+	// Nakshatrapooja specific fields
+	date_range_type?: DateRangeType;
+	custom_range_start?: string;
+	custom_range_end?: string;
 };
 
 // --- Helper Components & Functions ---
@@ -68,7 +74,25 @@ const EmployeeRitualBooking = () => {
 
 	const addInstance = (ritualId: string) => {
 		const uniqueId = `${ritualId}-${Date.now()}`;
-		setInstances(prev => [ ...prev, { id: uniqueId, ritualId, devoteeName: '', naal: '', dob: '', subscription: 'one-time', quantity: 1 } ]);
+		const ritual = ritualById(ritualId);
+		const newInstance: RitualInstance = {
+			id: uniqueId,
+			ritualId,
+			devoteeName: '',
+			naal: '',
+			dob: '',
+			subscription: 'one-time',
+			quantity: 1
+		};
+		
+		// Add Nakshatrapooja specific fields if it's a Nakshatrapooja ritual
+		if (ritual?.is_nakshatrapooja) {
+			newInstance.date_range_type = 'this_month';
+			newInstance.custom_range_start = '';
+			newInstance.custom_range_end = '';
+		}
+		
+		setInstances(prev => [...prev, newInstance]);
 	};
 
 	const updateInstance = <K extends keyof RitualInstance>(id: string, key: K, value: RitualInstance[K]) => {
@@ -205,22 +229,66 @@ const EmployeeRitualBooking = () => {
 
             cursorY += panelHeight + 2;
 
-            // Ritual instances table
-            const body = bookingData.instances.map((instance: any) => [
-                instance.ritualName || '-',
-                String(instance.quantity ?? '-'),
-                instance.devoteeName || '-',
-                instance.naal || '-',
-                instance.dob || '-',
-                instance.subscription || '-'
-            ]);
+            // Check if any instance has Nakshatrapooja dates
+            const hasNakshatrapooja = bookingData.instances.some((inst: any) => 
+                inst.calculated_date || (inst.calculated_dates && inst.calculated_dates.length > 0)
+            );
+
+            // Ritual instances table with conditional Nakshatrapooja column
+            const headers = ['Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'];
+            if (hasNakshatrapooja) {
+                headers.push('Nakshatrapooja');
+            }
+
+            const body = bookingData.instances.map((instance: any) => {
+                const baseRow = [
+                    instance.ritualName || '-',
+                    String(instance.quantity ?? '-'),
+                    instance.devoteeName || '-',
+                    instance.naal || '-',
+                    instance.dob || '-',
+                    instance.subscription || '-'
+                ];
+                
+                // Add Nakshatrapooja dates if column exists
+                if (hasNakshatrapooja) {
+                    if (instance.calculated_dates && instance.calculated_dates.length > 0) {
+                        const datesStr = instance.calculated_dates.map((d: string) => 
+                            new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                        ).join(', ');
+                        baseRow.push(`Dates: ${datesStr}`);
+                    } else if (instance.calculated_date) {
+                        baseRow.push(`Date: ${new Date(instance.calculated_date).toLocaleDateString('en-IN')}`);
+                    } else {
+                        baseRow.push('-');
+                    }
+                }
+                
+                return baseRow;
+            });
+
+            // Dynamically set column widths based on whether Nakshatrapooja column exists
+            const columnStyles: any = hasNakshatrapooja ? {
+                0: { cellWidth: 45 }, // Ritual
+                1: { cellWidth: 12, halign: 'center' }, // Qty
+                2: { cellWidth: 32 }, // Devotee
+                3: { cellWidth: 24 }, // Naal
+                4: { cellWidth: 20 }, // DOB
+                5: { cellWidth: 26 }, // Subscription
+                6: { cellWidth: 'auto' } // Nakshatrapooja dates
+            } : {
+                0: { cellWidth: 54 }, // Ritual
+                1: { cellWidth: 12, halign: 'center' }, // Qty
+                2: { cellWidth: 36 }, // Devotee
+                3: { cellWidth: 28 }, // Naal
+                4: { cellWidth: 22 }, // DOB
+                5: { cellWidth: 'auto' } // Subscription
+            };
 
             autoTable(doc, {
                 ...withPageDecorations,
                 startY: cursorY,
-                head: [[
-                    'Ritual', 'Qty', 'Devotee', 'Naal', 'DOB', 'Subscription'
-                ]],
+                head: [headers],
                 body,
                 theme: 'grid',
                 styles: {
@@ -244,14 +312,7 @@ const EmployeeRitualBooking = () => {
                     fillColor: [248, 250, 252]
                 },
                 margin: { left: marginX, right: marginX },
-                columnStyles: {
-                    0: { cellWidth: 54 }, // Ritual
-                    1: { cellWidth: 12, halign: 'center' }, // Qty
-                    2: { cellWidth: 36 }, // Devotee
-                    3: { cellWidth: 28 }, // Naal
-                    4: { cellWidth: 22 }, // DOB
-                    5: { cellWidth: 'auto' } // Subscription
-                },
+                columnStyles,
                 didParseCell: function(data: any) {
                     // Apply Malayalam font to any cell containing Malayalam text
                     if (malayalamFontAvailable && data.section === 'body') {
@@ -281,13 +342,14 @@ const EmployeeRitualBooking = () => {
         onSuccess: (response, variables) => {
             toast.success("Booking created successfully!");
             
-            // Generate and download PDF receipt with booking data
+            // Generate and download PDF receipt with booking data from backend response
+            // This ensures calculated_date/calculated_dates are included
             const bookingData = {
-                name: variables.name,
-                instances: variables.instances,
-                total_cost: variables.total_cost,
-                booked_by: variables.booked_by,
-                timestamp: new Date().toISOString()
+                name: response.data.name || variables.name,
+                instances: response.data.instances || variables.instances,
+                total_cost: response.data.total_cost || variables.total_cost,
+                booked_by: response.data.booked_by || variables.booked_by,
+                timestamp: response.data.timestamp || new Date().toISOString()
             };
             downloadBookingReceiptAsPDF(bookingData);
 
@@ -333,16 +395,47 @@ const EmployeeRitualBooking = () => {
                         <CardContent>
                             <Input placeholder="Search rituals..." value={search} onChange={e => setSearch(e.target.value)} className="bg-slate-800/50 border-purple-500/30 text-white mb-4" disabled={isViewOnly} aria-disabled={isViewOnly} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
-                                {isLoading ? <p>Loading rituals...</p> : visibleRituals.map((ritual) => (
-                                    <div key={ritual.id} className="bg-slate-800/50 p-3 rounded-lg border border-purple-500/20 flex justify-between items-center">
-                                        <div>
-                                            <div className="flex items-center gap-2"><RitualIcon name={ritual.icon_name} className="h-5 w-5 text-purple-400" /><span className="font-semibold">{ritual.name}</span></div>
-                                            <p className="text-xs text-purple-300/80">{ritual.description}</p>
-                                            <p className="text-sm font-bold mt-1">₹{ritual.price}</p>
+                                {isLoading ? <p>Loading rituals...</p> : visibleRituals.map((ritual) => {
+                                    const isNakshatrapooja = ritual.is_nakshatrapooja;
+                                    const customColor = ritual.nakshatrapooja_color || '#FF6B35';
+                                    
+                                    return (
+                                        <div 
+                                            key={ritual.id} 
+                                            className="p-3 rounded-lg border flex justify-between items-center"
+                                            style={isNakshatrapooja ? {
+                                                backgroundColor: `${customColor}15`,
+                                                borderColor: customColor,
+                                                borderWidth: '2px'
+                                            } : {
+                                                backgroundColor: 'rgb(30 41 59 / 0.5)',
+                                                borderColor: 'rgb(168 85 247 / 0.2)'
+                                            }}
+                                        >
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <RitualIcon 
+                                                        name={ritual.icon_name} 
+                                                        className="h-5 w-5"
+                                                        style={isNakshatrapooja ? { color: customColor } : {}}
+                                                    />
+                                                    <span className="font-semibold">{ritual.name}</span>
+                                                    {isNakshatrapooja && (
+                                                        <span className="px-2 py-0.5 text-xs font-bold rounded-full text-white"
+                                                              style={{ backgroundColor: customColor }}>
+                                                            Special
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-purple-300/80">{ritual.description}</p>
+                                                <p className="text-sm font-bold mt-1" style={isNakshatrapooja ? { color: customColor } : {}}>
+                                                    ₹{ritual.price}
+                                                </p>
+                                            </div>
+                                            <Button size="icon" className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => addInstance(ritual.id)} disabled={isViewOnly} aria-disabled={isViewOnly}><Plus className="h-4 w-4" /></Button>
                                         </div>
-                                        <Button size="icon" className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => addInstance(ritual.id)} disabled={isViewOnly} aria-disabled={isViewOnly}><Plus className="h-4 w-4" /></Button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                              {filteredRituals.length > 6 && (
                                 <div className="text-center mt-4">
@@ -360,16 +453,84 @@ const EmployeeRitualBooking = () => {
                             {instances.length === 0 ? <p className="text-purple-300/70">No rituals added yet.</p> : instances.map((inst, idx) => {
                                 const r = ritualById(inst.ritualId);
                                 if (!r) return null;
+                                const isNakshatrapooja = r.is_nakshatrapooja;
+                                const customColor = r.nakshatrapooja_color || '#FF6B35';
+                                
                                 return (
-                                    <div key={inst.id} className="bg-slate-800/50 p-4 rounded-lg">
+                                    <div 
+                                        key={inst.id} 
+                                        className="p-4 rounded-lg"
+                                        style={isNakshatrapooja ? {
+                                            backgroundColor: `${customColor}15`,
+                                            border: `2px solid ${customColor}`
+                                        } : {
+                                            backgroundColor: 'rgb(30 41 59 / 0.5)'
+                                        }}
+                                    >
                                         <div className="flex justify-between items-center mb-3">
-                                            <h3 className="font-semibold">{r.name} #{idx + 1}</h3>
+                                            <h3 className="font-semibold">
+                                                {r.name} #{idx + 1}
+                                                {isNakshatrapooja && (
+                                                    <span className="ml-2 px-2 py-0.5 text-xs font-bold rounded-full text-white"
+                                                          style={{ backgroundColor: customColor }}>
+                                                        Special
+                                                    </span>
+                                                )}
+                                            </h3>
                                             <Button variant="ghost" size="icon" onClick={() => removeInstance(inst.id)} className="text-red-400 hover:bg-red-900/30 h-7 w-7 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isViewOnly} aria-disabled={isViewOnly}><XCircle className="h-4 w-4"/></Button>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div><Label>Devotee Name *</Label><Input value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
                                             <div><Label>Date of Birth *</Label><Input type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
-                                            <div><Label>Naal *</Label><select value={inst.naal} onChange={e => updateInstance(inst.id, 'naal', e.target.value)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm" disabled={isViewOnly} aria-disabled={isViewOnly}><option value="">Select Naal</option>{NAALS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                                            <div><Label>Naal (Birth Star) *</Label><select value={inst.naal} onChange={e => updateInstance(inst.id, 'naal', e.target.value)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm" disabled={isViewOnly} aria-disabled={isViewOnly}><option value="">Select Naal</option>{NAALS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                                            
+                                            {isNakshatrapooja && (
+                                                <div className="col-span-full">
+                                                    <div className="p-3 rounded-lg" style={{ backgroundColor: `${customColor}20` }}>
+                                                        <Label className="font-semibold">Date Range for Naal Search *</Label>
+                                                        <p className="text-xs text-muted-foreground mb-2">We'll find the first occurrence of the Naal in the selected period</p>
+                                                        <select
+                                                            value={inst.date_range_type || 'this_month'}
+                                                            onChange={e => updateInstance(inst.id, 'date_range_type', e.target.value as DateRangeType)}
+                                                            className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm"
+                                                            disabled={isViewOnly}
+                                                            aria-disabled={isViewOnly}
+                                                        >
+                                                            <option value="this_month">This Month</option>
+                                                            <option value="this_year">This Year</option>
+                                                            <option value="custom_range">Custom Date Range</option>
+                                                        </select>
+                                                        
+                                                        {inst.date_range_type === 'custom_range' && (
+                                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                                <div>
+                                                                    <Label className="text-xs">Start Date</Label>
+                                                                    <Input
+                                                                        type="date"
+                                                                        value={inst.custom_range_start || ''}
+                                                                        onChange={e => updateInstance(inst.id, 'custom_range_start', e.target.value)}
+                                                                        className="bg-slate-900/70 border-purple-500/20"
+                                                                        disabled={isViewOnly}
+                                                                        aria-disabled={isViewOnly}
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <Label className="text-xs">End Date</Label>
+                                                                    <Input
+                                                                        type="date"
+                                                                        value={inst.custom_range_end || ''}
+                                                                        onChange={e => updateInstance(inst.id, 'custom_range_end', e.target.value)}
+                                                                        className="bg-slate-900/70 border-purple-500/20"
+                                                                        disabled={isViewOnly}
+                                                                        aria-disabled={isViewOnly}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
                                             <div><Label>Subscription</Label><select value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="w-full h-10 rounded-md border border-purple-500/20 bg-slate-900/70 px-3 text-sm" disabled={isViewOnly} aria-disabled={isViewOnly}><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
                                             <div><Label>Quantity</Label><Input type="number" min="1" value={inst.quantity} onChange={e => updateInstance(inst.id, 'quantity', parseInt(e.target.value) || 1)} className="bg-slate-900/70 border-purple-500/20" disabled={isViewOnly} aria-disabled={isViewOnly} /></div>
                                         </div>

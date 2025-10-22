@@ -24,6 +24,8 @@ interface ApiRitual {
   employee_only?: boolean;     
   available_from?: string;
   available_to?: string;
+  is_nakshatrapooja?: boolean;
+  nakshatrapooja_color?: string;
 }
 interface Ritual extends ApiRitual {
   id: string; 
@@ -47,6 +49,7 @@ const fetchRituals = async (): Promise<Ritual[]> => {
 
 const NAALS = ['അശ്വതി (Ashwathi)','ഭരണി (Bharani)','കാർത്തിക (Karthika)','രോഹിണി (Rohini)','മകയിരം (Makayiram)','തിരുവാതിര (Thiruvathira)','പുണർതം (Punartham)','പൂയം (Pooyam)','ആയില്യം (Aayilyam)','മകം (Makam)','പൂരം (Pooram)','ഉത്രം (Uthram)','അത്തം (Atham)','ചിത്തിര (Chithira)','ചോതി (Chothi)','വിശാഖം (Vishakham)','അനിഴം (Anizham)','തൃക്കേട്ട (Thrikketta)','മൂലം (Moolam)','പൂരാടം (Pooradam)','ഉത്രാടം (Uthradam)','തിരുവോണം (Thiruvonam)','അവിട്ടം (Avittam)','ചതയം (Chathayam)','പൂരുരുട്ടാതി (Pooruruttathi)','ഉത്തൃട്ടാതി (Uthruttathi)','രേവതി (Revathi)'];
 type Subscription = 'one-time' | 'daily' | 'weekly' | 'monthly';
+type DateRangeType = 'this_month' | 'this_year' | 'custom_range';
 
 type RitualInstance = {
 	id: string;
@@ -56,6 +59,10 @@ type RitualInstance = {
 	dob: string;
 	subscription: Subscription;
 	quantity: number;
+	// Nakshatrapooja specific fields
+	date_range_type?: DateRangeType;
+	custom_range_start?: string;
+	custom_range_end?: string;
 };
 
 const frequencyMultipliers: Record<Subscription, number> = { 'one-time': 1, daily: 30, weekly: 4, monthly: 1 };
@@ -113,10 +120,25 @@ const RitualBooking = () => {
 		const uniqueId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
 			? (crypto as any).randomUUID()
 			: `${ritualId}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-		setInstances(prev => [
-			...prev,
-			{ id: uniqueId, ritualId, devoteeName: '', naal: '', dob: '', subscription: 'one-time', quantity: 1 }
-		]);
+		const ritual = ritualById(ritualId);
+		const newInstance: RitualInstance = {
+			id: uniqueId,
+			ritualId,
+			devoteeName: '',
+			naal: '',
+			dob: '',
+			subscription: 'one-time',
+			quantity: 1
+		};
+		
+		// Add Nakshatrapooja specific fields if it's a Nakshatrapooja ritual
+		if (ritual?.is_nakshatrapooja) {
+			newInstance.date_range_type = 'this_month';
+			newInstance.custom_range_start = '';
+			newInstance.custom_range_end = '';
+		}
+		
+		setInstances(prev => [...prev, newInstance]);
 	};
 
 	const updateInstance = <K extends keyof RitualInstance>(id: RitualInstance['id'], key: K, value: RitualInstance[K]) => {
@@ -228,6 +250,9 @@ const RitualBooking = () => {
                         : visibleRituals.map((ritual) => {
                             const status = getBookingStatus(ritual);
                             const disabled = status !== 'open';
+                            const isNakshatrapooja = ritual.is_nakshatrapooja;
+                            const customColor = ritual.nakshatrapooja_color || '#FF6B35';
+                            
                             return (
                                 <div
                                     key={ritual.id}
@@ -235,16 +260,33 @@ const RitualBooking = () => {
                                     tabIndex={disabled ? -1 : 0}
                                     onClick={() => !disabled && addInstance(ritual.id)}
                                     onKeyDown={e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) addInstance(ritual.id);}}
-                                    className={`rounded-lg border border-primary/20 p-4 transition-colors relative
+                                    className={`rounded-lg border p-4 transition-colors relative
+                                        ${isNakshatrapooja ? 'ring-2 ring-offset-2 shadow-lg' : 'border-primary/20'}
                                         ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-card/50 cursor-pointer'}
                                         focus:outline-none focus:ring-2 focus:ring-primary/40`}
+                                    style={isNakshatrapooja ? {
+                                        borderColor: customColor,
+                                        boxShadow: `0 0 20px ${customColor}40`
+                                    } : {}}
                                 >
+                                    {isNakshatrapooja && (
+                                        <div className="absolute top-2 right-2 px-2 py-1 text-xs font-bold rounded-full text-white"
+                                             style={{ backgroundColor: customColor }}>
+                                            Special
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-2 mb-2">
-										<RitualIcon name={(ritual.icon_name || ritual.icon || 'Star') as string} className="h-5 w-5 text-primary" />
+										<RitualIcon 
+                                            name={(ritual.icon_name || ritual.icon || 'Star') as string} 
+                                            className="h-5 w-5"
+                                            style={isNakshatrapooja ? { color: customColor } : {}}
+                                        />
                                         <div className="text-lg font-medium text-foreground">{ritual.name}</div>
                                     </div>
                                     <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="font-semibold text-primary">₹{ritual.price}</span>
+                                        <span className="font-semibold" style={isNakshatrapooja ? { color: customColor } : {}}>
+                                            ₹{ritual.price}
+                                        </span>
                                     </div>
                                     {ritual.booking_start_time && ritual.booking_end_time && (
                                         <div className="text-xs text-muted-foreground">
@@ -287,13 +329,36 @@ const RitualBooking = () => {
 							{instances.map((inst, idx) => {
 								const r = ritualById(inst.ritualId);
 								if (!r) return null;
+								const isNakshatrapooja = r.is_nakshatrapooja;
+								const customColor = r.nakshatrapooja_color || '#FF6B35';
+								
 								return (
-									<div key={inst.id} className="rounded-md border border-primary/10 bg-background/50 p-4">
-										<div className="text-sm font-medium text-foreground mb-3">{r.name} #{idx + 1}</div>
+									<div 
+                                        key={inst.id} 
+                                        className="rounded-md border p-4"
+                                        style={isNakshatrapooja ? {
+                                            borderColor: customColor,
+                                            backgroundColor: `${customColor}08`
+                                        } : {
+                                            borderColor: 'hsl(var(--primary) / 0.1)',
+                                            backgroundColor: 'hsl(var(--background) / 0.5)'
+                                        }}
+                                    >
+										<div className="flex justify-between items-center mb-3">
+                                            <div className="text-sm font-medium text-foreground">
+                                                {r.name} #{idx + 1}
+                                                {isNakshatrapooja && (
+                                                    <span className="ml-2 px-2 py-0.5 text-xs font-bold rounded-full text-white"
+                                                          style={{ backgroundColor: customColor }}>
+                                                        Special Nakshatrapooja
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
 										<div className="space-y-3">
 											<div><Label htmlFor={`devotee-${inst.id}`}>Devotee Name *</Label><Input id={`devotee-${inst.id}`} value={inst.devoteeName} onChange={e => updateInstance(inst.id, 'devoteeName', e.target.value)} className="mt-1" placeholder="Enter devotee name" required/></div>
 											<div>
-												<Label htmlFor={`naal-${inst.id}`}>Naal *</Label>
+												<Label htmlFor={`naal-${inst.id}`}>Naal (Birth Star) *</Label>
 												<select
 													id={`naal-${inst.id}`}
 													value={inst.naal}
@@ -307,6 +372,52 @@ const RitualBooking = () => {
 													))}
 												</select>
 											</div>
+											
+											{isNakshatrapooja && (
+												<div className="p-3 rounded-lg" style={{ backgroundColor: `${customColor}15`, borderLeft: `3px solid ${customColor}` }}>
+													<Label htmlFor={`dateRange-${inst.id}`} className="font-semibold">Date Range for Naal Search *</Label>
+													<p className="text-xs text-muted-foreground mb-2">We'll find the first occurrence of your Naal in the selected period</p>
+													<select
+														id={`dateRange-${inst.id}`}
+														value={inst.date_range_type || 'this_month'}
+														onChange={e => updateInstance(inst.id, 'date_range_type', e.target.value as DateRangeType)}
+														className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+														required
+													>
+														<option value="this_month">This Month</option>
+														<option value="this_year">This Year</option>
+														<option value="custom_range">Custom Date Range</option>
+													</select>
+													
+													{inst.date_range_type === 'custom_range' && (
+														<div className="grid grid-cols-2 gap-2 mt-2">
+															<div>
+																<Label htmlFor={`rangeStart-${inst.id}`} className="text-xs">Start Date</Label>
+																<Input
+																	id={`rangeStart-${inst.id}`}
+																	type="date"
+																	value={inst.custom_range_start || ''}
+																	onChange={e => updateInstance(inst.id, 'custom_range_start', e.target.value)}
+																	className="mt-1"
+																	required
+																/>
+															</div>
+															<div>
+																<Label htmlFor={`rangeEnd-${inst.id}`} className="text-xs">End Date</Label>
+																<Input
+																	id={`rangeEnd-${inst.id}`}
+																	type="date"
+																	value={inst.custom_range_end || ''}
+																	onChange={e => updateInstance(inst.id, 'custom_range_end', e.target.value)}
+																	className="mt-1"
+																	required
+																/>
+															</div>
+														</div>
+													)}
+												</div>
+											)}
+											
 											<div><Label htmlFor={`dob-${inst.id}`}>Date of Birth *</Label><Input id={`dob-${inst.id}`} type="date" value={inst.dob} onChange={e => updateInstance(inst.id, 'dob', e.target.value)} className="mt-1" required/></div>
 											<div className="grid grid-cols-3 gap-3">
 												<div className="col-span-2"><Label htmlFor={`sub-${inst.id}`}>Subscription</Label><select id={`sub-${inst.id}`} value={inst.subscription} onChange={e => updateInstance(inst.id, 'subscription', e.target.value as Subscription)} className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="one-time">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
