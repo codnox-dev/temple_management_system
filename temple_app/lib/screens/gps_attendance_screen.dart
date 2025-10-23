@@ -369,88 +369,11 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
               ),
 
               const SizedBox(height: 16),
-
-              // DEBUG: Reset Today's Attendance Button (for testing)
-              // This will only work on hot reload/restart
-              if (const bool.fromEnvironment('dart.vm.product') == false) ...[
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _debugResetTodayAttendance,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                  ),
-                  icon: const Icon(Icons.delete_forever),
-                  label: const Text('🧪 DEBUG: Reset Today\'s Attendance'),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '⚠️ Development only: Clears today\'s local attendance for testing',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _debugResetTodayAttendance() async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Today\'s Attendance?'),
-        content: const Text(
-          'This will clear today\'s check-in/check-out from local storage. '
-          'Use this for testing. You\'ll need to manually delete from MongoDB if already synced.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final user = _authService.getCurrentUser();
-      if (user == null) return;
-
-      // Clear today's attendance from local database
-      await _dbService.debugClearTodayAttendance(user.id);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Today\'s attendance cleared. You can now test check-in again.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Reload data
-        await _loadTodayAttendance();
-        await _loadSyncStatus();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Widget _buildStatusRow(String label, String value, IconData icon, Color color) {

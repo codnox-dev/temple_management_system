@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_button.dart';
+import 'dual_backend_config_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,6 +13,29 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = AuthService();
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshProfile();
+  }
+
+  Future<void> _refreshProfile() async {
+    setState(() => _isRefreshing = true);
+    try {
+      await _authService.fetchCompleteProfile();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error refreshing profile: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
+    }
+  }
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
@@ -44,18 +68,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _handleEditProfile() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: const Text('Profile editing feature will be available soon.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+  /// Handle long press on profile photo - Super Admin secret gesture
+  void _onProfilePhotoLongPress() {
+    final user = _authService.getCurrentUser();
+    if (user == null || !user.isSuperAdmin) {
+      // Not a super admin, show a subtle hint
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This feature is only for Super Admins'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // User is a Super Admin, navigate to configuration screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const DualBackendConfigScreen(),
+      ),
+    );
+  }
+
+  /// Navigate to configuration screen (for Super Admin menu option)
+  void _navigateToConfiguration() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const DualBackendConfigScreen(),
       ),
     );
   }
@@ -74,6 +113,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
+        actions: [
+          if (_isRefreshing)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshProfile,
+              tooltip: 'Refresh Profile',
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -81,32 +137,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const SizedBox(height: 20),
             
-            // Profile Photo
-            Hero(
-              tag: 'profile_photo',
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.primaryColor.withOpacity(0.1),
-                  border: Border.all(
-                    color: theme.primaryColor,
-                    width: 3,
+            // Profile Photo with Long Press Gesture (Secret for Super Admin)
+            GestureDetector(
+              onLongPress: _onProfilePhotoLongPress,
+              child: Hero(
+                tag: 'profile_photo',
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.primaryColor.withOpacity(0.1),
+                    border: Border.all(
+                      color: theme.primaryColor,
+                      width: 3,
+                    ),
                   ),
-                ),
-                child: user.photoUrl != null
-                    ? ClipOval(
-                        child: Image.network(
-                          user.photoUrl!,
-                          fit: BoxFit.cover,
+                  child: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                      ? ClipOval(
+                          child: Image.network(
+                            user.photoUrl!,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.person,
+                                size: 60,
+                                color: theme.primaryColor,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(
+                          Icons.person,
+                          size: 60,
+                          color: theme.primaryColor,
                         ),
-                      )
-                    : Icon(
-                        Icons.person,
-                        size: 60,
-                        color: theme.primaryColor,
-                      ),
+                ),
               ),
             ),
             
@@ -144,6 +221,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             // Information Cards
             _InfoCard(
+              icon: Icons.person_outline,
+              title: 'Username',
+              value: user.username,
+            ),
+            
+            const SizedBox(height: 12),
+            
+            _InfoCard(
               icon: Icons.email_outlined,
               title: 'Email',
               value: user.email,
@@ -151,30 +236,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 12),
             
-            _InfoCard(
-              icon: Icons.phone_outlined,
-              title: 'Phone',
-              value: user.phone ?? 'Not set',
-            ),
+            if (user.formattedMobile != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _InfoCard(
+                  icon: Icons.phone_outlined,
+                  title: 'Mobile Number',
+                  value: user.formattedMobile!,
+                ),
+              ),
             
-            const SizedBox(height: 12),
+            if (user.dob != null && user.dob!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _InfoCard(
+                  icon: Icons.cake_outlined,
+                  title: 'Date of Birth',
+                  value: user.dob!,
+                ),
+              ),
             
-            _InfoCard(
-              icon: Icons.badge_outlined,
-              title: 'User ID',
-              value: user.id,
-            ),
+            if (user.notificationPreference != null && user.notificationPreference!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _InfoCard(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notification Preferences',
+                  value: user.notificationPreference!.join(', '),
+                ),
+              ),
+            
+            if (user.notificationList != null && user.notificationList!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _InfoCard(
+                  icon: Icons.list_alt,
+                  title: 'Notification List',
+                  value: user.notificationList!.join(', '),
+                ),
+              ),
             
             const SizedBox(height: 32),
             
             // Action Buttons
-            CustomButton(
-              text: 'Edit Profile',
-              onPressed: _handleEditProfile,
-              icon: Icons.edit_outlined,
-            ),
-            
-            const SizedBox(height: 12),
+            // Super Admin Configuration Button (only visible for Super Admins)
+            if (user.isSuperAdmin) ...[
+              CustomButton(
+                text: 'Backend Configuration',
+                onPressed: _navigateToConfiguration,
+                icon: Icons.settings,
+                backgroundColor: Colors.deepOrange,
+                textColor: Colors.white,
+              ),
+              const SizedBox(height: 12),
+            ],
             
             CustomButton(
               text: 'Logout',

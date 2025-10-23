@@ -237,43 +237,4 @@ class DatabaseService {
       'tracking_states': _trackingStateBox!.length,
     };
   }
-
-  // ========== DEBUG METHODS (FOR TESTING ONLY) ==========
-
-  /// Clear today's attendance record (for testing only)
-  /// This allows re-testing check-in/check-out without manually clearing database
-  Future<void> debugClearTodayAttendance(String userId) async {
-    _ensureInitialized();
-    final today = DateTime.now();
-    final key = _generateAttendanceKey(userId, today);
-    
-    // Delete from attendance records
-    await _attendanceBox!.delete(key);
-    
-    // Remove from sync queue if exists
-    final syncKeys = _syncQueueBox!.keys.toList();
-    for (var syncKey in syncKeys) {
-      final data = _syncQueueBox!.get(syncKey);
-      if (data != null) {
-        final record = Attendance.fromLocalJson(Map<String, dynamic>.from(data));
-        final recordDate = record.date;
-        if (recordDate.year == today.year && 
-            recordDate.month == today.month && 
-            recordDate.day == today.day &&
-            record.userId == userId) {
-          await _syncQueueBox!.delete(syncKey);
-        }
-      }
-    }
-    
-    print('🗑️ DEBUG: Cleared today\'s attendance for user $userId');
-  }
-
-  /// Clear all attendance records for testing
-  Future<void> debugClearAllAttendance() async {
-    _ensureInitialized();
-    await _attendanceBox!.clear();
-    await _syncQueueBox!.clear();
-    print('🗑️ DEBUG: Cleared all attendance records');
-  }
 }

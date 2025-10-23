@@ -56,21 +56,36 @@ class AuthService {
       // Save tokens
       await _apiClient.saveTokens(accessToken, refreshToken);
 
-      // Create user object from JWT token data
-      _currentUser = User(
-        id: tokenData['user_id'] ?? username,  // MongoDB ObjectId from token
-        name: tokenData['sub'] ?? username,     // Username from token
-        email: '$username@temple.com',
-        role: tokenData['role'] ?? 'Priest',
-        phone: null,
-      );
-
-      // Save user data to shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', _currentUser!.id);
-      await prefs.setString('userName', _currentUser!.name);
-      await prefs.setString('userEmail', _currentUser!.email);
-      await prefs.setString('userRole', _currentUser!.role);
+      // Fetch complete profile from server
+      try {
+        final profileData = await _apiClient.get('/api/profile/me');
+        _currentUser = User.fromJson(profileData);
+        
+        // Save complete user data to shared preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userProfile', json.encode(_currentUser!.toJson()));
+      } catch (e) {
+        print('Error fetching profile: $e');
+        // Fallback to JWT data if profile fetch fails
+        _currentUser = User(
+          id: tokenData['user_id'] ?? username,
+          name: tokenData['sub'] ?? username,
+          email: '$username@temple.com',
+          username: username,
+          role: tokenData['role'] ?? 'Priest',
+          roleId: tokenData['role_id'],
+        );
+        
+        // Save basic user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', _currentUser!.id);
+        await prefs.setString('userName', _currentUser!.name);
+        await prefs.setString('userEmail', _currentUser!.email);
+        await prefs.setString('userRole', _currentUser!.role);
+        if (_currentUser!.roleId != null) {
+          await prefs.setInt('userRoleId', _currentUser!.roleId!);
+        }
+      }
 
       return {
         'success': true,
@@ -90,24 +105,51 @@ class AuthService {
       };
     }
   }
+  
+  /// Fetch complete user profile from server
+  /// This should be called periodically to keep profile data fresh
+  Future<User?> fetchCompleteProfile() async {
+    try {
+      final profileData = await _apiClient.get('/api/profile/me');
+      _currentUser = User.fromJson(profileData);
+      
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userProfile', json.encode(_currentUser!.toJson()));
+      
+      return _currentUser;
+    } catch (e) {
+      print('Error fetching profile: $e');
+      return null;
+    }
+  }
 
+  /// Logout the current user
+  /// This is the ONLY way to clear authentication tokens on mobile.
+  /// Tokens persist for 6+ months and are not automatically cleared.
+  /// User must explicitly logout to end their session.
   Future<void> logout() async {
     try {
-      // Call backend logout endpoint
+      // Call backend logout endpoint to revoke tokens on server
       await _apiClient.post(ApiConfig.logoutEndpoint);
     } catch (e) {
       print('Logout error: $e');
     } finally {
-      // Clear tokens and user data
+      // Clear tokens and user data from local storage
+      // This is the ONLY place where tokens are removed
       await _apiClient.clearTokens();
       _currentUser = null;
       
-      // Clear shared preferences
+      // Clear user data from shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('userId');
       await prefs.remove('userName');
       await prefs.remove('userEmail');
       await prefs.remove('userRole');
+      await prefs.remove('userRoleId');
+      await prefs.remove('userProfile');
+      await prefs.remove('userPhotoUrl');
+      await prefs.remove('userPhone');
     }
   }
 
@@ -121,14 +163,31 @@ class AuthService {
 
   Future<void> loadUserFromPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
     
+    // Try to load complete profile first
+    final userProfileJson = prefs.getString('userProfile');
+    if (userProfileJson != null) {
+      try {
+        final profileData = json.decode(userProfileJson);
+        _currentUser = User.fromJson(profileData);
+        await _apiClient.loadTokens();
+        return;
+      } catch (e) {
+        print('Error loading user profile: $e');
+      }
+    }
+    
+    // Fallback to old format for backward compatibility
+    final userId = prefs.getString('userId');
     if (userId != null) {
       _currentUser = User(
         id: userId,
         name: prefs.getString('userName') ?? '',
         email: prefs.getString('userEmail') ?? '',
+        username: prefs.getString('userName') ?? '',
         role: prefs.getString('userRole') ?? 'Priest',
+        roleId: prefs.getInt('userRoleId'),
+        photoUrl: prefs.getString('userPhotoUrl'),
         phone: prefs.getString('userPhone'),
       );
       

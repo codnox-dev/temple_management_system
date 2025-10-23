@@ -12,6 +12,12 @@ class ApiClient {
   String? _refreshToken;
 
   // Token management
+  // Tokens are stored persistently using SharedPreferences and will remain
+  // indefinitely (6+ months for mobile apps) until manually cleared via logout.
+  // This allows local and mobile users to stay logged in for extended periods.
+  
+  /// Save authentication tokens to persistent storage (SharedPreferences)
+  /// These tokens will persist across app restarts and only be removed on manual logout
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
@@ -21,12 +27,16 @@ class ApiClient {
     await prefs.setString('refresh_token', refreshToken);
   }
 
+  /// Load authentication tokens from persistent storage
+  /// This is called on app startup to restore the user session
   Future<void> loadTokens() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('access_token');
     _refreshToken = prefs.getString('refresh_token');
   }
 
+  /// Clear authentication tokens from memory and persistent storage
+  /// This is ONLY called during manual logout - tokens persist indefinitely otherwise
   Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
@@ -51,14 +61,15 @@ class ApiClient {
         await loadTokens();
       }
 
-      var uri = Uri.parse(ApiConfig.getFullUrl(endpoint));
+      final fullUrl = await ApiConfig.getFullUrl(endpoint);
+      var uri = Uri.parse(fullUrl);
       if (queryParams != null) {
         uri = uri.replace(queryParameters: queryParams);
       }
 
       final response = await http.get(
         uri,
-        headers: ApiConfig.getHeaders(
+        headers: await ApiConfig.getHeaders(
           token: requiresAuth ? _accessToken : null,
         ),
       );
@@ -81,9 +92,10 @@ class ApiClient {
         await loadTokens();
       }
 
+      final fullUrl = await ApiConfig.getFullUrl(endpoint);
       final response = await http.post(
-        Uri.parse(ApiConfig.getFullUrl(endpoint)),
-        headers: ApiConfig.getHeaders(
+        Uri.parse(fullUrl),
+        headers: await ApiConfig.getHeaders(
           token: requiresAuth ? _accessToken : null,
         ),
         body: body != null ? jsonEncode(body) : null,
@@ -123,9 +135,10 @@ class ApiClient {
         await loadTokens();
       }
 
+      final fullUrl = await ApiConfig.getFullUrl(endpoint);
       final response = await http.put(
-        Uri.parse(ApiConfig.getFullUrl(endpoint)),
-        headers: ApiConfig.getHeaders(
+        Uri.parse(fullUrl),
+        headers: await ApiConfig.getHeaders(
           token: requiresAuth ? _accessToken : null,
         ),
         body: body != null ? jsonEncode(body) : null,
@@ -147,9 +160,10 @@ class ApiClient {
         await loadTokens();
       }
 
+      final fullUrl = await ApiConfig.getFullUrl(endpoint);
       final response = await http.delete(
-        Uri.parse(ApiConfig.getFullUrl(endpoint)),
-        headers: ApiConfig.getHeaders(
+        Uri.parse(fullUrl),
+        headers: await ApiConfig.getHeaders(
           token: requiresAuth ? _accessToken : null,
         ),
       );

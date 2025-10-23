@@ -47,7 +47,7 @@ class AttendanceService {
       // Create attendance record with GPS location
       final attendanceData = {
         'user_id': user.id,
-        'username': user.name,
+        'username': user.username,
         'attendance_date': DateFormat('yyyy-MM-dd').format(now),
         'is_present': true,
         'check_in_time': timeFormat.format(now),
@@ -92,7 +92,7 @@ class AttendanceService {
       attendance = Attendance(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: user.id,
-        username: user.name,
+        username: user.username,
         date: now,
         isPresent: true,
         checkInTime: timeFormat.format(now),
@@ -173,7 +173,7 @@ class AttendanceService {
       // Update attendance record with check-out time and location
       final attendanceData = {
         'user_id': user.id,
-        'username': user.name,
+        'username': user.username,
         'attendance_date': DateFormat('yyyy-MM-dd').format(todayAttendance.date),
         'is_present': true,
         'check_in_time': todayAttendance.checkInTime, // Keep existing check-in

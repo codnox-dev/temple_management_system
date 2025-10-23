@@ -2,9 +2,10 @@
  * Attendance API Service
  * 
  * Handles all API calls for admin attendance management.
+ * Uses adminApi to route to the admin service.
  */
 
-import api from './api';
+import { adminApi } from './api';
 
 // ============= Type Definitions =============
 
@@ -126,14 +127,14 @@ export interface UpdateAttendanceData {
 // ============= Admin User APIs =============
 
 export const getEligibleUsers = async (): Promise<AdminUser[]> => {
-  const response = await api.get('/attendance/users');
+  const response = await adminApi.get('/attendance/users');
   return response.data;
 };
 
 // ============= Attendance Marking APIs =============
 
 export const markAttendance = async (data: CreateAttendanceData): Promise<AttendanceRecord> => {
-  const response = await api.post('/attendance/mark', data);
+  const response = await adminApi.post('/attendance/mark', data);
   return response.data;
 };
 
@@ -142,7 +143,7 @@ export const markBulkAttendance = async (data: BulkAttendanceData): Promise<{
   message: string;
   data?: any;
 }> => {
-  const response = await api.post('/attendance/mark-bulk', data);
+  const response = await adminApi.post('/attendance/mark-bulk', data);
   return response.data;
 };
 
@@ -157,28 +158,28 @@ export const getAttendanceRecords = async (params?: {
   year?: number;
   is_present?: boolean;
 }): Promise<PaginatedAttendance> => {
-  const response = await api.get('/attendance/records', { params });
+  const response = await adminApi.get('/attendance/records', { params });
   return response.data;
 };
 
 export const getAttendanceRecord = async (attendanceId: string): Promise<AttendanceRecord> => {
-  const response = await api.get(`/attendance/records/${attendanceId}`);
+  const response = await adminApi.get(`/attendance/records/${attendanceId}`);
   return response.data;
 };
 
 export const updateAttendance = async (attendanceId: string, data: UpdateAttendanceData): Promise<AttendanceRecord> => {
-  const response = await api.put(`/attendance/records/${attendanceId}`, data);
+  const response = await adminApi.put(`/attendance/records/${attendanceId}`, data);
   return response.data;
 };
 
 export const deleteAttendance = async (attendanceId: string): Promise<void> => {
-  await api.delete(`/attendance/records/${attendanceId}`);
+  await adminApi.delete(`/attendance/records/${attendanceId}`);
 };
 
 // ============= Dashboard APIs =============
 
 export const getDashboardStats = async (): Promise<AttendanceDashboard> => {
-  const response = await api.get('/attendance/dashboard');
+  const response = await adminApi.get('/attendance/dashboard');
   return response.data;
 };
 
@@ -247,7 +248,7 @@ export interface EmployeeDetailsData {
 }
 
 export const getAllEmployees = async (): Promise<AdminUser[]> => {
-  const response = await api.get('/attendance/employees');
+  const response = await adminApi.get('/attendance/employees');
   return response.data;
 };
 
@@ -255,7 +256,7 @@ export const toggleUserAttendance = async (
   userId: string, 
   employeeDetails?: EmployeeDetailsData
 ): Promise<any> => {
-  const response = await api.post(
+  const response = await adminApi.post(
     `/attendance/users/${userId}/toggle-attendance`,
     employeeDetails || null
   );
@@ -268,7 +269,7 @@ export const getAttendanceReport = async (params?: {
   month?: number;
   year?: number;
 }): Promise<AttendanceReportEntry[]> => {
-  const response = await api.get('/attendance/report', { params });
+  const response = await adminApi.get('/attendance/report', { params });
   return response.data;
 };
 

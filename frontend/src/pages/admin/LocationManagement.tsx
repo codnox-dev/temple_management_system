@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/api';
+import { get, post, put } from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface LocationConfig {
@@ -59,17 +59,17 @@ const LocationManagement: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await api.get<LocationConfig>('/location/config');
+      const response = await get<LocationConfig>('/location/config');
 
-      setLocationConfig(response.data);
+      setLocationConfig(response);
       setFormData({
-        name: response.data.name,
-        latitude: response.data.latitude.toString(),
-        longitude: response.data.longitude.toString(),
-        check_in_radius: response.data.check_in_radius.toString(),
-        outside_radius: response.data.outside_radius.toString(),
-        address: response.data.address || '',
-        notes: response.data.notes || '',
+        name: response.name,
+        latitude: response.latitude.toString(),
+        longitude: response.longitude.toString(),
+        check_in_radius: response.check_in_radius.toString(),
+        outside_radius: response.outside_radius.toString(),
+        address: response.address || '',
+        notes: response.notes || '',
       });
     } catch (err: any) {
       if (err.response?.status === 404) {
@@ -152,11 +152,11 @@ const LocationManagement: React.FC = () => {
 
       if (locationConfig) {
         // Update existing location
-        await api.put('/location/config', payload);
+        await put('/location/config', payload);
         setSuccess('Location configuration updated successfully');
       } else {
         // Create new location
-        await api.post('/location/config', payload);
+        await post('/location/config', payload);
         setSuccess('Location configuration created successfully');
       }
 

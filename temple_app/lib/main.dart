@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'config/theme.dart';
+import 'config/api_config.dart';
+import 'screens/initial_setup_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/database_service.dart';
@@ -92,18 +94,33 @@ class AuthCheck extends StatefulWidget {
 class _AuthCheckState extends State<AuthCheck> {
   bool _isLoading = true;
   bool _isAuthenticated = false;
+  bool _isConfigured = false;
 
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    _checkAppState();
   }
 
-  Future<void> _checkAuth() async {
+  Future<void> _checkAppState() async {
+    // First check if app is configured
+    final configured = await ApiConfig.isConfigured();
+    
+    if (!configured) {
+      // Not configured, show setup screen
+      setState(() {
+        _isConfigured = false;
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    // App is configured, check authentication
     final authService = AuthService();
     final user = authService.getCurrentUser();
     
     setState(() {
+      _isConfigured = true;
       _isAuthenticated = user != null;
       _isLoading = false;
     });
@@ -114,11 +131,23 @@ class _AuthCheckState extends State<AuthCheck> {
     if (_isLoading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading...'),
+            ],
+          ),
         ),
       );
     }
 
+    // Show appropriate screen based on state
+    if (!_isConfigured) {
+      return const InitialSetupScreen();
+    }
+    
     return _isAuthenticated ? const HomeScreen() : const LoginScreen();
   }
 }
